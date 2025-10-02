@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fefcf8;
+  --foreground: #000000;
+  --egg-white: #fefcf8;
+  --primary-green: #000000;
+  --accent-green: #000000;
+  --light-green: #f5f5f5;
+  --border-green: #e0e0e0;
+  --gradient-start: #f5ff6d;
+  --gradient-end: #c8ffc3;
+  --gradient-mid: #e0ffb8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-egg-white: var(--egg-white);
+  --color-primary-green: var(--primary-green);
+  --color-accent-green: var(--accent-green);
+  --color-light-green: var(--light-green);
+  --color-border-green: var(--border-green);
+  --color-gradient-start: var(--gradient-start);
+  --color-gradient-end: var(--gradient-end);
+  --color-gradient-mid: var(--gradient-mid);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Utility classes for text truncation */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Animation classes */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes drift {
+  0% { transform: translateX(0px); }
+  50% { transform: translateX(10px); }
+  100% { transform: translateX(0px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes wave {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-drift {
+  animation: drift 4s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-wave {
+  animation: wave 3s linear infinite;
+}
+
+/* Gradient backgrounds */
+.bg-gradient-custom {
+  background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-mid) 50%, var(--gradient-end) 100%);
+}
+
+.bg-gradient-custom-reverse {
+  background: linear-gradient(315deg, var(--gradient-end) 0%, var(--gradient-mid) 50%, var(--gradient-start) 100%);
+}
