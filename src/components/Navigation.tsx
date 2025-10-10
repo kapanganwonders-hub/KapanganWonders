@@ -4,20 +4,21 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { logout } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { currentUser } = useAuth();
+  const router = useRouter();
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
 
   const handleLogout = async () => {
     try {
       await logout();
-      // Redirect to home page after logout
-      window.location.href = '/';
+      router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
       alert('Failed to logout. Please try again.');
@@ -28,183 +29,122 @@ export default function Navigation() {
     <nav className="bg-egg-white shadow-lg sticky top-0 z-50 border-b border-border-green">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Left side - Logo */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center group">
-              <div className="text-2xl font-bold text-primary-green group-hover:text-accent-green transition-colors duration-300 group-hover:scale-105 transform">
-                Kapangan Wonder
-              </div>
-            </Link>
-          </div>
+          {/* Left - Logo */}
+          <Link href="/" className="text-2xl font-bold text-primary-green hover:text-accent-green transition">
+            Kapangan Wonder
+          </Link>
 
-          {/* Center - Navigation Links */}
+          {/* Center - Nav Links */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link
-              href="/"
-              className="text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-            >
-              Home
-            </Link>
-            <Link
-              href="/tourist-spots"
-              className="text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-            >
-              Tourist Spots
-            </Link>
-            <Link
-              href="/eat-and-stay"
-              className="text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-            >
-              Eat and Stay
-            </Link>
-            <Link
-              href="/blogs"
-              className="text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-            >
-              Blogs
-            </Link>
-            <Link
-              href="/contact"
-              className="text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-            >
-              Contact Us
-            </Link>
+            <Link href="/" className="nav-link">Home</Link>
+            <Link href="/tourist-spots" className="nav-link">Tourist Spots</Link>
+            <Link href="/eat-and-stay" className="nav-link">Eat & Stay</Link>
+            <Link href="/blogs" className="nav-link">Blogs</Link>
+            <Link href="/contact" className="nav-link">Contact Us</Link>
           </div>
 
-          {/* Right side - Sign In and Sign Up buttons */}
-          <div className="flex items-center space-x-4">
+          {/* Right - Auth or Profile */}
+          <div className="flex items-center space-x-4 relative">
             {currentUser ? (
-              <>
-                <div className="flex items-center space-x-2">
-                  {currentUser.photoURL && (
-                    <img 
-                      src={currentUser.photoURL} 
-                      alt="Profile" 
-                      className="w-8 h-8 rounded-full"
-                    />
-                  )}
-                  <span className="text-primary-green text-sm font-medium">
-                    {currentUser.displayName || currentUser.email}
-                  </span>
-                </div>
+              <div className="relative">
                 <button
-                  onClick={handleLogout}
-                  className="text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 border border-border-green hover:border-accent-green hover:scale-105 transform hover:shadow-md"
+                  onClick={toggleDropdown}
+                  className="focus:outline-none flex items-center"
                 >
-                  Logout
+                  <img
+                    src={currentUser.photoURL || '/default-avatar.png'}
+                    alt="Profile"
+                    className="w-9 h-9 rounded-full border-2 border-border-green hover:scale-105 transition"
+                  />
                 </button>
-              </>
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-44 bg-egg-white border border-border-green rounded-lg shadow-lg">
+                    <Link
+                      href="/dashboard"
+                      className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
-                <Link
-                  href="/signin"
-                  className="text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 border border-border-green hover:border-accent-green hover:scale-105 transform hover:shadow-md"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
-                  className="bg-primary-green hover:bg-accent-green text-egg-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-lg hover:shadow-primary-green/25"
-                >
-                  Sign Up
-                </Link>
+                <Link href="/signin" className="auth-link border">Sign In</Link>
+                <Link href="/signup" className="auth-link bg">Sign Up</Link>
               </>
             )}
           </div>
 
-          {/* Mobile menu button */}
+          {/* Mobile Menu Button */}
           <div className="md:hidden">
             <button
               onClick={toggleMenu}
-              className="text-primary-green hover:text-accent-green hover:bg-light-green focus:outline-none focus:text-accent-green p-2 rounded-md transition-all duration-300 hover:scale-110 transform"
+              className="text-primary-green hover:text-accent-green p-2 rounded-md transition"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           </div>
         </div>
 
-        {/* Mobile menu */}
+        {/* Mobile Dropdown Menu */}
         {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-egg-white border-t border-border-green">
-              <Link
-                href="/"
-                className="text-primary-green hover:text-accent-green hover:bg-light-green block px-3 py-2 rounded-md text-base font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Home
-              </Link>
-              <Link
-                href="/tourist-spots"
-                className="text-primary-green hover:text-accent-green hover:bg-light-green block px-3 py-2 rounded-md text-base font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Tourist Spots
-              </Link>
-              <Link
-                href="/eat-and-stay"
-                className="text-primary-green hover:text-accent-green hover:bg-light-green block px-3 py-2 rounded-md text-base font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Eat and Stay
-              </Link>
-              <Link
-                href="/blogs"
-                className="text-primary-green hover:text-accent-green hover:bg-light-green block px-3 py-2 rounded-md text-base font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Blogs
-              </Link>
-              <Link
-                href="/contact"
-                className="text-primary-green hover:text-accent-green hover:bg-light-green block px-3 py-2 rounded-md text-base font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Contact Us
-              </Link>
-              <div className="border-t border-border-green pt-2 mt-2">
+          <div className="md:hidden bg-egg-white border-t border-border-green mt-2 rounded-lg">
+            <div className="px-4 py-3 space-y-2">
+              <Link href="/" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Home</Link>
+              <Link href="/tourist-spots" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Tourist Spots</Link>
+              <Link href="/eat-and-stay" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Eat & Stay</Link>
+              <Link href="/blogs" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Blogs</Link>
+              <Link href="/contact" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Contact Us</Link>
+
+              <div className="border-t border-border-green pt-3">
                 {currentUser ? (
                   <>
-                    <div className="flex items-center space-x-2 px-3 py-2">
-                      {currentUser.photoURL && (
-                        <img 
-                          src={currentUser.photoURL} 
-                          alt="Profile" 
-                          className="w-6 h-6 rounded-full"
-                        />
-                      )}
-                      <span className="text-primary-green text-sm font-medium">
+                    <div className="flex items-center space-x-2 px-2">
+                      <img
+                        src={currentUser.photoURL || '/default-avatar.png'}
+                        alt="Profile"
+                        className="w-6 h-6 rounded-full"
+                      />
+                      <span className="text-sm text-primary-green">
                         {currentUser.displayName || currentUser.email}
                       </span>
                     </div>
+                    <Link
+                      href="/dashboard"
+                      className="mobile-link"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
                     <button
-                      onClick={() => {
-                        handleLogout();
-                        setIsMenuOpen(false);
-                      }}
-                      className="w-full text-left text-primary-green hover:text-accent-green hover:bg-light-green block px-3 py-2 rounded-md text-base font-medium border border-border-green hover:border-accent-green transition-all duration-300 hover:scale-105 transform hover:shadow-md"
+                      onClick={handleLogout}
+                      className="w-full text-left mobile-link"
                     >
                       Logout
                     </button>
                   </>
                 ) : (
                   <>
-                    <Link
-                      href="/signin"
-                      className="text-primary-green hover:text-accent-green hover:bg-light-green block px-3 py-2 rounded-md text-base font-medium border border-border-green hover:border-accent-green transition-all duration-300 hover:scale-105 transform hover:shadow-md"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Sign In
-                    </Link>
-                    <Link
-                      href="/signup"
-                      className="bg-primary-green hover:bg-accent-green text-egg-white block px-3 py-2 rounded-md text-base font-medium mt-2 transition-all duration-300 hover:scale-105 transform hover:shadow-lg hover:shadow-primary-green/25"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Sign Up
-                    </Link>
+                    <Link href="/signin" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Sign In</Link>
+                    <Link href="/signup" className="mobile-link bg" onClick={() => setIsMenuOpen(false)}>Sign Up</Link>
                   </>
                 )}
               </div>
@@ -215,3 +155,13 @@ export default function Navigation() {
     </nav>
   );
 }
+
+/* --- Tailwind helper classes --- */
+const navLink =
+  'text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md';
+const authLink = {
+  border: 'text-primary-green border border-border-green hover:text-accent-green hover:border-accent-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md',
+  bg: 'bg-primary-green hover:bg-accent-green text-egg-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-lg hover:shadow-primary-green/25',
+};
+const mobileLink =
+  'block text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-base font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md';
