@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const router = useRouter();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -30,7 +30,10 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left - Logo */}
-          <Link href="/" className="text-2xl font-bold text-primary-green hover:text-accent-green transition">
+          <Link 
+            href={isAdmin ? "/admin" : "/"} 
+            className="text-2xl font-bold text-primary-green hover:text-accent-green transition"
+          >
             Kapangan Wonder
           </Link>
 
@@ -60,6 +63,15 @@ export default function Navigation() {
 
                 {isDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-44 bg-egg-white border border-border-green rounded-lg shadow-lg">
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        Admin Dashboard
+                      </Link>
+                    )}
                     <Link
                       href="/dashboard"
                       className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
