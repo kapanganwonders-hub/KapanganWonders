@@ -1,12 +1,84 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+
 export default function OverviewPage() {
+  const [user, setUser] = useState<any>(null);
+  const [scheduledCount, setScheduledCount] = useState(0);
+  const [visitedCount, setVisitedCount] = useState(0); // (optional: future feature)
+  const [companionsCount, setCompanionsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setUser(u);
+        await fetchStats(u.uid);
+      } else {
+        setUser(null);
+        setScheduledCount(0);
+        setVisitedCount(0);
+        setCompanionsCount(0);
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const fetchStats = async (uid: string) => {
+    try {
+      const q = query(collection(db, 'visits'), where('userId', '==', uid));
+      const snapshot = await getDocs(q);
+
+      const visits = snapshot.docs.map((doc) => doc.data());
+
+      setScheduledCount(visits.length);
+
+      // Sum all companions
+      const totalCompanions = visits.reduce(
+        (acc, v) => acc + (v.companions?.length || 0),
+        0
+      );
+      setCompanionsCount(totalCompanions);
+
+      // Optional: if you later track "completed visits"
+      setVisitedCount(0);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen text-gray-600">
+        Loading your dashboard...
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-4">Dashboard Overview</h1>
       <p className="text-gray-500 mb-6">Welcome back, Traveler!</p>
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-green-100 text-green-800 p-4 rounded-lg">0 Scheduled Travels</div>
-        <div className="bg-green-100 text-green-800 p-4 rounded-lg">0 Places Visited</div>
-        <div className="bg-green-100 text-green-800 p-4 rounded-lg">0 Companions</div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-green-100 text-green-800 p-6 rounded-lg text-center shadow-sm">
+          <p className="text-4xl font-bold">{scheduledCount}</p>
+          <p className="text-sm mt-2 font-medium">Scheduled Travels</p>
+        </div>
+
+        <div className="bg-blue-100 text-blue-800 p-6 rounded-lg text-center shadow-sm">
+          <p className="text-4xl font-bold">{visitedCount}</p>
+          <p className="text-sm mt-2 font-medium">Places Visited</p>
+        </div>
+
+        <div className="bg-purple-100 text-purple-800 p-6 rounded-lg text-center shadow-sm">
+          <p className="text-4xl font-bold">{companionsCount}</p>
+          <p className="text-sm mt-2 font-medium">Companions</p>
+        </div>
       </div>
     </div>
   );
