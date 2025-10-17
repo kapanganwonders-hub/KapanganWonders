@@ -26,10 +26,11 @@ export default function Navigation() {
     }
   };
 
-  // ✅ Redirect admin to /admin if logged in and currently in /dashboard or /
+  // Changed: Only redirect admins when they're on /dashboard (or sub-paths).
+  // Do NOT auto-redirect when on the homepage ('/').
   useEffect(() => {
     if (currentUser && isAdmin) {
-      if (pathname === '/dashboard' || pathname === '/') {
+      if (pathname && pathname.startsWith('/dashboard')) {
         router.push('/admin');
       }
     }
@@ -41,7 +42,7 @@ export default function Navigation() {
         <div className="flex justify-between items-center h-16">
           {/* Left - Logo */}
           <Link
-            href={isAdmin ? '/admin' : '/'}
+            href="/" // Changed: always link to homepage so admin can visit it
             className="text-2xl font-bold text-primary-green hover:text-accent-green transition"
           >
             Kapangan Wonder
