@@ -65,7 +65,8 @@ export default function Navigation() {
                   className="focus:outline-none flex items-center"
                 >
                   <img
-                    src={currentUser.photoURL || '/default-avatar.png'}
+                    src={currentUser.photoURL || '/assets/default-avatar.png'}
+                    onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
                     alt="Profile"
                     className="w-9 h-9 rounded-full border-2 border-border-green hover:scale-105 transition"
                   />
@@ -74,7 +75,6 @@ export default function Navigation() {
                 {isDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-44 bg-egg-white border border-border-green rounded-lg shadow-lg">
                     {isAdmin ? (
-                      // ✅ Admin menu — no "Dashboard"
                       <>
                         <Link
                           href="/admin"
@@ -92,7 +92,6 @@ export default function Navigation() {
                         </Link>
                       </>
                     ) : (
-                      // ✅ Regular user menu
                       <>
                         <Link
                           href="/dashboard"
@@ -160,7 +159,8 @@ export default function Navigation() {
                   <>
                     <div className="flex items-center space-x-2 px-2">
                       <img
-                        src={currentUser.photoURL || '/default-avatar.png'}
+                        src={currentUser.photoURL || '/assets/default-avatar.png'}
+                        onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
                         alt="Profile"
                         className="w-6 h-6 rounded-full"
                       />

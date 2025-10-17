@@ -8,9 +8,13 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   updateProfile,
+  signOut as firebaseSignOut,
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { signInWithGoogle } from '@/lib/auth';
+
+const ADMIN_EMAIL = 'kapanganwonders@gmail.com';
+const DEFAULT_AVATAR = '/assets/default-avatar.png'; // ✅ Add your default image here
 
 export default function SignUp() {
   const router = useRouter();
@@ -26,34 +30,37 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // ✅ Redirect user if already logged in (e.g. after Google sign-in)
+  // Redirect if already logged in
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.replace('/'); // 👈 change this to '/dashboard' if needed
-      }
+      if (user) router.replace('/');
     });
     return () => unsubscribe();
   }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
-  // ✅ Email + Password Signup Handler
+  // 📩 Email/password signup
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (formData.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+      setError('This email is reserved for the Kapangan Wonders administrator.');
       return;
     }
 
     setIsLoading(true);
-    setError('');
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -63,15 +70,22 @@ export default function SignUp() {
       );
       const user = userCredential.user;
 
-      const fullName = `${formData.firstName} ${formData.lastName}`;
-      await updateProfile(user, { displayName: fullName });
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
 
-      // ✅ Create Firestore user record
+      // ✅ Set display name and default avatar
+      await updateProfile(user, {
+        displayName: fullName,
+        photoURL: DEFAULT_AVATAR,
+      });
+
+      // ✅ Save user document to Firestore
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         email: user.email,
         displayName: fullName,
+        photoURL: DEFAULT_AVATAR,
         provider: 'email',
+        isActive: true,
         createdAt: new Date().toISOString(),
       });
 
@@ -79,26 +93,83 @@ export default function SignUp() {
       router.push('/signin');
     } catch (err: any) {
       console.error('Signup error:', err);
-      setError(err.message);
+      let message = 'An error occurred during signup. Please try again.';
+
+      if (err?.code === 'auth/email-already-in-use') {
+        message = 'This email is already registered. Please sign in instead.';
+      } else if (err?.code === 'auth/invalid-email') {
+        message = 'Invalid email format.';
+      } else if (err?.code === 'auth/weak-password') {
+        message = 'Password is too weak. Please choose a stronger one.';
+      } else if (err?.code === 'auth/operation-not-allowed') {
+        message =
+          'Email/Password signup is currently disabled in Firebase. Please contact support.';
+      }
+
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ✅ Google Sign-In Handler
+  // 🟢 Google sign-in
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    setError('');
+
     try {
       const result = await signInWithGoogle();
-      if (result.success) {
-        alert('✅ Signed in with Google successfully!');
-        router.replace('/'); // 👈 go to main page
-      } else {
-        alert(result.error || 'Google sign-in failed.');
+
+      if (!result || !result.success) {
+        const message = result?.error || 'Google sign-in failed. Please try again.';
+        setError(message);
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-      alert('Google sign-in failed. Please try again.');
+
+      const user = result.user;
+      if (!user) {
+        setError('Google sign-in did not return a user. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      const email = user.email ?? '';
+      if (!email) {
+        setError('Google account has no email. Cannot continue.');
+        await firebaseSignOut(auth);
+        setIsLoading(false);
+        return;
+      }
+
+      // Prevent admin from signing up
+      if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        setError('The Kapangan Wonders admin cannot sign up as a regular user here.');
+        await firebaseSignOut(auth);
+        setIsLoading(false);
+        return;
+      }
+
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || `${formData.firstName} ${formData.lastName}`,
+          photoURL: user.photoURL || DEFAULT_AVATAR,
+          provider: 'google',
+          isActive: true,
+          lastLogin: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      alert('✅ Signed in with Google successfully!');
+      router.replace('/');
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+      setError('Google sign-in failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +177,7 @@ export default function SignUp() {
 
   return (
     <div className="min-h-screen bg-egg-white flex flex-col justify-between">
-      {/* Hero Section */}
+      {/* Hero */}
       <section className="relative bg-gradient-custom text-primary-green overflow-hidden">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
@@ -118,10 +189,7 @@ export default function SignUp() {
             </h2>
             <p className="text-lg text-primary-green/80">
               Or{' '}
-              <Link
-                href="/signin"
-                className="font-medium text-primary-green hover:text-accent-green"
-              >
+              <Link href="/signin" className="font-medium text-primary-green hover:text-accent-green">
                 sign in to your existing account
               </Link>
             </p>
@@ -129,12 +197,10 @@ export default function SignUp() {
         </div>
       </section>
 
-      {/* Sign Up Form */}
+      {/* Form */}
       <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8 flex-grow">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="text-center text-3xl font-bold text-primary-green">
-            Create your account
-          </h2>
+          <h2 className="text-center text-3xl font-bold text-primary-green">Create your account</h2>
         </div>
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -142,10 +208,7 @@ export default function SignUp() {
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label
-                    htmlFor="firstName"
-                    className="block text-sm font-medium text-primary-green"
-                  >
+                  <label htmlFor="firstName" className="block text-sm font-medium text-primary-green">
                     First name
                   </label>
                   <input
@@ -159,10 +222,7 @@ export default function SignUp() {
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="lastName"
-                    className="block text-sm font-medium text-primary-green"
-                  >
+                  <label htmlFor="lastName" className="block text-sm font-medium text-primary-green">
                     Last name
                   </label>
                   <input
@@ -178,10 +238,7 @@ export default function SignUp() {
               </div>
 
               <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-primary-green"
-                >
+                <label htmlFor="email" className="block text-sm font-medium text-primary-green">
                   Email address
                 </label>
                 <input
@@ -196,10 +253,7 @@ export default function SignUp() {
               </div>
 
               <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-primary-green"
-                >
+                <label htmlFor="password" className="block text-sm font-medium text-primary-green">
                   Password
                 </label>
                 <input
@@ -214,10 +268,7 @@ export default function SignUp() {
               </div>
 
               <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="block text-sm font-medium text-primary-green"
-                >
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-primary-green">
                   Confirm password
                 </label>
                 <input
@@ -231,9 +282,7 @@ export default function SignUp() {
                 />
               </div>
 
-              {error && (
-                <p className="text-red-600 text-center text-sm">{error}</p>
-              )}
+              {error && <p className="text-red-600 text-center text-sm">{error}</p>}
 
               <button
                 type="submit"
@@ -251,9 +300,7 @@ export default function SignUp() {
                   <div className="w-full border-t border-border-green" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-egg-white text-primary-green/80">
-                    Or continue with
-                  </span>
+                  <span className="px-2 bg-egg-white text-primary-green/80">Or continue with</span>
                 </div>
               </div>
 
@@ -272,119 +319,9 @@ export default function SignUp() {
         </div>
       </div>
 
-      {/* ✅ Footer Section */}
+      {/* Footer */}
       <footer className="bg-primary-green text-egg-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-2xl font-bold text-light-green mb-4">
-                Kapangan Wonder
-              </h3>
-              <p className="text-light-green/80">
-                Discover the natural beauty and cultural richness of Kapangan,
-                Benguet.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link
-                    href="/tourist-spots"
-                    className="text-light-green/80 hover:text-egg-white"
-                  >
-                    Tourist Spots
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/eat-and-stay"
-                    className="text-light-green/80 hover:text-egg-white"
-                  >
-                    Eat & Stay
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/blogs"
-                    className="text-light-green/80 hover:text-egg-white"
-                  >
-                    Blogs
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/contact"
-                    className="text-light-green/80 hover:text-egg-white"
-                  >
-                    Contact
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Support</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link
-                    href="/contact"
-                    className="text-light-green/80 hover:text-egg-white"
-                  >
-                    Help Center
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/signin"
-                    className="text-light-green/80 hover:text-egg-white"
-                  >
-                    Sign In
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/signup"
-                    className="text-light-green/80 hover:text-egg-white"
-                  >
-                    Sign Up
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Follow Us</h4>
-              <div className="flex space-x-4">
-                <a
-                  href="#"
-                  className="text-light-green/80 hover:text-egg-white text-2xl"
-                >
-                  📘
-                </a>
-                <a
-                  href="#"
-                  className="text-light-green/80 hover:text-egg-white text-2xl"
-                >
-                  🐦
-                </a>
-                <a
-                  href="#"
-                  className="text-light-green/80 hover:text-egg-white text-2xl"
-                >
-                  📷
-                </a>
-                <a
-                  href="#"
-                  className="text-light-green/80 hover:text-egg-white text-2xl"
-                >
-                  📺
-                </a>
-              </div>
-            </div>
-          </div>
-
           <div className="border-t border-border-green mt-8 pt-8 text-center text-light-green/80">
             <p>&copy; 2025 Kapangan Wonder. All rights reserved.</p>
           </div>

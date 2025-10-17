@@ -8,7 +8,7 @@ import { db, auth } from '@/lib/firebase';
 export default function OverviewPage() {
   const [user, setUser] = useState<any>(null);
   const [scheduledCount, setScheduledCount] = useState(0);
-  const [visitedCount, setVisitedCount] = useState(0); // (optional: future feature)
+  const [visitedCount, setVisitedCount] = useState(0); // optional feature
   const [companionsCount, setCompanionsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -59,9 +59,31 @@ export default function OverviewPage() {
     );
   }
 
+  const profileImage =
+    user?.photoURL || '/assets/default-avatar.png';
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-4">Dashboard Overview</h1>
+    <div className="p-6">
+      {/* --- User Profile Header --- */}
+      {user && (
+        <div className="flex flex-col sm:flex-row items-center sm:items-start mb-8 bg-egg-white border border-border-green rounded-xl p-6 shadow-md">
+          <img
+            src={profileImage}
+            onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
+            alt="Profile Avatar"
+            className="w-24 h-24 rounded-full border-2 border-border-green object-cover mb-4 sm:mb-0 sm:mr-6"
+          />
+          <div>
+            <h1 className="text-2xl font-semibold text-primary-green">
+              {user.displayName || 'Traveler'}
+            </h1>
+            <p className="text-gray-600">{user.email}</p>
+          </div>
+        </div>
+      )}
+
+      {/* --- Dashboard Summary --- */}
+      <h2 className="text-xl font-semibold mb-4 text-primary-green">Dashboard Overview</h2>
       <p className="text-gray-500 mb-6">Welcome back, Traveler!</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

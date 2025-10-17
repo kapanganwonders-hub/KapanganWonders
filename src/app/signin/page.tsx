@@ -32,7 +32,7 @@ export default function SignIn() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ✅ Handle Email/Password Sign In
+  // ✅ Handle Email/Password Sign In with error handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -41,14 +41,12 @@ export default function SignIn() {
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        formData.email,
+        formData.email.trim(),
         formData.password
       );
       const user = userCredential.user;
 
-      alert('Signed in successfully!');
 
-      // ✅ Redirect based on user email
       if (user.email === 'kapanganwonders@gmail.com') {
         router.push('/admin');
       } else {
@@ -56,10 +54,31 @@ export default function SignIn() {
       }
     } catch (err: any) {
       console.error('Sign in error:', err);
-      let message = 'An error occurred during sign in.';
-      if (err.code === 'auth/user-not-found') message = 'No account found with this email.';
-      else if (err.code === 'auth/wrong-password') message = 'Incorrect password.';
-      else if (err.code === 'auth/invalid-email') message = 'Invalid email format.';
+      let message = 'An error occurred during sign in. Please try again.';
+
+      switch (err.code) {
+        case 'auth/invalid-email':
+          message = 'The email address format is invalid.';
+          break;
+        case 'auth/user-disabled':
+          message = 'This account has been disabled. Please contact support.';
+          break;
+        case 'auth/user-not-found':
+          message = 'No account found with this email address.';
+          break;
+        case 'auth/wrong-password':
+          message = 'Incorrect password. Please try again.';
+          break;
+        case 'auth/too-many-requests':
+          message = 'Too many failed attempts. Please wait a moment before trying again.';
+          break;
+        case 'auth/network-request-failed':
+          message = 'Network error. Please check your internet connection.';
+          break;
+        default:
+          message = 'Login failed. Please check your credentials and try again.';
+      }
+
       setError(message);
     } finally {
       setIsLoading(false);
@@ -166,7 +185,12 @@ export default function SignIn() {
                 />
               </div>
 
-              {error && <p className="text-red-600 text-center text-sm">{error}</p>}
+              {/* Error message box */}
+              {error && (
+                <div className="text-center bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-md text-sm">
+                  {error}
+                </div>
+              )}
 
               <button
                 type="submit"
