@@ -3,60 +3,89 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 
 export default function BarangayReportsManagement() {
   const { currentUser, isAdmin } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!currentUser || !isAdmin) {
-      router.push('/');
-    }
-  }, [currentUser, isAdmin, router]);
+    // wait until isAdmin is resolved
+    if (typeof isAdmin === 'undefined') return;
+    if (!isAdmin) router.push('/');
+  }, [isAdmin, router]);
+
+  if (typeof isAdmin === 'undefined') {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   if (!currentUser || !isAdmin) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Barangay Reports Management</h1>
-      <p className="mb-6 text-gray-700">Review and manage reports submitted by barangay admins.</p>
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white rounded shadow">
-          <thead>
-            <tr>
-              <th className="py-2 px-4 border-b">Barangay</th>
-              <th className="py-2 px-4 border-b">Report Title</th>
-              <th className="py-2 px-4 border-b">Date Submitted</th>
-              <th className="py-2 px-4 border-b">Status</th>
-              <th className="py-2 px-4 border-b">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="py-2 px-4 border-b">Ambongdolan</td>
-              <td className="py-2 px-4 border-b">Tourist Spot Maintenance</td>
-              <td className="py-2 px-4 border-b">2024-06-10</td>
-              <td className="py-2 px-4 border-b">Pending</td>
-              <td className="py-2 px-4 border-b">
-                <button className="text-blue-600 hover:underline mr-2">View</button>
-                <button className="text-green-600 hover:underline mr-2">Approve</button>
-                <button className="text-red-600 hover:underline">Reject</button>
-              </td>
-            </tr>
-            <tr>
-              <td className="py-2 px-4 border-b">Tawang</td>
-              <td className="py-2 px-4 border-b">Event Request</td>
-              <td className="py-2 px-4 border-b">2024-06-09</td>
-              <td className="py-2 px-4 border-b">Approved</td>
-              <td className="py-2 px-4 border-b">
-                <button className="text-blue-600 hover:underline mr-2">View</button>
-                <button className="text-red-600 hover:underline">Reject</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <div className="w-60 bg-green-700 text-white min-h-screen">
+        <div className="p-4 font-semibold text-lg">
+          <Link href="/admin" className="flex items-center">
+            {/* ...existing icon... */}
+            Dashboard
+          </Link>
+        </div>
+        <nav className="mt-4">
+          <Link href="/admin" className="block py-3 px-4 bg-green-800 border-l-4 border-white">Dashboard</Link>
+          <Link href="/admin/accommodations" className="block py-3 px-4 hover:bg-green-800">Accommodations</Link>
+          <Link href="/admin/tourist-spots" className="block py-3 px-4 hover:bg-green-800">Tourist Spots</Link>
+          <Link href="/admin/restaurants" className="block py-3 px-4 hover:bg-green-800">Restaurants</Link>
+          <Link href="/admin/users" className="block py-3 px-4 hover:bg-green-800">User Management</Link>
+          <Link href="/admin/reports" className="block py-3 px-4 hover:bg-green-800">Reports & Analytics</Link>
+          <Link href="/admin/barangay-reports" className="block py-3 px-4 hover:bg-green-800">Barangay Reports</Link>
+          <Link href="/signout" className="block py-3 px-4 hover:bg-green-800">Logout</Link>
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 bg-egg-white p-8">
+        <h1 className="text-2xl font-bold mb-4">Barangay Reports Management</h1>
+        <p className="mb-6 text-gray-700">Review and manage reports submitted by barangay admins.</p>
+
+        <div className="overflow-x-auto bg-white rounded shadow p-4">
+          <table className="min-w-full">
+            <thead>
+              <tr>
+                <th className="py-2 px-4 border-b text-left">Barangay</th>
+                <th className="py-2 px-4 border-b text-left">Report Title</th>
+                <th className="py-2 px-4 border-b text-left">Date Submitted</th>
+                <th className="py-2 px-4 border-b text-left">Status</th>
+                <th className="py-2 px-4 border-b text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="py-2 px-4 border-b">Ambongdolan</td>
+                <td className="py-2 px-4 border-b">Tourist Spot Maintenance</td>
+                <td className="py-2 px-4 border-b">2024-06-10</td>
+                <td className="py-2 px-4 border-b">Pending</td>
+                <td className="py-2 px-4 border-b">
+                  <button className="text-blue-600 hover:underline mr-2">View</button>
+                  <button className="text-green-600 hover:underline mr-2">Approve</button>
+                  <button className="text-red-600 hover:underline">Reject</button>
+                </td>
+              </tr>
+              <tr>
+                <td className="py-2 px-4 border-b">Tawang</td>
+                <td className="py-2 px-4 border-b">Event Request</td>
+                <td className="py-2 px-4 border-b">2024-06-09</td>
+                <td className="py-2 px-4 border-b">Approved</td>
+                <td className="py-2 px-4 border-b">
+                  <button className="text-blue-600 hover:underline mr-2">View</button>
+                  <button className="text-red-600 hover:underline">Reject</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
