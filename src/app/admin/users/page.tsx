@@ -25,65 +25,45 @@ export default function UsersManagement() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <div className="w-60 bg-primary-green text-egg-white min-h-screen">
-        <div className="p-4 font-semibold text-lg">
-          <Link href="/admin" className="flex items-center">Dashboard</Link>
-        </div>
-        <nav className="mt-4">
-          <Link href="/admin" className="block py-3 px-4 bg-primary-green/90 border-l-4 border-egg-white">Dashboard</Link>
-          <Link href="/admin/accommodations" className="block py-3 px-4 hover:bg-primary-green/80">Accommodations</Link>
-          <Link href="/admin/tourist-spots" className="block py-3 px-4 hover:bg-primary-green/80">Tourist Spots</Link>
-          <Link href="/admin/restaurants" className="block py-3 px-4 hover:bg-primary-green/80">Restaurants</Link>
-          <Link href="/admin/users" className="block py-3 px-4 hover:bg-primary-green/80">User Management</Link>
-          <Link href="/admin/reports" className="block py-3 px-4 hover:bg-primary-green/80">Reports & Analytics</Link>
-          <Link href="/admin/barangay-reports" className="block py-3 px-4 hover:bg-primary-green/80">Barangay Reports</Link>
-          <Link href="/signout" className="block py-3 px-4 hover:bg-primary-green/80">Logout</Link>
-        </nav>
+    <div className="bg-egg-white p-8">
+      <h1 className="text-2xl font-bold mb-4">User Management</h1>
+      <p className="mb-6 text-gray-700">View, edit, or remove users and assign roles.</p>
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white rounded shadow">
+          <thead>
+            <tr>
+              <th className="py-2 px-4 border-b">Name</th>
+              <th className="py-2 px-4 border-b">Email</th>
+              <th className="py-2 px-4 border-b">Role</th>
+              <th className="py-2 px-4 border-b">Status</th>
+              <th className="py-2 px-4 border-b">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="py-2 px-4 border-b">John Doe</td>
+              <td className="py-2 px-4 border-b">john@example.com</td>
+              <td className="py-2 px-4 border-b">Admin</td>
+              <td className="py-2 px-4 border-b">Active</td>
+              <td className="py-2 px-4 border-b">
+                <button className="text-blue-600 hover:underline mr-2">Edit</button>
+                <button className="text-red-600 hover:underline">Delete</button>
+              </td>
+            </tr>
+            <tr>
+              <td className="py-2 px-4 border-b">Jane Smith</td>
+              <td className="py-2 px-4 border-b">jane@example.com</td>
+              <td className="py-2 px-4 border-b">User</td>
+              <td className="py-2 px-4 border-b">Inactive</td>
+              <td className="py-2 px-4 border-b">
+                <button className="text-blue-600 hover:underline mr-2">Edit</button>
+                <button className="text-red-600 hover:underline">Delete</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-
-      {/* Main Content */}
-      <div className="flex-1 bg-egg-white p-8">
-        <h1 className="text-2xl font-bold mb-4">User Management</h1>
-        <p className="mb-6 text-gray-700">View, edit, or remove users and assign roles.</p>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white rounded shadow">
-            <thead>
-              <tr>
-                <th className="py-2 px-4 border-b">Name</th>
-                <th className="py-2 px-4 border-b">Email</th>
-                <th className="py-2 px-4 border-b">Role</th>
-                <th className="py-2 px-4 border-b">Status</th>
-                <th className="py-2 px-4 border-b">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="py-2 px-4 border-b">John Doe</td>
-                <td className="py-2 px-4 border-b">john@example.com</td>
-                <td className="py-2 px-4 border-b">Admin</td>
-                <td className="py-2 px-4 border-b">Active</td>
-                <td className="py-2 px-4 border-b">
-                  <button className="text-blue-600 hover:underline mr-2">Edit</button>
-                  <button className="text-red-600 hover:underline">Delete</button>
-                </td>
-              </tr>
-              <tr>
-                <td className="py-2 px-4 border-b">Jane Smith</td>
-                <td className="py-2 px-4 border-b">jane@example.com</td>
-                <td className="py-2 px-4 border-b">User</td>
-                <td className="py-2 px-4 border-b">Inactive</td>
-                <td className="py-2 px-4 border-b">
-                  <button className="text-blue-600 hover:underline mr-2">Edit</button>
-                  <button className="text-red-600 hover:underline">Delete</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <button className="mt-6 px-4 py-2 bg-primary-green text-egg-white rounded hover:bg-accent-green">Add User</button>
-      </div>
+      <button className="mt-6 px-4 py-2 bg-primary-green text-egg-white rounded hover:bg-accent-green">Add User</button>
     </div>
   );
 }

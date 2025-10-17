@@ -1,4 +1,6 @@
 'use client';
+'use client';
+
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,10 +10,15 @@ import { logout } from '@/lib/auth';
 import { onAuthStateChanged } from 'firebase/auth';
 import { motion } from 'framer-motion';
 import { User, Map, Calendar, Bell, LogOut, LayoutDashboard } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
+<<<<<<< HEAD
   const [profileSrc, setProfileSrc] = useState('/assets/default-avatar.png');
+=======
+  const { currentUser, isAdmin } = useAuth();
+>>>>>>> d667300cb7bf7ff74ee134e4244b57cdb00ef0f9
   const pathname = usePathname();
 
   useEffect(() => {
@@ -55,6 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div>
             {/* Profile Section */}
             <div className="flex flex-col items-center mb-6">
+<<<<<<< HEAD
               <div className="relative w-20 h-20 mb-3">
                 <Image
                   src={profileSrc}
@@ -68,6 +76,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {user?.displayName || 'Guest'}
               </h2>
               <p className="text-sm text-gray-500">Tourist</p>
+=======
+              <Image
+                src={user?.photoURL || '/default-profile.png'}
+                alt="Profile"
+                width={80}
+                height={80}
+                className="rounded-full border-2 border-green-300 mb-3"
+              />
+              <h2 className="font-semibold text-gray-800">{user?.displayName || 'Guest'}</h2>
+              {isAdmin ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+                    Administrator
+                  </span>
+                  <span className="text-sm text-gray-500">Kapangan Wonders</span>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Tourist</p>
+              )}
+>>>>>>> d667300cb7bf7ff74ee134e4244b57cdb00ef0f9
             </div>
 
             {/* Navigation Sections */}
@@ -122,9 +150,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </li>
                 </ul>
               </div>
+
+              {isAdmin && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Admin</p>
+                  <ul className="space-y-2">
+                    <li><Link href="/dashboard/admin/users" className={linkClass('/dashboard/admin/users')}><User size={18}/>Manage Users</Link></li>
+                    <li><Link href="/dashboard/admin/places" className={linkClass('/dashboard/admin/places')}><Map size={18}/>Manage Places</Link></li>
+                    <li><Link href="/dashboard/admin/announcements" className={linkClass('/dashboard/admin/announcements')}><Bell size={18}/>Manage Announcements</Link></li>
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
 
+<<<<<<< HEAD
           {/* Logout Button */}
           <button
             onClick={handleLogout}
@@ -132,6 +172,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             <LogOut size={18} />Logout
           </button>
+=======
+          <div className="mt-auto">
+            {isAdmin && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm font-medium text-yellow-800">Admin Mode</p>
+                <p className="text-xs text-yellow-600">You have administrator privileges</p>
+              </div>
+            )}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition"
+            >
+              <LogOut size={18}/>Logout
+            </button>
+          </div>
+>>>>>>> d667300cb7bf7ff74ee134e4244b57cdb00ef0f9
         </motion.aside>
 
         {/* Main Dashboard */}

@@ -18,17 +18,16 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(undefined); // Changed: start as undefined so other components can detect "not yet resolved"
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
 
       if (user) {
-        // ✅ Run admin check
+        // Run admin check
         const adminStatus = checkIsAdmin(user);
 
-        // ✅ Debugging logs (clear, visible)
         console.group('🔐 Auth Debug Info');
         console.log('👤 User Email:', user.email);
         console.log('🆔 User UID:', user.uid);
@@ -39,6 +38,7 @@ export const AuthProvider = ({ children }) => {
         setIsAdmin(adminStatus);
       } else {
         console.log('🚪 User signed out');
+        // resolved: not admin
         setIsAdmin(false);
       }
 

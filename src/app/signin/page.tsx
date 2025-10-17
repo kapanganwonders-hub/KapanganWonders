@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/firebase/config';
 import { signInWithGoogle } from '@/lib/auth';
 
 export default function SignIn() {
@@ -12,20 +13,41 @@ export default function SignIn() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+
+  // Fetch admin email from Firestore
+  useEffect(() => {
+    const fetchAdminEmail = async () => {
+      try {
+        const docRef = doc(db, 'admin', 'adminSettings');
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          setAdminEmail(docSnap.data().email);
+        } else {
+          console.log('No admin settings found!');
+        }
+      } catch (err) {
+        console.error('Error fetching admin email:', err);
+      }
+    };
+
+    fetchAdminEmail();
+  }, []);
 
   // ✅ Automatically redirect logged-in users
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        if (user.email === 'kapanganwonders@gmail.com') {
+        if (user.email === adminEmail) {
           router.replace('/admin');
         } else {
-          router.replace('/dashboard');
+          router.replace('/');
         }
       }
     });
     return () => unsubscribe();
-  }, [router]);
+  }, [router, adminEmail]);
 
   // ✅ Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,7 +72,7 @@ export default function SignIn() {
       if (user.email === 'kapanganwonders@gmail.com') {
         router.push('/admin');
       } else {
-        router.push('/dashboard');
+        router.push('/');
       }
     } catch (err: any) {
       console.error('Sign in error:', err);
@@ -95,7 +117,7 @@ export default function SignIn() {
         if (user?.email === 'kapanganwonders@gmail.com') {
           router.push('/admin');
         } else {
-          router.push('/dashboard');
+          router.push('/');
         }
       } else {
         alert(result.error || 'Google sign-in failed.');
