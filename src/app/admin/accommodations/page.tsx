@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,61 +10,41 @@ import Link from 'next/link';
 export default function AccommodationsManagement() {
   const { currentUser, isAdmin } = useAuth();
   const router = useRouter();
-  const [visits, setVisits] = useState<any[]>([]);
+  const [accommodations, setAccommodations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Redirect non-admins
+  // Redirect non-admins and fetch data
   useEffect(() => {
     if (typeof isAdmin === 'undefined') return;
     if (!isAdmin) {
       router.push('/');
       return;
     }
-    fetchVisits();
-  }, [currentUser, isAdmin]);
+    fetchAccommodations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
-  // Fetch all visits
-  const fetchVisits = async () => {
+  const fetchAccommodations = async () => {
     try {
-      const snapshot = await getDocs(collection(db, 'visits'));
-      const data = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      }));
-      setVisits(data);
+      const snap = await getDocs(collection(db, 'accommodations'));
+      setAccommodations(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (error) {
-      console.error('Error fetching visits:', error);
+      console.error('Error fetching accommodations:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Approve a visit
-  const handleApprove = async (id: string) => {
+  const handleDelete = async (id: string) => {
+    const ok = confirm('Delete this accommodation?');
+    if (!ok) return;
     try {
-      await updateDoc(doc(db, 'visits', id), { status: 'Approved' });
-      setVisits((prev) =>
-        prev.map((visit) =>
-          visit.id === id ? { ...visit, status: 'Approved' } : visit
-        )
-      );
-      alert('Visit approved!');
+      await deleteDoc(doc(db, 'accommodations', id));
+      setAccommodations((prev) => prev.filter((a) => a.id !== id));
+      alert('Accommodation deleted.');
     } catch (error) {
-      console.error('Error approving visit:', error);
-    }
-  };
-
-  // Delete a visit
-  const handleReject = async (id: string) => {
-    const confirmDelete = confirm('Are you sure you want to delete this visit?');
-    if (!confirmDelete) return;
-
-    try {
-      await deleteDoc(doc(db, 'visits', id));
-      setVisits((prev) => prev.filter((visit) => visit.id !== id));
-      alert('Visit deleted successfully.');
-    } catch (error) {
-      console.error('Error deleting visit:', error);
+      console.error('Error deleting accommodation:', error);
+      alert('Failed to delete.');
     }
   };
 
@@ -75,73 +55,51 @@ export default function AccommodationsManagement() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen text-gray-600">
-        Loading scheduled visits...
+        Loading accommodations...
       </div>
     );
   }
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-4 text-green-700">
-        Accommodations & Visit Management
-      </h1>
-      <p className="mb-6 text-gray-700">
-        Manage tourist visits and approve or remove schedules.
-      </p>
+      <h1 className="text-3xl font-bold mb-4 text-green-700">Accommodations Management</h1>
+      <p className="mb-6 text-gray-700">Manage accommodations listings (edit, approve, delete).</p>
 
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white rounded shadow-md">
           <thead>
             <tr className="bg-green-100 text-left">
-              <th className="py-2 px-4 border-b">Tourist Name</th>
-              <th className="py-2 px-4 border-b">Barangays</th>
-              <th className="py-2 px-4 border-b">Spots</th>
-              <th className="py-2 px-4 border-b">Date</th>
+              <th className="py-2 px-4 border-b">Name</th>
+              <th className="py-2 px-4 border-b">Type</th>
+              <th className="py-2 px-4 border-b">Barangay</th>
               <th className="py-2 px-4 border-b">Status</th>
               <th className="py-2 px-4 border-b">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {visits.length === 0 ? (
+            {accommodations.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-6 text-gray-500">
-                  No scheduled visits yet.
+                <td colSpan={5} className="text-center py-6 text-gray-500">
+                  No accommodations found.
                 </td>
               </tr>
             ) : (
-              visits.map((visit) => (
-                <tr key={visit.id} className="hover:bg-gray-50">
-                  <td className="py-2 px-4 border-b">{visit.fullName}</td>
-                  <td className="py-2 px-4 border-b">
-                    {visit.barangays?.join(', ') || 'N/A'}
-                  </td>
-                  <td className="py-2 px-4 border-b">
-                    {visit.spots?.join(', ') || 'N/A'}
-                  </td>
-                  <td className="py-2 px-4 border-b">{visit.date}</td>
-                  <td
-                    className={`py-2 px-4 border-b font-medium ${
-                      visit.status === 'Approved'
-                        ? 'text-green-600'
-                        : visit.status === 'Pending'
-                        ? 'text-yellow-600'
-                        : 'text-gray-500'
-                    }`}
-                  >
-                    {visit.status || 'Pending'}
-                  </td>
+              accommodations.map((acc) => (
+                <tr key={acc.id} className="hover:bg-gray-50">
+                  <td className="py-2 px-4 border-b">{acc.name || '—'}</td>
+                  <td className="py-2 px-4 border-b">{acc.type || '—'}</td>
+                  <td className="py-2 px-4 border-b">{acc.barangay || '—'}</td>
+                  <td className="py-2 px-4 border-b">{acc.status || 'Pending'}</td>
                   <td className="py-2 px-4 border-b space-x-2">
-                    {visit.status !== 'Approved' && (
-                      <button
-                        onClick={() => handleApprove(visit.id)}
-                        className="text-green-700 hover:underline font-medium"
-                      >
-                        Approve
-                      </button>
-                    )}
+                    <Link
+                      href={`/admin/accommodations/${acc.id}/edit`}
+                      className="text-blue-600 hover:underline mr-2"
+                    >
+                      Edit
+                    </Link>
                     <button
-                      onClick={() => handleReject(visit.id)}
-                      className="text-red-600 hover:underline font-medium"
+                      onClick={() => handleDelete(acc.id)}
+                      className="text-red-600 hover:underline"
                     >
                       Delete
                     </button>
@@ -151,6 +109,15 @@ export default function AccommodationsManagement() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-6">
+        <Link
+          href="/admin/accommodations/new"
+          className="px-4 py-2 bg-primary-green text-egg-white rounded hover:bg-accent-green"
+        >
+          Add Accommodation
+        </Link>
       </div>
     </div>
   );
