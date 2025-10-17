@@ -23,17 +23,25 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
-      
+
       if (user) {
-        // Direct check if user is admin (no async needed now)
+        // ✅ Run admin check
         const adminStatus = checkIsAdmin(user);
-        console.log('User email:', user.email);
-        console.log('Is admin:', adminStatus);
+
+        // ✅ Debugging logs (clear, visible)
+        console.group('🔐 Auth Debug Info');
+        console.log('👤 User Email:', user.email);
+        console.log('🆔 User UID:', user.uid);
+        console.log('👑 Admin Email (constant):', ADMIN_EMAIL);
+        console.log('✅ Is Admin:', adminStatus);
+        console.groupEnd();
+
         setIsAdmin(adminStatus);
       } else {
+        console.log('🚪 User signed out');
         setIsAdmin(false);
       }
-      
+
       setLoading(false);
     });
 

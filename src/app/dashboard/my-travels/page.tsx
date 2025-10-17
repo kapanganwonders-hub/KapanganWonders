@@ -1,46 +1,56 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc,
+  onSnapshot,
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Users, XCircle } from 'lucide-react';
+import { Calendar, MapPin, Users, XCircle, Clock } from 'lucide-react';
 
 export default function MyTravelsPage() {
   const [user, setUser] = useState<any>(null);
   const [visits, setVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch visits of the logged-in user
+  // Listen for auth changes and real-time Firestore updates
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
       if (u) {
         setUser(u);
-        await fetchVisits(u.uid);
+        const q = query(collection(db, 'visits'), where('userId', '==', u.uid));
+        const unsubscribeVisits = onSnapshot(q, (snapshot) => {
+          const data = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+          }));
+          setVisits(data);
+          setLoading(false);
+        });
+        return () => unsubscribeVisits();
       } else {
         setUser(null);
         setVisits([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
-  const fetchVisits = async (uid: string) => {
-    const q = query(collection(db, 'visits'), where('userId', '==', uid));
-    const snapshot = await getDocs(q);
-    const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-    setVisits(data);
-  };
-
+  // Cancel visit (sets status instead of deleting)
   const handleCancel = async (id: string) => {
     const confirmCancel = confirm('Are you sure you want to cancel this scheduled visit?');
     if (!confirmCancel) return;
 
     try {
-      await deleteDoc(doc(db, 'visits', id));
-      setVisits((prev) => prev.filter((visit) => visit.id !== id));
+      await updateDoc(doc(db, 'visits', id), { status: 'Cancelled' });
       alert('Your scheduled visit has been cancelled.');
     } catch (error) {
       console.error('Error cancelling visit:', error);
@@ -91,37 +101,52 @@ export default function MyTravelsPage() {
               whileHover={{ scale: 1.02 }}
             >
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xl font-semibold text-green-700">
-                  {visit.fullName}
-                </h2>
-                <button
-                  onClick={() => handleCancel(visit.id)}
-                  className="text-red-500 hover:text-red-700 flex items-center gap-1 text-sm"
+                <h2 className="text-xl font-semibold text-green-700">{visit.fullName}</h2>
+                {visit.status !== 'Cancelled' && (
+                  <button
+                    onClick={() => handleCancel(visit.id)}
+                    className="text-red-500 hover:text-red-700 flex items-center gap-1 text-sm"
+                  >
+                    <XCircle size={16} />
+                    Cancel
+                  </button>
+                )}
+              </div>
+
+              {/* Status Display */}
+              <div className="mb-3">
+                <span
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                    visit.status === 'Accepted'
+                      ? 'bg-green-100 text-green-700'
+                      : visit.status === 'Cancelled'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}
                 >
-                  <XCircle size={16} />
-                  Cancel
-                </button>
+                  <Clock size={14} />
+                  {visit.status || 'Pending'}
+                </span>
               </div>
 
               <div className="space-y-2 text-sm text-gray-700">
                 <p className="flex items-center gap-2">
-                  <MapPin className="text-green-500" size={16} />{' '}
-                  <strong>Barangays:</strong>{' '}
-                  {visit.barangays?.join(', ') || 'N/A'}
+                  <MapPin className="text-green-500" size={16} />
+                  <strong>Barangays:</strong> {visit.barangays?.join(', ') || 'N/A'}
                 </p>
                 <p className="flex items-center gap-2">
-                  <MapPin className="text-blue-500" size={16} />{' '}
+                  <MapPin className="text-blue-500" size={16} />
                   <strong>Spots:</strong> {visit.spots?.join(', ') || 'N/A'}
                 </p>
                 <p className="flex items-center gap-2">
-                  <Users className="text-purple-500" size={16} />{' '}
+                  <Users className="text-purple-500" size={16} />
                   <strong>Companions:</strong>{' '}
                   {visit.companions?.length > 0
                     ? visit.companions.join(', ')
                     : 'None'}
                 </p>
                 <p className="flex items-center gap-2">
-                  <Calendar className="text-orange-500" size={16} />{' '}
+                  <Calendar className="text-orange-500" size={16} />
                   <strong>Date:</strong> {visit.date}
                 </p>
               </div>

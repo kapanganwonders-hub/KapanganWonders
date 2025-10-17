@@ -1,16 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { logout } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { currentUser, isAdmin } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
@@ -25,13 +26,22 @@ export default function Navigation() {
     }
   };
 
+  // ✅ Redirect admin to /admin if logged in and currently in /dashboard or /
+  useEffect(() => {
+    if (currentUser && isAdmin) {
+      if (pathname === '/dashboard' || pathname === '/') {
+        router.push('/admin');
+      }
+    }
+  }, [currentUser, isAdmin, pathname, router]);
+
   return (
     <nav className="bg-egg-white shadow-lg sticky top-0 z-50 border-b border-border-green">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left - Logo */}
-          <Link 
-            href={isAdmin ? "/admin" : "/"} 
+          <Link
+            href={isAdmin ? '/admin' : '/'}
             className="text-2xl font-bold text-primary-green hover:text-accent-green transition"
           >
             Kapangan Wonder
@@ -39,11 +49,11 @@ export default function Navigation() {
 
           {/* Center - Nav Links */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link href="/" className="nav-link">Home</Link>
-            <Link href="/tourist-spots" className="nav-link">Tourist Spots</Link>
-            <Link href="/eat-and-stay" className="nav-link">Eat & Stay</Link>
-            <Link href="/blogs" className="nav-link">Blogs</Link>
-            <Link href="/contact" className="nav-link">Contact Us</Link>
+            <Link href="/" className={navLink}>Home</Link>
+            <Link href="/tourist-spots" className={navLink}>Tourist Spots</Link>
+            <Link href="/eat-and-stay" className={navLink}>Eat & Stay</Link>
+            <Link href="/blogs" className={navLink}>Blogs</Link>
+            <Link href="/contact" className={navLink}>Contact Us</Link>
           </div>
 
           {/* Right - Auth or Profile */}
@@ -63,29 +73,43 @@ export default function Navigation() {
 
                 {isDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-44 bg-egg-white border border-border-green rounded-lg shadow-lg">
-                    {isAdmin && (
-                      <Link
-                        href="/admin"
-                        className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
-                        onClick={() => setIsDropdownOpen(false)}
-                      >
-                        Admin Dashboard
-                      </Link>
+                    {isAdmin ? (
+                      // ✅ Admin menu — no "Dashboard"
+                      <>
+                        <Link
+                          href="/admin"
+                          className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          Admin Dashboard
+                        </Link>
+                        <Link
+                          href="/profile"
+                          className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          Profile
+                        </Link>
+                      </>
+                    ) : (
+                      // ✅ Regular user menu
+                      <>
+                        <Link
+                          href="/dashboard"
+                          className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          Dashboard
+                        </Link>
+                        <Link
+                          href="/profile"
+                          className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          Profile
+                        </Link>
+                      </>
                     )}
-                    <Link
-                      href="/dashboard"
-                      className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      Profile
-                    </Link>
                     <button
                       onClick={handleLogout}
                       className="w-full text-left px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
@@ -97,8 +121,8 @@ export default function Navigation() {
               </div>
             ) : (
               <>
-                <Link href="/signin" className="auth-link border">Sign In</Link>
-                <Link href="/signup" className="auth-link bg">Sign Up</Link>
+                <Link href="/signin" className={authLink.border}>Sign In</Link>
+                <Link href="/signup" className={authLink.bg}>Sign Up</Link>
               </>
             )}
           </div>
@@ -110,7 +134,12 @@ export default function Navigation() {
               className="text-primary-green hover:text-accent-green p-2 rounded-md transition"
             >
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
               </svg>
             </button>
           </div>
@@ -120,11 +149,11 @@ export default function Navigation() {
         {isMenuOpen && (
           <div className="md:hidden bg-egg-white border-t border-border-green mt-2 rounded-lg">
             <div className="px-4 py-3 space-y-2">
-              <Link href="/" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Home</Link>
-              <Link href="/tourist-spots" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Tourist Spots</Link>
-              <Link href="/eat-and-stay" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Eat & Stay</Link>
-              <Link href="/blogs" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Blogs</Link>
-              <Link href="/contact" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Contact Us</Link>
+              <Link href="/" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Home</Link>
+              <Link href="/tourist-spots" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Tourist Spots</Link>
+              <Link href="/eat-and-stay" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Eat & Stay</Link>
+              <Link href="/blogs" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Blogs</Link>
+              <Link href="/contact" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Contact Us</Link>
 
               <div className="border-t border-border-green pt-3">
                 {currentUser ? (
@@ -139,13 +168,43 @@ export default function Navigation() {
                         {currentUser.displayName || currentUser.email}
                       </span>
                     </div>
-                    <Link
-                      href="/dashboard"
-                      className="mobile-link"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
+
+                    {isAdmin ? (
+                      <>
+                        <Link
+                          href="/admin"
+                          className={mobileLink}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Admin Dashboard
+                        </Link>
+                        <Link
+                          href="/profile"
+                          className={mobileLink}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Profile
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          href="/dashboard"
+                          className={mobileLink}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Dashboard
+                        </Link>
+                        <Link
+                          href="/profile"
+                          className={mobileLink}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Profile
+                        </Link>
+                      </>
+                    )}
+
                     <button
                       onClick={handleLogout}
                       className="w-full text-left mobile-link"
@@ -155,8 +214,8 @@ export default function Navigation() {
                   </>
                 ) : (
                   <>
-                    <Link href="/signin" className="mobile-link" onClick={() => setIsMenuOpen(false)}>Sign In</Link>
-                    <Link href="/signup" className="mobile-link bg" onClick={() => setIsMenuOpen(false)}>Sign Up</Link>
+                    <Link href="/signin" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Sign In</Link>
+                    <Link href="/signup" className={`${mobileLink} bg`} onClick={() => setIsMenuOpen(false)}>Sign Up</Link>
                   </>
                 )}
               </div>

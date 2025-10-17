@@ -13,31 +13,47 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // ✅ Redirect if already logged in
+  // ✅ Automatically redirect logged-in users
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        router.replace('/dashboard'); // redirect if already logged in
+        if (user.email === 'kapanganwonders@gmail.com') {
+          router.replace('/admin');
+        } else {
+          router.replace('/dashboard');
+        }
       }
     });
     return () => unsubscribe();
   }, [router]);
 
-  // ✅ Handle form input
+  // ✅ Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ✅ Email + Password Sign In
+  // ✅ Handle Email/Password Sign In
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+      const user = userCredential.user;
+
       alert('Signed in successfully!');
-      router.push('/dashboard');
+
+      // ✅ Redirect based on user email
+      if (user.email === 'kapanganwonders@gmail.com') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       console.error('Sign in error:', err);
       let message = 'An error occurred during sign in.';
@@ -50,13 +66,18 @@ export default function SignIn() {
     }
   };
 
-  // ✅ Google Sign In
+  // ✅ Handle Google Sign In
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
       const result = await signInWithGoogle();
       if (result.success) {
-        router.push('/dashboard'); // redirect to dashboard automatically
+        const user = result.user;
+        if (user?.email === 'kapanganwonders@gmail.com') {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         alert(result.error || 'Google sign-in failed.');
       }
@@ -73,7 +94,6 @@ export default function SignIn() {
       {/* Hero Section */}
       <section className="relative bg-gradient-custom text-primary-green overflow-hidden">
         <div className="absolute inset-0">
-          {/* Floating background elements */}
           <div className="absolute top-10 left-10 animate-float">
             <svg width="80" height="60" viewBox="0 0 80 60" className="text-black/20">
               <path d="M0,60 L20,20 L40,40 L60,10 L80,30 L80,60 Z" fill="currentColor" />

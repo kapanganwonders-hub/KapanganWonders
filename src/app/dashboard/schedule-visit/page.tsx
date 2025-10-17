@@ -1,9 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, CheckCircle } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
-import { addDoc, collection, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -22,11 +22,11 @@ export default function ScheduleVisitPage() {
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
-  // listen to user
-  useState(() => {
+  // ✅ Use useEffect instead of useState for auth listener
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsubscribe();
-  });
+  }, []);
 
   const [form, setForm] = useState({
     fullName: '',
@@ -84,7 +84,9 @@ export default function ScheduleVisitPage() {
         spots: form.spots,
         companions: form.companions.filter((c) => c.trim() !== ''),
         date: form.date,
-        createdAt: Timestamp.now(),
+        agree: form.agree,
+        status: 'pending', // ✅ added for admin approval
+        createdAt: serverTimestamp(), // ✅ more accurate than Timestamp.now()
       });
 
       setShowSuccess(true);
