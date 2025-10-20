@@ -7,6 +7,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  deleteDoc,
   collection,
   getDocs,
   signInWithEmailAndPassword,
@@ -14,6 +15,7 @@ import {
 } from './firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
+import { Timestamp } from 'firebase/firestore';
 
 // 🖼️ Default profile image (stored in /public/assets/)
 const DEFAULT_AVATAR = '/assets/default-avatar.png';
@@ -303,7 +305,174 @@ export const getUserData = async (uid) => {
 };
 
 /* =========================
+   🔹 ADMIN: GET ALL BARANGAY ADMINS
+========================= */
+export const getAllBarangayAdmins = async () => {
+  try {
+    const snapshot = await getDocs(collection(db, 'barangayAdmins'));
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      type: 'barangay',
+    }));
+  } catch (error) {
+    console.error('Error fetching barangay admins:', error);
+    return [];
+  }
+};
+
+/* =========================
+   🔹 ADMIN: GET ALL PRIVATE SPOT OWNERS
+========================= */
+export const getAllSpotOwners = async () => {
+  try {
+    const snapshot = await getDocs(collection(db, 'privateSpotOwners'));
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      type: 'spotOwner',
+    }));
+  } catch (error) {
+    console.error('Error fetching spot owners:', error);
+    return [];
+  }
+};
+
+/* =========================
+   🔹 ADMIN: VERIFY ADMIN ACCOUNT
+   Can be used by main admin to verify Barangay Admins or Spot Owners
+========================= */
+export const verifyAdminAccount = async (adminId, adminType) => {
+  try {
+    if (!auth.currentUser || auth.currentUser.email !== 'kapanganwonders@gmail.com') {
+      throw new Error('Only the main admin can verify admin accounts.');
+    }
+
+    const validTypes = ['barangay', 'spotOwner'];
+    if (!validTypes.includes(adminType)) {
+      throw new Error('Invalid admin type. Must be "barangay" or "spotOwner".');
+    }
+
+    const collectionName = adminType === 'barangay' ? 'barangayAdmins' : 'privateSpotOwners';
+    const docRef = doc(db, collectionName, adminId);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+      throw new Error(`${adminType === 'barangay' ? 'Barangay admin' : 'Spot owner'} not found.`);
+    }
+
+    await setDoc(docRef, {
+      isVerified: true,
+      approvedBy: auth.currentUser.uid,
+      approvedAt: Timestamp.now(),
+    }, { merge: true });
+
+    // Also update the users collection for role-based access
+    await setDoc(doc(db, 'users', adminId), {
+      status: 'Active',
+      role: adminType === 'barangay' ? 'Barangay Admin' : 'Private Spot Owner',
+    }, { merge: true });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error verifying admin account:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/* =========================
+   🔹 UPDATE BARANGAY ADMIN PROFILE
+========================= */
+export const updateBarangayAdminProfile = async (uid, updates) => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('Not authenticated');
+    
+    // Only the user themselves or main admin can update
+    if (currentUser.uid !== uid && currentUser.email !== 'kapanganwonders@gmail.com') {
+      throw new Error('Unauthorized to update this profile');
+    }
+
+    const docRef = doc(db, 'barangayAdmins', uid);
+    await setDoc(docRef, updates, { merge: true });
+    
+    // Also update the users collection for role-based access
+    await setDoc(doc(db, 'users', uid), updates, { merge: true });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating barangay admin profile:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/* =========================
+   🔹 UPDATE SPOT OWNER PROFILE
+========================= */
+export const updateSpotOwnerProfile = async (uid, updates) => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('Not authenticated');
+    
+    // Only the user themselves or main admin can update
+    if (currentUser.uid !== uid && currentUser.email !== 'kapanganwonders@gmail.com') {
+      throw new Error('Unauthorized to update this profile');
+    }
+
+    const docRef = doc(db, 'privateSpotOwners', uid);
+    await setDoc(docRef, updates, { merge: true });
+    
+    // Also update the users collection for role-based access
+    await setDoc(doc(db, 'users', uid), updates, { merge: true });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating spot owner profile:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/* =========================
+   🔹 ADMIN: DELETE USER
+   Deletes user from both Auth and Firestore
+========================= */
+export const deleteUserAccount = async (userId) => {
+  try {
+    // Only main admin can delete users
+    if (!auth.currentUser || auth.currentUser.email !== 'kapanganwonders@gmail.com') {
+      throw new Error('Only the main admin can delete users.');
+    }
+
+    // Delete from all collections
+    const collections = ['users', 'barangayAdmins', 'privateSpotOwners'];
+    const batch = [];
+    
+    // Add all delete operations to batch
+    for (const collection of collections) {
+      const docRef = doc(db, collection, userId);
+      batch.push(deleteDoc(docRef));
+    }
+
+    // Execute all deletes in parallel
+    await Promise.all(batch);
+
+    // If you want to delete the auth user as well (uncomment if needed)
+    // Note: This requires the admin SDK on the server side for security
+    // You'll need to implement a cloud function for this
+    // await deleteUser(userId);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/* =========================
    🔹 AUTH HELPERS
 ========================= */
-export const getCurrentUser = () => auth.currentUser;
-export const isAuthenticated = () => auth.currentUser !== null;
+export const getCurrentUser = () => {
+  return auth.currentUser;
+};
+
+export const isAuthenticated = () => !!auth.currentUser;

@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   fetchAllUsers,
   createUserByAdmin,
-  updateUserRole, // 👈 new function
+  updateUserRole,
+  deleteUserAccount,
 } from '@/lib/auth';
 import {
   FiSearch,
@@ -116,11 +117,25 @@ export default function UsersManagement() {
   };
 
   /* =========================
-     🔹 Delete User (Client-side only)
+     🔹 Delete User
   ========================= */
-  const deleteUser = (userId: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter((user) => user.id !== userId));
+  const deleteUser = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const result = await deleteUserAccount(userId);
+      
+      if (result.success) {
+        // Update UI after successful deletion
+        setUsers(users.filter((user) => user.id !== userId));
+      } else {
+        alert(`Failed to delete user: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('An error occurred while deleting the user. Please try again.');
     }
   };
 
