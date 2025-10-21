@@ -144,11 +144,10 @@ export const createUserByAdmin = async (email, password, displayName, role) => {
       createdAt: new Date().toISOString(),
     };
 
-    // ✅ Save in Firestore - Barangay Admins go directly to barangayAdmins collection only
+    // ✅ Save in Firestore - Both admin types go directly to their respective collections only
     if (role === 'Barangay Admin') {
       await setDoc(doc(db, 'barangayAdmins', newUser.uid), userData);
     } else if (role === 'Private Spot Owner') {
-      await setDoc(doc(db, 'users', newUser.uid), userData);
       await setDoc(doc(db, 'privateSpotOwners', newUser.uid), userData);
     }
 
@@ -232,10 +231,12 @@ export const updateUserRole = async (uid, newRole) => {
       }
       await deleteDoc(doc(db, 'privateSpotOwners', uid)).catch(() => {});
     } else if (newRole === 'Private Spot Owner') {
-      // Keep in both users and privateSpotOwners
-      await setDoc(doc(db, 'users', uid), userData, { merge: true });
+      // Move to privateSpotOwners only
       await setDoc(doc(db, 'privateSpotOwners', uid), userData, { merge: true });
-      // Remove from barangayAdmins
+      // Remove from other collections
+      if (currentCollection === 'users') {
+        await deleteDoc(doc(db, 'users', uid));
+      }
       await deleteDoc(doc(db, 'barangayAdmins', uid)).catch(() => {});
     } else {
       // Tourist: only in users collection
@@ -411,14 +412,6 @@ export const verifyAdminAccount = async (adminId, adminType) => {
       approvedAt: Timestamp.now(),
     }, { merge: true });
 
-    // Update the users collection only for Private Spot Owners (not Barangay Admins)
-    if (adminType === 'spotOwner') {
-      await setDoc(doc(db, 'users', adminId), {
-        status: 'Active',
-        role: 'Private Spot Owner',
-      }, { merge: true });
-    }
-
     return { success: true };
   } catch (error) {
     console.error('Error verifying admin account:', error);
@@ -466,9 +459,6 @@ export const updateSpotOwnerProfile = async (uid, updates) => {
 
     const docRef = doc(db, 'privateSpotOwners', uid);
     await setDoc(docRef, updates, { merge: true });
-    
-    // Also update the users collection for role-based access
-    await setDoc(doc(db, 'users', uid), updates, { merge: true });
 
     return { success: true };
   } catch (error) {

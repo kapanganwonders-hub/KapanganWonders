@@ -5,6 +5,7 @@ import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { checkIsAdmin, ADMIN_EMAIL } from '@/lib/admin';
 import { checkIsBarangayAdmin } from '@/lib/barangayAdmin';
+import { checkIsPrivateSpotAdmin } from '@/lib/privateSpotAdmin';
 
 const AuthContext = createContext();
 
@@ -22,6 +23,8 @@ export const AuthProvider = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isBarangayAdmin, setIsBarangayAdmin] = useState(false);
   const [barangayAdminData, setBarangayAdminData] = useState(null);
+  const [isPrivateSpotAdmin, setIsPrivateSpotAdmin] = useState(false);
+  const [privateSpotAdminData, setPrivateSpotAdminData] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -41,10 +44,22 @@ export const AuthProvider = ({ children }) => {
           setIsBarangayAdmin(false);
           setBarangayAdminData(null);
         }
+        
+        // Check if the user is a private spot admin
+        const privateSpotStatus = await checkIsPrivateSpotAdmin(user);
+        if (privateSpotStatus && privateSpotStatus.isPrivateSpotAdmin) {
+          setIsPrivateSpotAdmin(true);
+          setPrivateSpotAdminData(privateSpotStatus.data);
+        } else {
+          setIsPrivateSpotAdmin(false);
+          setPrivateSpotAdminData(null);
+        }
       } else {
         setIsAdmin(false);
         setIsBarangayAdmin(false);
         setBarangayAdminData(null);
+        setIsPrivateSpotAdmin(false);
+        setPrivateSpotAdminData(null);
       }
       
       setLoading(false);
@@ -59,6 +74,8 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     isBarangayAdmin,
     barangayAdminData,
+    isPrivateSpotAdmin,
+    privateSpotAdminData,
     adminEmail: ADMIN_EMAIL
   };
 

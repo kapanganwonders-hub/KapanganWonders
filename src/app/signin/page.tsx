@@ -8,6 +8,7 @@ import { auth } from '@/firebase/config';
 import { signInWithGoogle } from '@/lib/auth';
 import { ADMIN_EMAIL } from '@/lib/admin';
 import { checkIsBarangayAdmin } from '@/lib/barangayAdmin';
+import { checkIsPrivateSpotAdmin } from '@/lib/privateSpotAdmin';
 
 export default function SignIn() {
   const router = useRouter();
@@ -29,6 +30,13 @@ export default function SignIn() {
         const barangayAdminStatus = await checkIsBarangayAdmin(user);
         if (barangayAdminStatus && barangayAdminStatus.isBarangayAdmin) {
           router.replace('/barangay-admin');
+          return;
+        }
+        
+        // Check if private spot admin
+        const privateSpotAdminStatus = await checkIsPrivateSpotAdmin(user);
+        if (privateSpotAdminStatus && privateSpotAdminStatus.isPrivateSpotAdmin) {
+          router.replace('/private-spot-admin');
           return;
         }
         
@@ -68,6 +76,13 @@ export default function SignIn() {
       const barangayAdminStatus = await checkIsBarangayAdmin(user);
       if (barangayAdminStatus && barangayAdminStatus.isBarangayAdmin) {
         router.push('/barangay-admin');
+        return;
+      }
+      
+      // Check if private spot admin
+      const privateSpotAdminStatus = await checkIsPrivateSpotAdmin(user);
+      if (privateSpotAdminStatus && privateSpotAdminStatus.isPrivateSpotAdmin) {
+        router.push('/private-spot-admin');
         return;
       }
       
@@ -124,6 +139,13 @@ export default function SignIn() {
         const barangayAdminStatus = await checkIsBarangayAdmin(user);
         if (barangayAdminStatus && barangayAdminStatus.isBarangayAdmin) {
           router.push('/barangay-admin');
+          return;
+        }
+        
+        // Check if private spot admin
+        const privateSpotAdminStatus = await checkIsPrivateSpotAdmin(user);
+        if (privateSpotAdminStatus && privateSpotAdminStatus.isPrivateSpotAdmin) {
+          router.push('/private-spot-admin');
           return;
         }
         

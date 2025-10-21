@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
+import { checkIsBarangayAdmin } from '@/lib/barangayAdmin';
+import { checkIsPrivateSpotAdmin } from '@/lib/privateSpotAdmin';
+import { ADMIN_EMAIL } from '@/lib/admin';
 
 export default function OverviewPage() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [scheduledCount, setScheduledCount] = useState(0);
   const [visitedCount, setVisitedCount] = useState(0); // optional feature
@@ -15,6 +20,27 @@ export default function OverviewPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
+        // Check if main admin
+        if (u.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+          router.replace('/admin');
+          return;
+        }
+        
+        // Check if barangay admin
+        const barangayStatus = await checkIsBarangayAdmin(u);
+        if (barangayStatus && barangayStatus.isBarangayAdmin) {
+          router.replace('/barangay-admin');
+          return;
+        }
+        
+        // Check if private spot admin
+        const privateSpotStatus = await checkIsPrivateSpotAdmin(u);
+        if (privateSpotStatus && privateSpotStatus.isPrivateSpotAdmin) {
+          router.replace('/private-spot-admin');
+          return;
+        }
+        
+        // Regular tourist user
         setUser(u);
         await fetchStats(u.uid);
       } else {
@@ -26,7 +52,7 @@ export default function OverviewPage() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [router]);
 
   const fetchStats = async (uid: string) => {
     try {
