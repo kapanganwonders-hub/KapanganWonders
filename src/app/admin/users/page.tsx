@@ -35,24 +35,29 @@ export default function UsersManagement() {
     email: '',
     password: '',
     role: 'Barangay Admin',
+    barangay: '',
+    privateSpotName: '',
   });
   const [editingRole, setEditingRole] = useState<string | null>(null);
   const [editedRole, setEditedRole] = useState('');
 
   /* =========================
-     🔹 Fetch Users
+     🔹 Helper: Reload Users
   ========================= */
-  useEffect(() => {
-    const loadUsers = async () => {
+  const reloadUsers = async () => {
+    try {
       const fetchedUsers = await fetchAllUsers();
-
-      // ✅ Deduplicate by ID
       const uniqueUsers = Array.from(
         new Map(fetchedUsers.map((u) => [u.id, u])).values()
       );
       setUsers(uniqueUsers);
-    };
-    loadUsers();
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
+  useEffect(() => {
+    reloadUsers();
   }, []);
 
   /* =========================
@@ -84,24 +89,48 @@ export default function UsersManagement() {
       return;
     }
 
-    const result = await createUserByAdmin(
-      newUser.email,
-      newUser.password,
-      newUser.name,
-      newUser.role
-    );
+    if (newUser.role === 'Barangay Admin' && !newUser.barangay) {
+      alert('Please select a barangay for Barangay Admin.');
+      return;
+    }
 
-    if (result.success) {
-      alert(`✅ ${newUser.role} created successfully!`);
-      setShowAddForm(false);
-      setNewUser({ name: '', email: '', password: '', role: 'Barangay Admin' });
-      const fetchedUsers = await fetchAllUsers();
-      const uniqueUsers = Array.from(
-        new Map(fetchedUsers.map((u) => [u.id, u])).values()
+    if (
+      newUser.role === 'Private Spot Owner' &&
+      (!newUser.privateSpotName || !newUser.barangay)
+    ) {
+      alert('Please fill in private spot name and barangay for Private Spot Owner.');
+      return;
+    }
+
+    try {
+      // @ts-ignore
+      const result = await createUserByAdmin(
+        newUser.email,
+        newUser.password,
+        newUser.name,
+        newUser.role,
+        newUser.barangay || null,
+        newUser.privateSpotName || null
       );
-      setUsers(uniqueUsers);
-    } else {
-      alert(`❌ Error: ${result.error}`);
+
+      if (result.success) {
+        alert(`✅ ${newUser.role} created successfully!`);
+        setShowAddForm(false);
+        setNewUser({
+          name: '',
+          email: '',
+          password: '',
+          role: 'Barangay Admin',
+          barangay: '',
+          privateSpotName: '',
+        });
+        await reloadUsers();
+      } else {
+        alert(`❌ Error: ${result.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred while creating the user.');
     }
   };
 
@@ -109,8 +138,10 @@ export default function UsersManagement() {
      🔹 Toggle User Status
   ========================= */
   const toggleUserStatus = async (userId: string, newStatus: string) => {
-    setUsers(
-      users.map((user) =>
+    // Optional: persist to backend if available
+    // await updateUserStatus(userId, newStatus);
+    setUsers((prev) =>
+      prev.map((user) =>
         user.id === userId ? { ...user, status: newStatus } : user
       )
     );
@@ -120,22 +151,18 @@ export default function UsersManagement() {
      🔹 Delete User
   ========================= */
   const deleteUser = async (userId: string) => {
-    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      return;
-    }
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
 
     try {
       const result = await deleteUserAccount(userId);
-      
       if (result.success) {
-        // Update UI after successful deletion
-        setUsers(users.filter((user) => user.id !== userId));
+        setUsers((prev) => prev.filter((u) => u.id !== userId));
       } else {
         alert(`Failed to delete user: ${result.error}`);
       }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      alert('An error occurred while deleting the user. Please try again.');
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      alert('An error occurred while deleting the user.');
     }
   };
 
@@ -144,16 +171,16 @@ export default function UsersManagement() {
   ========================= */
   const handleRoleUpdate = async (userId: string) => {
     if (!editedRole) return;
-
     const result = await updateUserRole(userId, editedRole);
 
     if (result.success) {
       alert('✅ Role updated successfully!');
       setEditingRole(null);
-      const updated = users.map((u) =>
-        u.id === userId ? { ...u, role: editedRole } : u
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId ? { ...u, role: editedRole } : u
+        )
       );
-      setUsers(updated);
     } else {
       alert(`❌ Error: ${result.error}`);
     }
@@ -176,16 +203,14 @@ export default function UsersManagement() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">
-              User Management
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
             <p className="text-gray-600">
               Manage all users and their permissions
             </p>
           </div>
           <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => setShowAddForm((prev) => !prev)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
             <FiPlus className="mr-2" />
             Add New User
@@ -227,7 +252,12 @@ export default function UsersManagement() {
               <select
                 value={newUser.role}
                 onChange={(e) =>
-                  setNewUser({ ...newUser, role: e.target.value })
+                  setNewUser({
+                    ...newUser,
+                    role: e.target.value,
+                    barangay: '',
+                    privateSpotName: '',
+                  })
                 }
                 className="border p-2 rounded-md"
               >
@@ -235,6 +265,55 @@ export default function UsersManagement() {
                 <option value="Private Spot Owner">Private Spot Owner</option>
               </select>
             </div>
+
+            {/* Conditional Fields */}
+            {(newUser.role === 'Private Spot Owner' ||
+              newUser.role === 'Barangay Admin') && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                {newUser.role === 'Private Spot Owner' && (
+                  <input
+                    type="text"
+                    placeholder="Private Spot Name"
+                    value={newUser.privateSpotName}
+                    onChange={(e) =>
+                      setNewUser({
+                        ...newUser,
+                        privateSpotName: e.target.value,
+                      })
+                    }
+                    className="border p-2 rounded-md"
+                  />
+                )}
+                <select
+                  value={newUser.barangay}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, barangay: e.target.value })
+                  }
+                  className="border p-2 rounded-md"
+                >
+                  <option value="">Select Barangay</option>
+                  {[
+                    'Sagubo',
+                    'Cuba',
+                    'Taba-ao',
+                    'Central',
+                    'Labueg',
+                    'Gasweling',
+                    'Balakbak',
+                    'Beleng-Belis',
+                    'Cayapes',
+                    'Paykek',
+                    'Pongayan',
+                    'Pudong',
+                  ].map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="flex justify-end mt-4">
               <button
                 onClick={handleCreateUser}
@@ -246,67 +325,59 @@ export default function UsersManagement() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div className="relative flex-1 max-w-md">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiSearch className="text-gray-400" />
-              </div>
+              <FiSearch className="absolute left-3 top-3 text-gray-400" />
               <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Search users..."
+                className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              <FiFilter className="mr-2" />
-              Filters
-              {showFilters ? (
-                <FiChevronUp className="ml-2" />
-              ) : (
-                <FiChevronDown className="ml-2" />
-              )}
-            </button>
           </div>
 
-          {/* Table */}
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Active</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Role
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Last Active
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    Actions
+                  </th>
                 </tr>
               </thead>
-
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user, index) => (
-                  <tr key={user.id || user.email || index}>
-                    <td className="px-6 py-4 whitespace-nowrap flex items-center">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id}>
+                    <td className="px-6 py-4 flex items-center space-x-3">
                       <img
-                        className="h-10 w-10 rounded-full"
                         src={user.photoURL || '/assets/default-avatar.png'}
-                        alt={user.displayName || user.email}
+                        alt=""
+                        className="w-10 h-10 rounded-full"
                       />
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
+                      <div>
+                        <p className="font-medium text-gray-900">
                           {user.displayName || 'Unknown'}
-                        </div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
+                        </p>
+                        <p className="text-sm text-gray-500">{user.email}</p>
                       </div>
                     </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td className="px-6 py-4 text-sm text-gray-700">
                       {editingRole === user.id ? (
                         <div className="flex items-center space-x-2">
                           <select
@@ -315,7 +386,9 @@ export default function UsersManagement() {
                             className="border p-1 rounded-md"
                           >
                             <option value="Barangay Admin">Barangay Admin</option>
-                            <option value="Private Spot Owner">Private Spot Owner</option>
+                            <option value="Private Spot Owner">
+                              Private Spot Owner
+                            </option>
                             <option value="Tourist">Tourist</option>
                           </select>
                           <button
@@ -340,8 +413,7 @@ export default function UsersManagement() {
                         </div>
                       )}
                     </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 text-sm">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${
                           user.status === 'Active'
@@ -351,29 +423,33 @@ export default function UsersManagement() {
                             : 'bg-red-100 text-red-800'
                         }`}
                       >
-                        {user.status}
+                        {user.status || 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {user.lastActive || '—'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 text-right text-sm">
                       <div className="flex justify-end space-x-2">
-                        {user.status === 'Active' ? (
-                          <button
-                            onClick={() => toggleUserStatus(user.id, 'Inactive')}
-                            className="text-yellow-600 hover:text-yellow-900"
-                          >
+                        <button
+                          onClick={() =>
+                            toggleUserStatus(
+                              user.id,
+                              user.status === 'Active' ? 'Inactive' : 'Active'
+                            )
+                          }
+                          className={`${
+                            user.status === 'Active'
+                              ? 'text-yellow-600 hover:text-yellow-900'
+                              : 'text-green-600 hover:text-green-900'
+                          }`}
+                        >
+                          {user.status === 'Active' ? (
                             <FiChevronDown />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => toggleUserStatus(user.id, 'Active')}
-                            className="text-green-600 hover:text-green-900"
-                          >
+                          ) : (
                             <FiChevronUp />
-                          </button>
-                        )}
+                          )}
+                        </button>
                         <button
                           onClick={() => deleteUser(user.id)}
                           className="text-red-600 hover:text-red-900"

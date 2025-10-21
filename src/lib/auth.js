@@ -104,8 +104,15 @@ export const signUpWithEmail = async (email, password, displayName) => {
 /* =========================
    🔹 ADMIN: CREATE USER ACCOUNT
    ✅ Uses secondary app so admin stays logged in
+   @param {string} email - User's email address
+   @param {string} password - User's password
+   @param {string} displayName - User's display name
+   @param {'Barangay Admin'|'Private Spot Owner'} role - User role
+   @param {string|null} [barangay=null] - Barangay name (required for Barangay Admin and Private Spot Owner)
+   @param {string|null} [privateSpotName=null] - Private spot name (required for Private Spot Owner)
+   @returns {Promise<{success: boolean, user?: any, error?: string}>} Result of the operation
 ========================= */
-export const createUserByAdmin = async (email, password, displayName, role) => {
+export const createUserByAdmin = async (email, password, displayName, role, barangay = null, privateSpotName = null) => {
   try {
     // ✅ Only main admin can create accounts
     if (!auth.currentUser || auth.currentUser.email !== 'kapanganwonders@gmail.com') {
@@ -114,6 +121,15 @@ export const createUserByAdmin = async (email, password, displayName, role) => {
 
     if (!['Barangay Admin', 'Private Spot Owner'].includes(role)) {
       throw new Error('Admins can only create Barangay Admin or Private Spot Owner accounts.');
+    }
+
+    // ✅ Validate required fields based on role
+    if (role === 'Barangay Admin' && !barangay) {
+      throw new Error('Barangay is required for Barangay Admin accounts.');
+    }
+
+    if (role === 'Private Spot Owner' && (!privateSpotName || !barangay)) {
+      throw new Error('Private spot name and barangay are required for Private Spot Owner accounts.');
     }
 
     // ✅ Create a temporary secondary Firebase app
@@ -143,6 +159,14 @@ export const createUserByAdmin = async (email, password, displayName, role) => {
       status: 'Active',
       createdAt: new Date().toISOString(),
     };
+
+    // ✅ Add role-specific fields
+    if (role === 'Barangay Admin') {
+      userData.barangay = barangay;
+    } else if (role === 'Private Spot Owner') {
+      userData.privateSpotName = privateSpotName;
+      userData.barangay = barangay;
+    }
 
     // ✅ Save in Firestore - Both admin types go directly to their respective collections only
     if (role === 'Barangay Admin') {
