@@ -3,16 +3,24 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { logout } from '@/lib/auth';
 import { motion } from 'framer-motion';
 import { User, Map, Calendar, Bell, LogOut, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-	const { currentUser, isAdmin } = useAuth();
+	const { currentUser, isAdmin, isBarangayAdmin, barangayAdminData } = useAuth();
 	const [profileSrc, setProfileSrc] = useState('/assets/default-avatar.png');
 	const pathname = usePathname();
+	const router = useRouter();
+
+	// Redirect barangay admins to their proper dashboard
+	useEffect(() => {
+		if (typeof isBarangayAdmin !== 'undefined' && isBarangayAdmin) {
+			router.replace('/barangay-admin');
+		}
+	}, [isBarangayAdmin, router]);
 
 	useEffect(() => {
 		// update profileSrc whenever the currentUser changes
@@ -70,6 +78,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 										Administrator
 									</span>
 									<span className="text-sm text-gray-500">Kapangan Wonders</span>
+								</div>
+							) : isBarangayAdmin ? (
+								<div className="flex flex-col items-center gap-1 mt-1">
+									<span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+										Barangay Admin
+									</span>
+									<span className="text-sm text-gray-600 font-medium">
+										{barangayAdminData?.barangayName || barangayAdminData?.displayName || 'Barangay'}
+									</span>
 								</div>
 							) : (
 								<p className="text-sm text-gray-500">Tourist</p>

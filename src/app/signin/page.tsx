@@ -4,50 +4,40 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/firebase/config';
+import { auth } from '@/firebase/config';
 import { signInWithGoogle } from '@/lib/auth';
+import { ADMIN_EMAIL } from '@/lib/admin';
+import { checkIsBarangayAdmin } from '@/lib/barangayAdmin';
 
 export default function SignIn() {
   const router = useRouter();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [adminEmail, setAdminEmail] = useState('');
-
-  // Fetch admin email from Firestore
-  useEffect(() => {
-    const fetchAdminEmail = async () => {
-      try {
-        const docRef = doc(db, 'admin', 'adminSettings');
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setAdminEmail(docSnap.data().email);
-        } else {
-          console.log('No admin settings found!');
-        }
-      } catch (err) {
-        console.error('Error fetching admin email:', err);
-      }
-    };
-
-    fetchAdminEmail();
-  }, []);
 
   // ✅ Automatically redirect logged-in users
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        if (user.email === adminEmail) {
+        // Check if main admin
+        if (user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
           router.replace('/admin');
-        } else {
-          router.replace('/');
+          return;
         }
+        
+        // Check if barangay admin
+        const barangayAdminStatus = await checkIsBarangayAdmin(user);
+        if (barangayAdminStatus && barangayAdminStatus.isBarangayAdmin) {
+          router.replace('/barangay-admin');
+          return;
+        }
+        
+        // Regular user
+        router.replace('/');
       }
     });
     return () => unsubscribe();
-  }, [router, adminEmail]);
+  }, [router]);
 
   // ✅ Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,12 +58,21 @@ export default function SignIn() {
       );
       const user = userCredential.user;
 
-
-      if (user.email === 'kapanganwonders@gmail.com') {
+      // Check if main admin
+      if (user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
         router.push('/admin');
-      } else {
-        router.push('/');
+        return;
       }
+      
+      // Check if barangay admin
+      const barangayAdminStatus = await checkIsBarangayAdmin(user);
+      if (barangayAdminStatus && barangayAdminStatus.isBarangayAdmin) {
+        router.push('/barangay-admin');
+        return;
+      }
+      
+      // Regular user
+      router.push('/');
     } catch (err: any) {
       console.error('Sign in error:', err);
       let message = 'An error occurred during sign in. Please try again.';
@@ -114,11 +113,22 @@ export default function SignIn() {
       const result = await signInWithGoogle();
       if (result.success) {
         const user = result.user;
-        if (user?.email === 'kapanganwonders@gmail.com') {
+        
+        // Check if main admin
+        if (user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
           router.push('/admin');
-        } else {
-          router.push('/');
+          return;
         }
+        
+        // Check if barangay admin
+        const barangayAdminStatus = await checkIsBarangayAdmin(user);
+        if (barangayAdminStatus && barangayAdminStatus.isBarangayAdmin) {
+          router.push('/barangay-admin');
+          return;
+        }
+        
+        // Regular user
+        router.push('/');
       } else {
         alert(result.error || 'Google sign-in failed.');
       }

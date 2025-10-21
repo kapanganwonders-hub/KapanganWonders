@@ -144,11 +144,11 @@ export const createUserByAdmin = async (email, password, displayName, role) => {
       createdAt: new Date().toISOString(),
     };
 
-    // ✅ Save in Firestore
-    await setDoc(doc(db, 'users', newUser.uid), userData);
+    // ✅ Save in Firestore - Barangay Admins go directly to barangayAdmins collection only
     if (role === 'Barangay Admin') {
       await setDoc(doc(db, 'barangayAdmins', newUser.uid), userData);
     } else if (role === 'Private Spot Owner') {
+      await setDoc(doc(db, 'users', newUser.uid), userData);
       await setDoc(doc(db, 'privateSpotOwners', newUser.uid), userData);
     }
 
@@ -186,30 +186,63 @@ export const updateUserRole = async (uid, newRole) => {
       throw new Error('Invalid role selected.');
     }
 
-    // ✅ Get user doc
+    // ✅ Get user data from any collection
+    let userData = null;
+    let currentCollection = null;
+    
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
-
-    if (!userSnap.exists()) {
-      throw new Error('User not found.');
+    if (userSnap.exists()) {
+      userData = userSnap.data();
+      currentCollection = 'users';
+    }
+    
+    if (!userData) {
+      const barangayRef = doc(db, 'barangayAdmins', uid);
+      const barangaySnap = await getDoc(barangayRef);
+      if (barangaySnap.exists()) {
+        userData = barangaySnap.data();
+        currentCollection = 'barangayAdmins';
+      }
+    }
+    
+    if (!userData) {
+      const spotOwnerRef = doc(db, 'privateSpotOwners', uid);
+      const spotOwnerSnap = await getDoc(spotOwnerRef);
+      if (spotOwnerSnap.exists()) {
+        userData = spotOwnerSnap.data();
+        currentCollection = 'privateSpotOwners';
+      }
     }
 
-    const userData = userSnap.data();
+    if (!userData) {
+      throw new Error('User not found in any collection.');
+    }
 
-    // ✅ Update in `users` collection
-    await setDoc(userRef, { role: newRole }, { merge: true });
+    // ✅ Update role in userData
+    userData.role = newRole;
 
-    // ✅ Sync other collections
+    // ✅ Handle collection changes based on new role
     if (newRole === 'Barangay Admin') {
+      // Move to barangayAdmins only
       await setDoc(doc(db, 'barangayAdmins', uid), userData, { merge: true });
-      await setDoc(doc(db, 'privateSpotOwners', uid), {}, { merge: false }); // clear old data
+      // Remove from other collections
+      if (currentCollection === 'users') {
+        await deleteDoc(doc(db, 'users', uid));
+      }
+      await deleteDoc(doc(db, 'privateSpotOwners', uid)).catch(() => {});
     } else if (newRole === 'Private Spot Owner') {
+      // Keep in both users and privateSpotOwners
+      await setDoc(doc(db, 'users', uid), userData, { merge: true });
       await setDoc(doc(db, 'privateSpotOwners', uid), userData, { merge: true });
-      await setDoc(doc(db, 'barangayAdmins', uid), {}, { merge: false });
+      // Remove from barangayAdmins
+      await deleteDoc(doc(db, 'barangayAdmins', uid)).catch(() => {});
     } else {
-      // Tourist: remove from both admin collections
-      await setDoc(doc(db, 'barangayAdmins', uid), {}, { merge: false });
-      await setDoc(doc(db, 'privateSpotOwners', uid), {}, { merge: false });
+      // Tourist: only in users collection
+      await setDoc(doc(db, 'users', uid), userData, { merge: true });
+      // Remove from admin collections
+      await deleteDoc(doc(db, 'barangayAdmins', uid)).catch(() => {});
+      await deleteDoc(doc(db, 'privateSpotOwners', uid)).catch(() => {});
     }
 
     return { success: true };
@@ -257,11 +290,22 @@ export const loginWithEmail = async (email, password) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    await setDoc(
-      doc(db, 'users', user.uid),
-      { lastLogin: new Date().toISOString() },
-      { merge: true }
-    );
+    // Update lastLogin in the appropriate collection
+    // Check if user is in users collection first
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists()) {
+      await setDoc(userRef, { lastLogin: new Date().toISOString() }, { merge: true });
+    } else {
+      // Check if user is a Barangay Admin
+      const barangayRef = doc(db, 'barangayAdmins', user.uid);
+      const barangaySnap = await getDoc(barangayRef);
+      
+      if (barangaySnap.exists()) {
+        await setDoc(barangayRef, { lastLogin: new Date().toISOString() }, { merge: true });
+      }
+    }
 
     return { success: true, user };
   } catch (error) {
@@ -367,11 +411,13 @@ export const verifyAdminAccount = async (adminId, adminType) => {
       approvedAt: Timestamp.now(),
     }, { merge: true });
 
-    // Also update the users collection for role-based access
-    await setDoc(doc(db, 'users', adminId), {
-      status: 'Active',
-      role: adminType === 'barangay' ? 'Barangay Admin' : 'Private Spot Owner',
-    }, { merge: true });
+    // Update the users collection only for Private Spot Owners (not Barangay Admins)
+    if (adminType === 'spotOwner') {
+      await setDoc(doc(db, 'users', adminId), {
+        status: 'Active',
+        role: 'Private Spot Owner',
+      }, { merge: true });
+    }
 
     return { success: true };
   } catch (error) {
@@ -396,8 +442,7 @@ export const updateBarangayAdminProfile = async (uid, updates) => {
     const docRef = doc(db, 'barangayAdmins', uid);
     await setDoc(docRef, updates, { merge: true });
     
-    // Also update the users collection for role-based access
-    await setDoc(doc(db, 'users', uid), updates, { merge: true });
+    // Barangay Admins are not stored in users collection
 
     return { success: true };
   } catch (error) {

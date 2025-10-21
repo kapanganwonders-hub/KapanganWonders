@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { checkIsAdmin, ADMIN_EMAIL } from '@/lib/admin';
+import { checkIsBarangayAdmin } from '@/lib/barangayAdmin';
 
 const AuthContext = createContext();
 
@@ -18,30 +19,34 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(undefined); // Changed: start as undefined so other components can detect "not yet resolved"
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isBarangayAdmin, setIsBarangayAdmin] = useState(false);
+  const [barangayAdminData, setBarangayAdminData] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-
+      
       if (user) {
-        // Run admin check
-        const adminStatus = checkIsAdmin(user);
-
-        console.group('🔐 Auth Debug Info');
-        console.log('👤 User Email:', user.email);
-        console.log('🆔 User UID:', user.uid);
-        console.log('👑 Admin Email (constant):', ADMIN_EMAIL);
-        console.log('✅ Is Admin:', adminStatus);
-        console.groupEnd();
-
+        // Check if the user is an admin
+        const adminStatus = await checkIsAdmin(user);
         setIsAdmin(adminStatus);
+        
+        // Check if the user is a barangay admin
+        const barangayStatus = await checkIsBarangayAdmin(user);
+        if (barangayStatus && barangayStatus.isBarangayAdmin) {
+          setIsBarangayAdmin(true);
+          setBarangayAdminData(barangayStatus.data);
+        } else {
+          setIsBarangayAdmin(false);
+          setBarangayAdminData(null);
+        }
       } else {
-        console.log('🚪 User signed out');
-        // resolved: not admin
         setIsAdmin(false);
+        setIsBarangayAdmin(false);
+        setBarangayAdminData(null);
       }
-
+      
       setLoading(false);
     });
 
@@ -52,6 +57,8 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     loading,
     isAdmin,
+    isBarangayAdmin,
+    barangayAdminData,
     adminEmail: ADMIN_EMAIL
   };
 
