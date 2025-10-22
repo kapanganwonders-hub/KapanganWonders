@@ -1,8 +1,16 @@
 import HeroSection from "@/components/HeroSection";
-import AdvisorySection from "@/components/AdvisorySection";
+import FeaturedDestinations from "@/components/FeaturedDestinations";
+import HowItWorks from "@/components/HowItWorks";
 import Link from "next/link";
 
 export default function Home() {
+  const stats = [
+    { number: "50+", label: "Tourist Spots" },
+    { number: "25+", label: "Accommodations" },
+    { number: "15+", label: "Restaurants" },
+    { number: "1000+", label: "Happy Visitors" }
+  ];
+
   const features = [
     {
       title: "Natural Wonders",
@@ -26,131 +34,96 @@ export default function Home() {
     }
   ];
 
-  const stats = [
-    { number: "50+", label: "Tourist Spots" },
-    { number: "25+", label: "Accommodations" },
-    { number: "15+", label: "Restaurants" },
-    { number: "1000+", label: "Happy Visitors" }
-  ];
-
   return (
-    <div className="min-h-screen bg-egg-white">
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <HeroSection />
 
-      {/* Advisory Section */}
-      <AdvisorySection />
+      {/* Featured Destinations */}
+      <section id="featured" className="scroll-mt-20">
+        <FeaturedDestinations />
+      </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-gradient-custom border-b border-primary-green/20">
+      <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-primary-green mb-4">
-              Why Choose Kapangan?
-            </h2>
-            <p className="text-xl text-primary-green/80 max-w-3xl mx-auto">
-              Experience the perfect blend of natural beauty, cultural richness, and warm hospitality that makes Kapangan a unique destination.
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose Kapangan?</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Experience the perfect blend of natural beauty, cultural richness, and warm hospitality
             </p>
           </div>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="text-center group">
-                <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300 animate-float" style={{ animationDelay: `${index * 0.2}s` }}>
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-semibold text-primary-green mb-3 group-hover:text-accent-green transition-colors duration-300">{feature.title}</h3>
-                <p className="text-primary-green/70 group-hover:text-primary-green/90 transition-colors duration-300">{feature.description}</p>
+              <div key={index} className="text-center p-6 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
+                <div className="text-4xl mb-4">{feature.icon}</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
+                <p className="text-gray-600">{feature.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* How It Works */}
+      <HowItWorks />
+
       {/* Stats Section */}
-      <section className="py-16 bg-gradient-custom-reverse text-primary-green">
+      <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {stats.map((stat, index) => (
-              <div key={index} className="group">
-                <div className="text-4xl font-bold mb-2 group-hover:scale-110 transition-transform duration-300 animate-pulse-slow" style={{ animationDelay: `${index * 0.3}s` }}>
-                  {stat.number}
-                </div>
-                <div className="text-primary-green/80 group-hover:text-primary-green transition-colors duration-300 font-medium">
-                  {stat.label}
-                </div>
+              <div key={index} className="p-6 bg-white rounded-lg shadow-md">
+                <p className="text-4xl font-bold text-green-600">{stat.number}</p>
+                <p className="text-gray-600 mt-2">{stat.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Call to Action Section */}
-      <section className="py-16 bg-gradient-custom border-b border-primary-green/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-primary-green mb-4 animate-pulse-slow">
-            Ready to Explore Kapangan?
-          </h2>
-          <p className="text-xl text-primary-green/80 mb-8 max-w-2xl mx-auto">
-            Start planning your adventure today and discover all that Kapangan has to offer.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/tourist-spots"
-              className="bg-primary-green hover:bg-accent-green text-egg-white px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-300 border border-primary-green shadow-lg hover:shadow-xl transform hover:-translate-y-1 hover:scale-105"
-            >
-              Explore Now
-            </Link>
-            <Link
-              href="/contact"
-              className="border-2 border-primary-green text-primary-green hover:bg-primary-green hover:text-egg-white px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 hover:scale-105"
-            >
-              Get in Touch
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
-      <footer className="bg-primary-green text-egg-white py-12">
+      <footer className="bg-gray-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-2xl font-bold text-light-green mb-4">Kapangan Wonder</h3>
-              <p className="text-light-green/80">
+              <h3 className="text-2xl font-bold text-green-400 mb-4">Kapangan Wonder</h3>
+              <p className="text-gray-300">
                 Discover the natural beauty and cultural richness of Kapangan, Benguet.
               </p>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2">
-                <li><Link href="/tourist-spots" className="text-light-green/80 hover:text-egg-white">Tourist Spots</Link></li>
-                <li><Link href="/eat-and-stay" className="text-light-green/80 hover:text-egg-white">Eat & Stay</Link></li>
-                <li><Link href="/blogs" className="text-light-green/80 hover:text-egg-white">Blogs</Link></li>
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact</Link></li>
+                <li><Link href="/tourist-spots" className="text-gray-300 hover:text-white">Tourist Spots</Link></li>
+                <li><Link href="/eat-and-stay" className="text-gray-300 hover:text-white">Eat & Stay</Link></li>
+                <li><Link href="/blogs" className="text-gray-300 hover:text-white">Blogs</Link></li>
+                <li><Link href="/contact" className="text-gray-300 hover:text-white">Contact</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Support</h4>
               <ul className="space-y-2">
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Help Center</Link></li>
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact Us</Link></li>
-                <li><Link href="/signin" className="text-light-green/80 hover:text-egg-white">Sign In</Link></li>
-                <li><Link href="/signup" className="text-light-green/80 hover:text-egg-white">Sign Up</Link></li>
+                <li><Link href="/contact" className="text-gray-300 hover:text-white">Help Center</Link></li>
+                <li><Link href="/contact" className="text-gray-300 hover:text-white">Contact Us</Link></li>
+                <li><Link href="/signin" className="text-gray-300 hover:text-white">Sign In</Link></li>
+                <li><Link href="/signup" className="text-gray-300 hover:text-white">Sign Up</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Follow Us</h4>
               <div className="flex space-x-4">
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📘</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">🐦</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📷</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📺</a>
+                <a href="#" className="text-gray-300 hover:text-white text-2xl">📘</a>
+                <a href="#" className="text-gray-300 hover:text-white text-2xl">🐦</a>
+                <a href="#" className="text-gray-300 hover:text-white text-2xl">📷</a>
+                <a href="#" className="text-gray-300 hover:text-white text-2xl">📺</a>
               </div>
             </div>
           </div>
-          <div className="border-t border-border-green mt-8 pt-8 text-center text-light-green/80">
-            <p>&copy; 2024 Kapangan Wonder. All rights reserved.</p>
+          <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+            <p>&copy; {new Date().getFullYear()} Kapangan Wonder. All rights reserved.</p>
           </div>
         </div>
       </footer>

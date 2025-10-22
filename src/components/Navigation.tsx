@@ -37,13 +37,13 @@ export default function Navigation() {
   }, [currentUser, isAdmin, pathname, router]);
 
   return (
-    <nav className="bg-egg-white shadow-lg sticky top-0 z-50 border-b border-border-green">
+    <nav className="bg-primary-green shadow-lg sticky top-0 z-50 border-b border-border-green">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left - Logo */}
           <Link
             href="/" // Changed: always link to homepage so admin can visit it
-            className="text-2xl font-bold text-primary-green hover:text-accent-green transition"
+            className="text-2xl font-bold text-egg-white hover:text-light-green transition"
           >
             Kapangan Wonder
           </Link>
@@ -230,7 +230,7 @@ export default function Navigation() {
 
 /* --- Tailwind helper classes --- */
 const navLink =
-  'text-primary-green hover:text-accent-green hover:bg-light-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md';
+  'text-egg-white hover:text-light-green hover:bg-primary-green/90 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md';
 const authLink = {
   border: 'text-primary-green border border-border-green hover:text-accent-green hover:border-accent-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md',
   bg: 'bg-primary-green hover:bg-accent-green text-egg-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-lg hover:shadow-primary-green/25',
