@@ -21,19 +21,48 @@ export default function BarangayAdminDashboard() {
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // wait until isBarangayAdmin is resolved
-    if (typeof isBarangayAdmin === "undefined") return;
-    if (!isBarangayAdmin) {
-      router.push("/");
-    }
-  }, [isBarangayAdmin, router]);
+  // Debug authentication state
+  console.log('Auth State:', { 
+    isBarangayAdmin, 
+    currentUser: !!currentUser, 
+    barangayAdminData
+  });
 
   useEffect(() => {
-    if (barangayAdminData?.barangayName) {
-      fetchDashboardData();
+    console.log('Auth check effect running...');
+    
+    // If still determining auth state, do nothing
+    if (typeof isBarangayAdmin === "undefined") {
+      console.log('Auth state not determined yet');
+      return;
     }
-  }, [barangayAdminData]);
+    
+    // If not a barangay admin, redirect
+    if (!isBarangayAdmin) {
+      console.log('Not a barangay admin, redirecting...');
+      router.push("/");
+      return;
+    }
+    
+    console.log('Barangay admin verified, checking data...');
+    
+    // If we have barangay data, fetch dashboard data
+    if (barangayAdminData?.barangayName) {
+      console.log('Barangay data available, fetching dashboard data...');
+      fetchDashboardData();
+    } else {
+      console.log('Waiting for barangay data...', { barangayAdminData });
+      // If no barangay data after a delay, try to fetch it
+      const timer = setTimeout(() => {
+        console.log('Checking barangay data after delay...', { 
+          hasBarangayData: !!barangayAdminData,
+          currentUser
+        });
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isBarangayAdmin, barangayAdminData, router]);
 
   const fetchDashboardData = async () => {
     try {
@@ -111,30 +140,90 @@ export default function BarangayAdminDashboard() {
     );
   }
 
-  if (!currentUser || !isBarangayAdmin) {
+  // Show loading state while checking auth
+  if (typeof isBarangayAdmin === 'undefined' || !currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading...
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Verifying your access...</p>
+        </div>
       </div>
     );
   }
 
+  // Redirect if not a barangay admin
+  if (!isBarangayAdmin) {
+    router.push("/");
+    return null;
+  }
+
+  // Show loading state while fetching data
   if (loading) {
     return (
-      <div className="min-h-screen">
-        <div className="p-6 bg-white border-b">
-          <div className="h-8 bg-gray-200 rounded w-1/3 animate-pulse"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2 mt-2 animate-pulse"></div>
-        </div>
-        <div className="p-6">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6">
+        <div className="w-full max-w-4xl">
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="h-12 w-12 bg-gray-200 rounded-full animate-pulse"></div>
+              <div className="flex-1">
+                <div className="h-6 bg-gray-200 rounded w-48 mb-2 animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
+              <div key={i} className="bg-white rounded-lg shadow-sm p-6 animate-pulse">
                 <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
                 <div className="h-4 bg-gray-200 rounded w-1/3"></div>
               </div>
             ))}
           </div>
+          
+          <div className="mt-6 p-4 bg-blue-50 text-blue-800 text-sm rounded-lg">
+            <p className="font-medium">Loading dashboard data...</p>
+            <p className="mt-1 text-xs">
+              {!barangayAdminData ? 'Fetching barangay information...' : 'Loading statistics...'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If we have no barangay data after loading, show an error with debug info
+  if (!barangayAdminData) {
+    console.log('Debug Info - User:', currentUser?.email);
+    console.log('Is Barangay Admin:', isBarangayAdmin);
+    console.log('Barangay Admin Data:', barangayAdminData);
+    
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-medium text-gray-900 mb-2">Barangay Data Not Found</h2>
+          <div className="bg-gray-50 p-4 rounded-md text-left text-sm text-gray-600 mb-6">
+            <p className="mb-2">We couldn't find the barangay information for your account.</p>
+            <p className="font-mono text-xs bg-black/5 p-2 rounded">
+              User: {currentUser?.email || 'Not logged in'}<br />
+              UID: {currentUser?.uid || 'N/A'}
+            </p>
+            <p className="mt-3 text-sm">
+              Please ensure your account is properly registered as a barangay administrator.
+            </p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -143,12 +232,48 @@ export default function BarangayAdminDashboard() {
   return (
     <div className="min-h-screen">
       <div className="p-6 bg-white border-b">
-        <h1 className="text-2xl font-bold text-gray-800">
-          {barangayAdminData?.barangayName} Dashboard
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Manage tourism activities and content for your barangay
-        </p>
+        <div className="flex items-center space-x-4">
+          <div className="flex-shrink-0">
+            <img 
+              className="h-12 w-12 rounded-full" 
+              src={currentUser?.photoURL || '/assets/default-avatar.png'} 
+              alt="Profile"
+            />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              {currentUser?.displayName || 'Barangay Admin'}
+            </h1>
+            <div className="mt-1">
+              <div className="inline-flex items-center bg-blue-50 text-blue-800 text-sm px-3 py-1 rounded-full">
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-4 w-4 mr-1.5" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" 
+                  />
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" 
+                  />
+                </svg>
+                <span className="font-medium">
+                  Managing: {barangayAdminData?.barangayName || barangayAdminData?.displayName || 'Barangay'}
+                </span>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500">Barangay Administrator</p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Cards / Page Content */}

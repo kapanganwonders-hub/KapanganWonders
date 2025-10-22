@@ -88,6 +88,16 @@ export default function PrivateSpotAdminLayout({ children }: { children: React.R
                     {privateSpotAdminData.businessName}
                   </span>
                 )}
+                {privateSpotAdminData?.barangay && (
+                  <span className="text-xs text-gray-500 text-center">
+                    📍 {privateSpotAdminData.barangay}
+                  </span>
+                )}
+                {privateSpotAdminData?.privateSpotName && (
+                  <span className="text-xs text-gray-500 text-center">
+                    🏢 {privateSpotAdminData.privateSpotName}
+                  </span>
+                )}
               </div>
             </div>
 

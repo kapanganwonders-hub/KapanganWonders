@@ -28,19 +28,26 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('Auth State Changed - User:', user);
       setCurrentUser(user);
       
       if (user) {
         // Check if the user is an admin
         const adminStatus = await checkIsAdmin(user);
+        console.log('Admin Status:', adminStatus);
         setIsAdmin(adminStatus);
         
         // Check if the user is a barangay admin
+        console.log('Checking barangay admin status for user:', user.uid);
         const barangayStatus = await checkIsBarangayAdmin(user);
+        console.log('Barangay Admin Status:', barangayStatus);
+        
         if (barangayStatus && barangayStatus.isBarangayAdmin) {
+          console.log('Setting barangay admin data:', barangayStatus.data);
           setIsBarangayAdmin(true);
           setBarangayAdminData(barangayStatus.data);
         } else {
+          console.log('User is not a barangay admin');
           setIsBarangayAdmin(false);
           setBarangayAdminData(null);
         }

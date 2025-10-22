@@ -16,6 +16,13 @@ export default function BarangayAdminLayout({ children }: { children: React.Reac
   const { currentUser, isBarangayAdmin, barangayAdminData } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('Barangay Admin Layout - Current User:', currentUser);
+    console.log('Barangay Admin Layout - isBarangayAdmin:', isBarangayAdmin);
+    console.log('Barangay Admin Layout - barangayAdminData:', barangayAdminData);
+  }, [currentUser, isBarangayAdmin, barangayAdminData]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => setUser(user));
@@ -73,8 +80,8 @@ export default function BarangayAdminLayout({ children }: { children: React.Reac
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
                   Barangay Admin
                 </span>
-                <span className="text-sm text-gray-600 font-medium">
-                  {barangayAdminData?.barangayName || 'Barangay'}
+                <span className="text-sm text-gray-600 font-medium text-center">
+                  {barangayAdminData?.barangay || barangayAdminData?.barangayName || 'Barangay'}
                 </span>
               </div>
             </div>
