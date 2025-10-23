@@ -8,14 +8,15 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const spotsByBarangay: Record<string, string[]> = {
-  balakbak: ['Mt. Kalukasog', 'Pey-og Falls', 'Manahongkong Falls'],
-  cuba: ['Longog Cave', 'Mt. Dakiwagan'],
-  'beleng-belis': ['Badi Falls'],
-  'taba-ao': ['Dumanay Cave', 'Mt. Dakiwagan'],
-  toplac: ['Toplac Rice Terraces'],
-  labueg: ['Puga Coffin Cave'],
-  payapay: ['Dangwa Cave'],
-  pudtong: ['Amburayan River'],
+  sagubo: ['Ampongot rice terraces','Badi falls','Camp Utopia','Puga Coffin Cave'],
+  cuba: ['Amburayan Bridge','Malagyao Footbridge','Mount Kalukasog'],
+  'taba_ao': ['Amburayan River','Dangwa Cave', 'Taba-ao Viewdeck'],
+  central: ['Kilong Hanging Coffin', 'Kapangan Museum'],
+  labueg: ['Burcio Anthurium Forest', 'Canuto Dragon Fruit Farm'],
+  pongayan: ['Dumanay Cave'],
+  balakbak: ['Longog Cave', 'Mount Dakiwagan', 'Obellan-Catampan Rice Terraces'],
+  bokloan: ['Pey-og Falls'],
+  pudong:['Toplac Falls', 'Toplac Rice Fields'],
 };
 
 export default function ScheduleVisitPage() {
