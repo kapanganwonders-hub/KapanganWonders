@@ -37,13 +37,13 @@ export default function Navigation() {
   }, [currentUser, isAdmin, pathname, router]);
 
   return (
-    <nav className="bg-primary-green shadow-lg sticky top-0 z-50 border-b border-border-green">
+    <nav className="bg-light-green shadow-lg sticky top-0 z-50 border-b border-border-green">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left - Logo */}
           <Link
             href="/" // Changed: always link to homepage so admin can visit it
-            className="text-2xl font-bold text-egg-white hover:text-light-green transition"
+            className="text-2xl font-bold text-black hover:text-primary-green transition"
           >
             Kapangan Wonder
           </Link>
@@ -52,7 +52,6 @@ export default function Navigation() {
           <div className="hidden md:flex items-center space-x-8">
             <Link href="/" className={navLink}>Home</Link>
             <Link href="/tourist-spots" className={navLink}>Tourist Spots</Link>
-            <Link href="/eat-and-stay" className={navLink}>Eat & Stay</Link>
             <Link href="/blogs" className={navLink}>Blogs</Link>
             <Link href="/contact" className={navLink}>Contact Us</Link>
           </div>
@@ -131,7 +130,7 @@ export default function Navigation() {
           <div className="md:hidden">
             <button
               onClick={toggleMenu}
-              className="text-primary-green hover:text-accent-green p-2 rounded-md transition"
+              className="w-6 h-6 text-black hover:text-primary-green p-2 rounded-md transition"
             >
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -147,71 +146,76 @@ export default function Navigation() {
 
         {/* Mobile Dropdown Menu */}
         {isMenuOpen && (
-          <div className="md:hidden bg-egg-white border-t border-border-green mt-2 rounded-lg">
+          <div className="md:hidden bg-white border-t border-border-green mt-2 rounded-lg">
             <div className="px-4 py-3 space-y-2">
               <Link href="/" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Home</Link>
               <Link href="/tourist-spots" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Tourist Spots</Link>
-              <Link href="/eat-and-stay" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Eat & Stay</Link>
               <Link href="/blogs" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Blogs</Link>
               <Link href="/contact" className={mobileLink} onClick={() => setIsMenuOpen(false)}>Contact Us</Link>
 
-              <div className="border-t border-border-green pt-3">
+              <div className="border-t border-gray-200 pt-3">
                 {currentUser ? (
                   <>
-                    <div className="flex items-center space-x-2 px-2">
-                      <img
-                        src={currentUser.photoURL || '/assets/default-avatar.png'}
-                        onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
-                        alt="Profile"
-                        className="w-6 h-6 rounded-full"
-                      />
-                      <span className="text-sm text-primary-green">
-                        {currentUser.displayName || currentUser.email}
-                      </span>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 px-2">
+                        <img
+                          src={currentUser.photoURL || '/assets/default-avatar.png'}
+                          onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
+                          alt="Profile"
+                          className="w-6 h-6 rounded-full"
+                        />
+                        <p className="text-sm text-gray-700">
+                          {currentUser.email}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        {isAdmin ? (
+                          <>
+                            <Link
+                              href="/admin"
+                              className={mobileLink}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              Admin Dashboard
+                            </Link>
+                            <Link
+                              href="/profile"
+                              className={mobileLink}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              Profile
+                            </Link>
+                          </>
+                        ) : (
+                          <>
+                            <Link
+                              href="/dashboard"
+                              className={mobileLink}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              Dashboard
+                            </Link>
+                            <Link
+                              href="/profile"
+                              className={mobileLink}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              Profile
+                            </Link>
+                          </>
+                        )}
+                        <button
+                          onClick={() => {
+                            handleLogout();
+                            setIsMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-base font-medium text-primary-green hover:bg-light-green/50 rounded-md"
+                        >
+                          Logout
+                        </button>
+                      </div>
                     </div>
-
-                    {isAdmin ? (
-                      <>
-                        <Link
-                          href="/admin"
-                          className={mobileLink}
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          Admin Dashboard
-                        </Link>
-                        <Link
-                          href="/profile"
-                          className={mobileLink}
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          Profile
-                        </Link>
-                      </>
-                    ) : (
-                      <>
-                        <Link
-                          href="/dashboard"
-                          className={mobileLink}
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          Dashboard
-                        </Link>
-                        <Link
-                          href="/profile"
-                          className={mobileLink}
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          Profile
-                        </Link>
-                      </>
-                    )}
-
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left mobile-link"
-                    >
-                      Logout
-                    </button>
                   </>
                 ) : (
                   <>
@@ -230,7 +234,7 @@ export default function Navigation() {
 
 /* --- Tailwind helper classes --- */
 const navLink =
-  'text-egg-white hover:text-light-green hover:bg-primary-green/90 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md';
+  'text-black hover:text-primary-green hover:bg-white/80 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md';
 const authLink = {
   border: 'text-primary-green border border-border-green hover:text-accent-green hover:border-accent-green px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-md',
   bg: 'bg-primary-green hover:bg-accent-green text-egg-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 hover:scale-105 transform hover:shadow-lg hover:shadow-primary-green/25',
