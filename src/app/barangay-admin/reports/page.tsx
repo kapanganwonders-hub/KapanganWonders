@@ -1,10 +1,44 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/firebase/config';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { FileText, Download, TrendingUp, Users, MapPin, Calendar } from 'lucide-react';
+import { FileText, Download, TrendingUp, Users, MapPin, Calendar, BarChart2, PieChart, Globe, User } from 'lucide-react';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { Bar, Pie } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+
+type TimeRange = 'monthly' | 'quarterly' | 'yearly';
+
+// Sample data
+const generateReportData = (): ReportData => ({
+  totalVisits: 1245,
+  uniqueTourists: 842,
+  touristSpots: 8,
+  topSpots: [
+    { name: 'Ampongot Rice Terraces', visits: 450 },
+    { name: 'Amburayan River', visits: 380 },
+    { name: 'Mt. Tagpew', visits: 210 },
+    { name: 'Taba-ao Falls', visits: 185 },
+    { name: 'Balakbak Rice Terraces', visits: 120 }
+  ],
+  monthlyVisits: [
+    { month: 'Jan', count: 85 },
+    { month: 'Feb', count: 92 },
+    { month: 'Mar', count: 78 },
+    { month: 'Apr', count: 64 },
+    { month: 'May', count: 105 },
+    { month: 'Jun', count: 132 },
+    { month: 'Jul', count: 148 },
+    { month: 'Aug', count: 126 },
+    { month: 'Sep', count: 89 },
+    { month: 'Oct', count: 97 },
+    { month: 'Nov', count: 110 },
+    { month: 'Dec', count: 98 }
+  ],
+  visitorsByMonth: 0 // Will be calculated
+});
 
 interface ReportData {
   totalVisits: number;
@@ -17,90 +51,114 @@ interface ReportData {
 
 export default function ReportsPage() {
   const { barangayAdminData } = useAuth();
-  const [reportData, setReportData] = useState<ReportData>({
-    totalVisits: 0,
-    uniqueTourists: 0,
-    touristSpots: 0,
-    topSpots: [],
-    monthlyVisits: [],
-    visitorsByMonth: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState('all');
-  const [dateRange, setDateRange] = useState({
-    start: '',
-    end: ''
-  });
+  const [timeRange, setTimeRange] = useState<TimeRange>('monthly');
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Generate sample data
+  const reportData = generateReportData();
+  // Calculate visitors for current month
+  const currentMonth = new Date().getMonth();
+  reportData.visitorsByMonth = reportData.monthlyVisits[currentMonth]?.count || 0;
 
-  useEffect(() => {
-    if (barangayAdminData?.barangayName) {
-      fetchReportData();
-    }
-  }, [barangayAdminData, selectedPeriod]);
+  // Chart data
+  const spotData = {
+    labels: reportData.topSpots.map(spot => spot.name),
+    datasets: [
+      {
+        label: 'Number of Visitors',
+        data: reportData.topSpots.map(spot => spot.visits),
+        backgroundColor: [
+          'rgba(255, 99, 132, 0.7)',
+          'rgba(54, 162, 235, 0.7)',
+          'rgba(255, 206, 86, 0.7)',
+          'rgba(75, 192, 192, 0.7)',
+          'rgba(153, 102, 255, 0.7)',
+        ],
+        borderColor: [
+          'rgba(255, 99, 132, 1)',
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(75, 192, 192, 1)',
+          'rgba(153, 102, 255, 1)',
+        ],
+        borderWidth: 1,
+      },
+    ],
+  };
 
-  const fetchReportData = async () => {
-    try {
-      setLoading(true);
-      const barangayName = barangayAdminData?.barangayName;
+  const visitorDemographics = {
+    labels: ['Local', 'National', 'International'],
+    datasets: [
+      {
+        label: 'Number of Visitors',
+        data: [620, 380, 245],
+        backgroundColor: [
+          'rgba(255, 99, 132, 0.7)',
+          'rgba(54, 162, 235, 0.7)',
+          'rgba(255, 206, 86, 0.7)',
+        ],
+        borderColor: [
+          'rgba(255, 99, 132, 1)',
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 206, 86, 1)',
+        ],
+        borderWidth: 1,
+      },
+    ],
+  };
 
-      // Fetch visits and spots in parallel
-      const [visitsSnapshot, spotsSnapshot] = await Promise.all([
-        getDocs(query(collection(db, 'visits'), where('barangay', '==', barangayName))),
-        getDocs(query(collection(db, 'touristSpots'), where('barangay', '==', barangayName)))
-      ]);
+  const revenueData = {
+    labels: reportData.monthlyVisits.map(month => month.month),
+    datasets: [
+      {
+        label: 'Entrance Fees',
+        data: reportData.monthlyVisits.map(month => month.count * 100), // Sample multiplier for revenue
+        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1,
+      },
+      {
+        label: 'Guide Fees',
+        data: reportData.monthlyVisits.map(month => month.count * 50), // Sample multiplier for guide fees
+        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1,
+      },
+    ],
+  };
 
-      const visits = visitsSnapshot.docs.map(doc => doc.data());
+  const originData = {
+    labels: ['Local', 'National', 'International'],
+    datasets: [
+      {
+        label: 'Visitors by Origin',
+        data: [
+          Math.floor(reportData.uniqueTourists * 0.6), // 60% local
+          Math.floor(reportData.uniqueTourists * 0.3), // 30% national
+          Math.ceil(reportData.uniqueTourists * 0.1)   // 10% international
+        ],
+        backgroundColor: [
+          'rgba(75, 192, 192, 0.7)',
+          'rgba(54, 162, 235, 0.7)',
+          'rgba(255, 99, 132, 0.7)'
+        ],
+        borderColor: [
+          'rgba(75, 192, 192, 1)',
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 99, 132, 1)'
+        ],
+        borderWidth: 1,
+      },
+    ],
+  };
 
-      // Calculate unique tourists
-      const uniqueTouristIds = new Set(visits.map(v => v.userId).filter(Boolean));
-
-      // Calculate top spots
-      const spotVisits: { [key: string]: number } = {};
-      visits.forEach(visit => {
-        const spotName = visit.spotName || 'Unknown';
-        spotVisits[spotName] = (spotVisits[spotName] || 0) + 1;
-      });
-
-      const topSpots = Object.entries(spotVisits)
-        .map(([name, visits]) => ({ name, visits }))
-        .sort((a, b) => b.visits - a.visits)
-        .slice(0, 5);
-
-      // Calculate monthly visits (last 6 months)
-      const monthlyData: { [key: string]: number } = {};
-      const now = new Date();
-      
-      visits.forEach(visit => {
-        if (visit.createdAt) {
-          const visitDate = visit.createdAt.toDate ? visit.createdAt.toDate() : new Date(visit.createdAt);
-          const monthKey = `${visitDate.getFullYear()}-${String(visitDate.getMonth() + 1).padStart(2, '0')}`;
-          monthlyData[monthKey] = (monthlyData[monthKey] || 0) + 1;
-        }
-      });
-
-      const monthlyVisits = Object.entries(monthlyData)
-        .map(([month, count]) => ({ month, count }))
-        .sort((a, b) => a.month.localeCompare(b.month))
-        .slice(-6);
-
-      // Current month visitors
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const visitorsByMonth = monthlyData[currentMonth] || 0;
-
-      setReportData({
-        totalVisits: visits.length,
-        uniqueTourists: uniqueTouristIds.size,
-        touristSpots: spotsSnapshot.size,
-        topSpots,
-        monthlyVisits,
-        visitorsByMonth
-      });
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching report data:', error);
-      setLoading(false);
-    }
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+    },
   };
 
   const handleExportReport = () => {
@@ -135,33 +193,146 @@ export default function ReportsPage() {
     window.URL.revokeObjectURL(url);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading report data...
-      </div>
-    );
-  }
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'visitors':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Users size={24} />
+              Visitor Demographics
+            </h2>
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <Bar data={visitorDemographics} options={chartOptions} />
+            </div>
+          </div>
+        );
+      case 'revenue':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <BarChart2 size={24} />
+              Revenue Overview
+            </h2>
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <Bar data={revenueData} options={{
+                ...chartOptions,
+                scales: {
+                  x: { stacked: true },
+                  y: { stacked: true }
+                },
+              }} />
+            </div>
+          </div>
+        );
+      case 'origin':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Globe size={24} />
+              Visitor Origin
+            </h2>
+            <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto">
+              <Pie data={originData} options={chartOptions} />
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <MapPin size={24} />
+              Visitors per Tourist Spot
+            </h2>
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <Bar data={spotData} options={chartOptions} />
+            </div>
+          </div>
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen">
-      <div className="p-6 bg-white border-b flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <FileText size={28} />
-            Barangay Reports
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Tourism statistics and analytics for {barangayAdminData?.barangayName}
-          </p>
+      <div className="p-6 bg-white border-b">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <FileText size={28} />
+              Barangay Reports
+            </h1>
+            <p className="text-gray-600">
+              Tourism statistics and analytics for {barangayAdminData?.barangayName}
+            </p>
+          </div>
+          <button
+            onClick={handleExportReport}
+            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition flex items-center gap-2 h-fit"
+          >
+            <Download size={20} />
+            Export Report
+          </button>
         </div>
-        <button
-          onClick={handleExportReport}
-          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition flex items-center gap-2"
-        >
-          <Download size={20} />
-          Export Report
-        </button>
+        
+        {/* Time Range Selector */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setTimeRange('monthly')}
+            className={`px-4 py-2 rounded-lg ${timeRange === 'monthly' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setTimeRange('quarterly')}
+            className={`px-4 py-2 rounded-lg ${timeRange === 'quarterly' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+          >
+            Quarterly
+          </button>
+          <button
+            onClick={() => setTimeRange('yearly')}
+            className={`px-4 py-2 rounded-lg ${timeRange === 'yearly' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+          >
+            Yearly
+          </button>
+        </div>
+        
+        {/* Navigation Tabs */}
+        <div className="flex border-b">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 font-medium ${activeTab === 'overview' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('visitors')}
+            className={`px-4 py-2 font-medium ${activeTab === 'visitors' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+          >
+            <div className="flex items-center gap-2">
+              <Users size={18} />
+              Visitor Demographics
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('revenue')}
+            className={`px-4 py-2 font-medium ${activeTab === 'revenue' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+          >
+            <div className="flex items-center gap-2">
+              <BarChart2 size={18} />
+              Revenue
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('origin')}
+            className={`px-4 py-2 font-medium ${activeTab === 'origin' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+          >
+            <div className="flex items-center gap-2">
+              <Globe size={18} />
+              Visitor Origin
+            </div>
+          </button>
+        </div>
       </div>
 
       <div className="p-6">
@@ -208,90 +379,10 @@ export default function ReportsPage() {
               </div>
             </div>
             <p className="text-3xl font-bold text-gray-800">{reportData.visitorsByMonth}</p>
-            <p className="text-sm text-gray-500 mt-1">New visitors</p>
+            <p className="text-sm text-gray-500 mt-1">This month's visitors</p>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Tourist Spots */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <MapPin size={24} className="text-orange-600" />
-              Top Tourist Spots
-            </h2>
-            {reportData.topSpots.length > 0 ? (
-              <div className="space-y-3">
-                {reportData.topSpots.map((spot, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold">
-                        {index + 1}
-                      </div>
-                      <span className="font-medium text-gray-800">{spot.name}</span>
-                    </div>
-                    <span className="text-gray-600 font-semibold">{spot.visits} visits</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">No visit data available</p>
-            )}
-          </div>
-
-          {/* Monthly Visits Chart */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <TrendingUp size={24} className="text-blue-600" />
-              Monthly Visits (Last 6 Months)
-            </h2>
-            {reportData.monthlyVisits.length > 0 ? (
-              <div className="space-y-3">
-                {reportData.monthlyVisits.map((month, index) => {
-                  const maxVisits = Math.max(...reportData.monthlyVisits.map(m => m.count));
-                  const percentage = (month.count / maxVisits) * 100;
-                  
-                  return (
-                    <div key={index}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600">{month.month}</span>
-                        <span className="font-semibold text-gray-800">{month.count} visits</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          className="bg-blue-500 h-3 rounded-full transition-all duration-300"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">No monthly data available</p>
-            )}
-          </div>
-        </div>
-
-        {/* Additional Insights */}
-        <div className="mt-6 bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Report Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-medium text-gray-700 mb-2">Key Metrics</h3>
-              <ul className="space-y-2 text-gray-600">
-                <li>• Average visits per spot: {reportData.touristSpots > 0 ? (reportData.totalVisits / reportData.touristSpots).toFixed(1) : 0}</li>
-                <li>• Visitor return rate: {reportData.uniqueTourists > 0 ? ((reportData.totalVisits / reportData.uniqueTourists) * 100).toFixed(1) : 0}%</li>
-                <li>• Most popular spot: {reportData.topSpots[0]?.name || 'N/A'}</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-700 mb-2">Report Period</h3>
-              <p className="text-gray-600">
-                This report includes all tourism data for {barangayAdminData?.barangayName} from the beginning of records to {new Date().toLocaleDateString()}.
-              </p>
-            </div>
-          </div>
-        </div>
+        {renderTabContent()}
       </div>
     </div>
   );
