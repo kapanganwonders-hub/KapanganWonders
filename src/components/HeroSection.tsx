@@ -65,7 +65,7 @@ export default function HeroSection({}: HeroSectionProps) {
             )}
             {isAdmin && !isEditingTitle && (
               <button 
-                className="absolute -right-12 top-1/2 -translate-y-1/2 p-2 text-white bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
+                className="absolute -right-10 top-1/2 -translate-y-1/2 p-1.5 text-white bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
                 onClick={() => setIsEditingTitle(true)}
                 aria-label="Edit title"
               >
@@ -90,7 +90,7 @@ export default function HeroSection({}: HeroSectionProps) {
             )}
             {isAdmin && !isEditingDescription && (
               <button 
-                className="absolute -right-10 top-0 p-2 text-white bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
+                className="absolute -right-8 top-0 p-1.5 text-white bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
                 onClick={() => setIsEditingDescription(true)}
                 aria-label="Edit description"
               >
