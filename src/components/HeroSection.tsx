@@ -1,37 +1,79 @@
 "use client";
 
-import Image from 'next/image';
-import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
-import { Pencil } from 'lucide-react';
-import { useState } from 'react';
+import Image from "next/image";
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+import { Pencil } from "lucide-react";
+import { useState, useEffect } from "react";
+import { db, doc, getDoc, setDoc } from "@/lib/firebase";
 
-interface HeroSectionProps {
-  // Add any props if needed
-}
-
-export default function HeroSection({}: HeroSectionProps) {
+export default function HeroSection() {
   const { isAdmin } = useAuth() || {};
-  const [title, setTitle] = useState('Welcome to Kapangan Wonders');
-  const [description, setDescription] = useState('Discover the breathtaking beauty and rich culture of Kapangan, home to stunning landscapes like the Amburayan Bridge and more.');
+  const [title, setTitle] = useState("Loading...");
+  const [description, setDescription] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  
-  const handleSaveTitle = (newTitle: string) => {
-    setTitle(newTitle);
-    setIsEditingTitle(false);
-    // TODO: Add API call to save the title
+
+  // ✅ Load hero section data from Firestore
+  useEffect(() => {
+    const fetchHeroData = async () => {
+      try {
+        const docRef = doc(db, "heroSection", "main");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setTitle(data.title || "Welcome to Kapangan Wonders");
+          setDescription(
+            data.description ||
+              "Discover the breathtaking beauty and rich culture of Kapangan, home to stunning landscapes like the Amburayan Bridge and more."
+          );
+        } else {
+          // If no doc found, create default
+          await setDoc(docRef, {
+            title: "Welcome to Kapangan Wonders",
+            description:
+              "Discover the breathtaking beauty and rich culture of Kapangan, home to stunning landscapes like the Amburayan Bridge and more.",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading hero data:", error);
+      }
+    };
+
+    fetchHeroData();
+  }, []);
+
+  // ✅ Save updated title
+  const handleSaveTitle = async (newTitle: string) => {
+    try {
+      setTitle(newTitle);
+      setIsEditingTitle(false);
+      await setDoc(doc(db, "heroSection", "main"), {
+        title: newTitle,
+        description,
+      });
+    } catch (error) {
+      console.error("Error saving title:", error);
+    }
   };
-  
-  const handleSaveDescription = (newDescription: string) => {
-    setDescription(newDescription);
-    setIsEditingDescription(false);
-    // TODO: Add API call to save the description
+
+  // ✅ Save updated description
+  const handleSaveDescription = async (newDescription: string) => {
+    try {
+      setDescription(newDescription);
+      setIsEditingDescription(false);
+      await setDoc(doc(db, "heroSection", "main"), {
+        title,
+        description: newDescription,
+      });
+    } catch (error) {
+      console.error("Error saving description:", error);
+    }
   };
 
   return (
     <div className="relative h-screen max-h-[90vh] min-h-[600px] overflow-hidden group">
-      {/* Background Image with Overlay */}
+      {/* Background Image */}
       <div className="absolute inset-0 w-full h-full">
         <Image
           src="/assets/Ampongot Rice Terraces (Sagubo).jpg"
@@ -43,10 +85,11 @@ export default function HeroSection({}: HeroSectionProps) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
       </div>
-      
+
       {/* Content */}
       <div className="relative z-10 h-full flex flex-col justify-center items-center text-center px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
+          {/* Editable Title */}
           <div className="relative inline-block group max-w-full">
             {isEditingTitle ? (
               <input
@@ -54,7 +97,9 @@ export default function HeroSection({}: HeroSectionProps) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onBlur={() => handleSaveTitle(title)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle(title)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && handleSaveTitle(title)
+                }
                 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 bg-transparent border-b-2 border-white outline-none text-center w-full"
                 autoFocus
               />
@@ -64,22 +109,25 @@ export default function HeroSection({}: HeroSectionProps) {
               </h1>
             )}
             {isAdmin && !isEditingTitle && (
-              <button 
+              <button
                 className="absolute -right-12 top-1/2 -translate-y-1/2 p-2 text-white bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
                 onClick={() => setIsEditingTitle(true)}
-                aria-label="Edit title"
               >
                 <Pencil className="w-5 h-5" />
               </button>
             )}
           </div>
+
+          {/* Editable Description */}
           <div className="relative inline-block group max-w-full">
             {isEditingDescription ? (
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 onBlur={() => handleSaveDescription(description)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveDescription(description)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && handleSaveDescription(description)
+                }
                 className="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto bg-transparent border-b border-white outline-none text-center w-full resize-none h-24"
                 autoFocus
               />
@@ -89,18 +137,17 @@ export default function HeroSection({}: HeroSectionProps) {
               </p>
             )}
             {isAdmin && !isEditingDescription && (
-              <button 
+              <button
                 className="absolute -right-10 top-0 p-2 text-white bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
                 onClick={() => setIsEditingDescription(true)}
-                aria-label="Edit description"
               >
                 <Pencil className="w-4 h-4" />
               </button>
             )}
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
+            <Link
               href="/tourist-spots"
               className="bg-white text-green-700 hover:bg-gray-100 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 text-center"
             >
