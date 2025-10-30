@@ -51,6 +51,16 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-egg-white">
+      {/* Simple Hero Section */}
+      <div className="bg-primary-green text-egg-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl font-bold">Contact Us</h1>
+          <p className="mt-4 text-xl text-egg-white/90 max-w-3xl mx-auto">
+            Have questions or feedback? We'd love to hear from you.
+          </p>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 py-16 bg-gradient-custom border-b border-primary-green/20">

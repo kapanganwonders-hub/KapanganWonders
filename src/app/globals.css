@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #1F7A1F;  /* Darker green for text */
-  --egg-white: #ffffff;
-  --primary-green: #1F7A1F;  /* Vibrant green from the image */
-  --accent-green: #1F7A1F;  /* Same as primary for consistency */
-  --light-green: #E6F5E6;    /* Lighter shade for backgrounds */
-  --border-green: #B3E0B3;   /* Lighter border green */
-  --gradient-start: #E6F5E6; /* Light green gradient start */
-  --gradient-end: #B3E0B3;   /* Light green gradient end */
-  --gradient-mid: #CCEECC;   /* Mid-tone green for gradients */
+  --background: #F5F5DC;     /* Beige background */
+  --foreground: #333333;     /* Dark gray for text */
+  --egg-white: #FFFFFF;      /* Pure white */
+  --primary-green: #1D5B3F;  /* Dark green for primary elements */
+  --accent-green: #4A9D5E;   /* Light green for secondary elements */
+  --accent-yellow: #F2C94C;  /* Yellow for call-to-action */
+  --light-green: #E8F5E9;    /* Very light green for backgrounds */
+  --border-green: #C8E6C9;   /* Light border green */
+  --gradient-start: #E8F5E9; /* Light green gradient start */
+  --gradient-end: #C8E6C9;   /* Light green gradient end */
+  --gradient-mid: #D8EAD9;   /* Mid-tone green for gradients */
 }
 
 @theme inline {

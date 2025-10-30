@@ -177,6 +177,13 @@ export default function SignUp() {
 
   return (
     <div className="min-h-screen bg-egg-white flex flex-col justify-between">
+      {/* Simple Hero Section */}
+      <div className="bg-primary-green text-white py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-3xl font-bold">Create Your Account</h1>
+          <p className="mt-2 text-egg-white/90">Join Kapangan Wonders today</p>
+        </div>
+      </div>
 
       {/* Form */}
       <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8 flex-grow">

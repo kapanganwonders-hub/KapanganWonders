@@ -164,6 +164,13 @@ export default function SignIn() {
 
   return (
     <div className="min-h-screen bg-egg-white">
+      {/* Simple Hero Section */}
+      <div className="bg-primary-green text-white py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-3xl font-bold">Welcome Back</h1>
+          <p className="mt-2 text-egg-white/90">Sign in to access your account</p>
+        </div>
+      </div>
 
       {/* Sign In Form */}
       <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8">

@@ -62,6 +62,16 @@ export default function Blogs() {
 
   return (
     <div className="min-h-screen bg-egg-white">
+      {/* Simple Hero Section */}
+      <div className="bg-primary-green text-egg-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl font-bold">Kapangan Blogs</h1>
+          <p className="mt-4 text-xl text-egg-white/90 max-w-3xl mx-auto">
+            Discover stories, news, and insights about the beautiful town of Kapangan
+          </p>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Category Filter */}
         <div className="flex flex-wrap justify-center gap-4 mb-12 py-8 bg-gradient-custom border-b border-primary-green/20">
