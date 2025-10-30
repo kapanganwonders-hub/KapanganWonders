@@ -164,39 +164,6 @@ export default function SignIn() {
 
   return (
     <div className="min-h-screen bg-egg-white">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-custom text-primary-green overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-10 left-10 animate-float">
-            <svg width="80" height="60" viewBox="0 0 80 60" className="text-black/20">
-              <path d="M0,60 L20,20 L40,40 L60,10 L80,30 L80,60 Z" fill="currentColor" />
-            </svg>
-          </div>
-          <div className="absolute top-20 right-20 animate-drift">
-            <svg width="100" height="70" viewBox="0 0 100 70" className="text-black/15">
-              <path d="M0,70 L25,25 L50,45 L75,15 L100,35 L100,70 Z" fill="currentColor" />
-            </svg>
-          </div>
-          <div className="absolute bottom-20 left-0 right-0 animate-wave">
-            <svg width="100%" height="40" viewBox="0 0 1200 40" className="text-black/10">
-              <path d="M0,20 Q300,5 600,20 T1200,20 L1200,40 L0,40 Z" fill="currentColor" />
-            </svg>
-          </div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 text-primary-green">Kapangan Wonder</h1>
-          <h2 className="text-2xl md:text-3xl font-bold text-primary-green mb-4">
-            Sign in to your account
-          </h2>
-          <p className="text-lg text-primary-green/80">
-            Or{' '}
-            <Link href="/signup" className="font-medium text-primary-green hover:text-accent-green">
-              create a new account
-            </Link>
-          </p>
-        </div>
-      </section>
 
       {/* Sign In Form */}
       <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8">

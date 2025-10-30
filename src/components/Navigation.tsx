@@ -45,7 +45,7 @@ export default function Navigation() {
             href="/" // Changed: always link to homepage so admin can visit it
             className="text-2xl font-bold text-black hover:text-primary-green transition"
           >
-            Kapangan Wonder
+            Kapangan Wonders
           </Link>
 
           {/* Center - Nav Links */}

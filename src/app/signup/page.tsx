@@ -177,25 +177,6 @@ export default function SignUp() {
 
   return (
     <div className="min-h-screen bg-egg-white flex flex-col justify-between">
-      {/* Hero */}
-      <section className="relative bg-gradient-custom text-primary-green overflow-hidden">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-primary-green">
-              Kapangan Wonder
-            </h1>
-            <h2 className="text-2xl md:text-3xl font-bold text-primary-green mb-4">
-              Create your account
-            </h2>
-            <p className="text-lg text-primary-green/80">
-              Or{' '}
-              <Link href="/signin" className="font-medium text-primary-green hover:text-accent-green">
-                sign in to your existing account
-              </Link>
-            </p>
-          </div>
-        </div>
-      </section>
 
       {/* Form */}
       <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8 flex-grow">
