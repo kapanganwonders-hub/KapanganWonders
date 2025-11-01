@@ -172,39 +172,48 @@ const HowItWorks = () => {
     );
   }
 
-  /** 🔹 Render */
+  /** Render */
   return (
-    <section className="py-16 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-12 relative group">
-          {editingField === "sectionTitle" ? (
-            <input
-              type="text"
-              value={tempValue}
-              onChange={(e) => setTempValue(e.target.value)}
-              onBlur={() => handleSave()}
-              onKeyDown={(e) => handleKeyDown(e)}
-              className="text-3xl font-bold text-gray-900 mb-4 bg-transparent border-b border-gray-300 outline-none text-center w-full max-w-xl mx-auto"
-              autoFocus
-            />
-          ) : (
-            <div className="relative inline-flex items-center">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                {sectionTitle}
-              </h2>
-              {isAdmin && (
-                <button
-                  className="ml-2 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
-                  onClick={() => startEditingSection("sectionTitle", sectionTitle)}
-                  aria-label="Edit section title"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          )}
-
+    <section className="relative py-20 overflow-hidden bg-gray-50">
+      {/* Decorative elements */}
+      <div className="absolute -right-40 -top-40 w-80 h-80 bg-green-100 rounded-full opacity-20"></div>
+      <div className="absolute -left-40 bottom-20 w-96 h-96 bg-green-50 rounded-full opacity-50"></div>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="text-center mb-16">
+          <div className="inline-block relative">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 relative z-10">
+              <span className="relative inline-block">
+                {editingField === "sectionTitle" ? (
+                  <input
+                    type="text"
+                    value={tempValue}
+                    onChange={(e) => setTempValue(e.target.value)}
+                    onBlur={() => handleSave()}
+                    onKeyDown={(e) => handleKeyDown(e)}
+                    className="text-4xl font-bold text-gray-900 mb-4 bg-transparent border-b border-gray-300 outline-none text-center w-full max-w-xl mx-auto"
+                    autoFocus
+                  />
+                ) : (
+                  <span>
+                    {sectionTitle}
+                    <span className="absolute bottom-1 left-0 w-full h-2 bg-green-100 -z-10 transform translate-y-1"></span>
+                  </span>
+                )}
+              </span>
+            </h2>
+            {isAdmin && editingField !== "sectionTitle" && (
+              <button
+                className="ml-2 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={() => startEditingSection("sectionTitle", sectionTitle)}
+                aria-label="Edit section title"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <div className="w-24 h-1 bg-gradient-to-r from-green-400 to-green-600 mx-auto my-6 rounded-full"></div>
+          
           <div className="relative max-w-2xl mx-auto">
             {editingField === "sectionDescription" ? (
               <textarea
@@ -232,11 +241,12 @@ const HowItWorks = () => {
           </div>
         </div>
 
+
         {/* Steps Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-12">
           {steps.map((step) => (
             <div key={step.id} className="relative group">
-              <div className="relative bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow duration-300">
+              <div className="relative bg-white/95 p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-all duration-300 hover:bg-white">
                 <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center text-3xl mb-4">
                   {step.icon}
                 </div>
