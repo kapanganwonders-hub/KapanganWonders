@@ -736,14 +736,21 @@ export default function TouristSpots() {
                   {spots.map((spot) => (
                     <div key={spot.id} className="bg-egg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-border-green hover:scale-105 group">
                       <div className="relative h-48 w-full">
-                        <Image
-                          src={spot.image}
-                          alt={spot.name}
-                          fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-300"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        />
-                        <div className="absolute top-2 right-2 bg-accent-green text-egg-white px-2 py-1 rounded-full text-xs font-medium">
+                        {spot.image ? (
+                          <Image
+                            src={spot.image}
+                            alt={spot.name}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-300"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            unoptimized={spot.image.includes('appwrite.io')}
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+                            <span>No image</span>
+                          </div>
+                        )}
+                        <div className="absolute top-2 right-2 bg-accent-green/90 text-egg-white px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm">
                           {spot.category}
                         </div>
                       </div>
