@@ -6,7 +6,10 @@ import { auth } from '@/lib/firebase';
 import { logout } from '@/lib/auth';
 import { onAuthStateChanged } from 'firebase/auth';
 import { motion } from 'framer-motion';
-import { User, LogOut, LayoutDashboard, MapPin, FileText, QrCode, Megaphone, BookOpen } from 'lucide-react';
+import { 
+  User, LogOut, LayoutDashboard, MapPin, FileText, QrCode, 
+  Megaphone, BookOpen, CalendarCheck // 🆕 Added icon
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -87,6 +90,7 @@ export default function BarangayAdminLayout({ children }: { children: React.Reac
             </div>
 
             <div className="space-y-6">
+              {/* Main Section */}
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Main</p>
                 <ul className="space-y-2">
@@ -105,6 +109,7 @@ export default function BarangayAdminLayout({ children }: { children: React.Reac
                 </ul>
               </div>
 
+              {/* Management Section */}
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Management</p>
                 <ul className="space-y-2">
@@ -126,9 +131,18 @@ export default function BarangayAdminLayout({ children }: { children: React.Reac
                       Blogs
                     </Link>
                   </li>
+
+                  {/* 🆕 Added Visits Link */}
+                  <li>
+                    <Link href="/barangay-admin/visits" className={linkClass('/barangay-admin/visits')}>
+                      <CalendarCheck size={18}/>
+                      Visits
+                    </Link>
+                  </li>
                 </ul>
               </div>
 
+              {/* Reports Section */}
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Reports</p>
                 <ul className="space-y-2">
