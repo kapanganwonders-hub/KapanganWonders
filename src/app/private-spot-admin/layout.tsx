@@ -14,7 +14,8 @@ import {
   FileText, 
   BarChart3,
   LogOut,
-  User
+  User,
+  CalendarCheck // 🆕 Added icon for Visits
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -102,6 +103,7 @@ export default function PrivateSpotAdminLayout({ children }: { children: React.R
             </div>
 
             <div className="space-y-6">
+              {/* Management Section */}
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Management</p>
                 <ul className="space-y-2">
@@ -135,6 +137,15 @@ export default function PrivateSpotAdminLayout({ children }: { children: React.R
                       Blogs
                     </Link>
                   </li>
+
+                  {/* 🆕 Added Visits Link */}
+                  <li>
+                    <Link href="/private-spot-admin/visits" className={linkClass('/private-spot-admin/visits')}>
+                      <CalendarCheck size={18}/>
+                      Visits
+                    </Link>
+                  </li>
+
                   <li>
                     <Link href="/private-spot-admin/reports" className={linkClass('/private-spot-admin/reports')}>
                       <BarChart3 size={18}/>
@@ -144,6 +155,7 @@ export default function PrivateSpotAdminLayout({ children }: { children: React.R
                 </ul>
               </div>
 
+              {/* Account Section */}
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Account</p>
                 <ul className="space-y-2">
