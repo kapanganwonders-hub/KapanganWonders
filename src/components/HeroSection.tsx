@@ -22,7 +22,7 @@ interface CarouselItem {
 
 
 export default function HeroSection() {
-  const { isAdmin } = useAuth() || {};
+  const { isAdmin } = useAuth?.() || {};
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
   const [title, setTitle] = useState("Loading...");
@@ -43,7 +43,7 @@ export default function HeroSection() {
             data.description ||
               "Discover the breathtaking beauty and rich culture of Kapangan, home to stunning landscapes like the Amburayan Bridge and more."
           );
-        } else {
+        } else if (isAdmin) { // Only create default if admin is logged in
           // If no doc found, create default
           await setDoc(docRef, {
             title: "Welcome to Kapangan Wonders",
@@ -57,7 +57,7 @@ export default function HeroSection() {
     };
 
     fetchHeroData();
-  }, []);
+  }, [isAdmin]);
 
   // ✅ Save updated title
   const handleSaveTitle = async (newTitle: string) => {
@@ -112,6 +112,7 @@ export default function HeroSection() {
       }
     };
 
+    // Load carousel items for all users, including non-authenticated ones
     loadCarouselItems();
   }, []);
 

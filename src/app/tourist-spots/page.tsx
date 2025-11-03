@@ -2,10 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { doc, updateDoc, getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, getFirestore, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
+import { uploadFile, deleteFile } from '@/lib/appwrite';
 
 interface TouristSpot {
   id: string;
@@ -22,10 +24,11 @@ interface TouristSpot {
   status?: 'active' | 'inactive';
   createdAt?: any;
   updatedAt?: any;
+  _tempImage?: File; // Temporary file object for upload preview
 }
 
 export default function TouristSpots() {
-  const { isBarangayAdmin, barangayAdminData } = useAuth();
+  const { isBarangayAdmin, barangayAdminData, user } = useAuth();
   const [selectedBarangay, setSelectedBarangay] = useState<string>('all');
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -33,6 +36,8 @@ export default function TouristSpots() {
   const [editedSpot, setEditedSpot] = useState<TouristSpot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize spots state
   const [spots, setSpots] = useState<TouristSpot[]>([]);
@@ -115,16 +120,58 @@ export default function TouristSpots() {
     if (!editedSpot) return;
     
     try {
-      // Update the document in Firestore
-      const db = getFirestore();
-      const spotRef = doc(db, 'touristSpots', editedSpot.id.toString());
+      setLoading(true);
       
-      // Create an object with only the fields that should be updated
-      const updateData = {
-        name: editedSpot.name,
-        description: editedSpot.description,
-        location: editedSpot.location,
-        category: editedSpot.category,
+      // Check if user is authenticated
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        toast.error('You must be logged in to update a spot');
+        return;
+      }
+
+      const db = getFirestore();
+      
+      // Ensure we have a valid ID (for new spots, this would be handled differently)
+      if (!editedSpot.id) {
+        throw new Error('Invalid spot ID');
+      }
+      
+      const spotRef = doc(db, 'touristSpots', String(editedSpot.id));
+      
+      // Get current spot data to verify permissions
+      const spotDoc = await getDoc(spotRef);
+      
+      // For new spots, spotDoc.exists() will be false
+      const isNewSpot = !spotDoc.exists();
+      
+      let currentSpotData = {} as TouristSpot;
+      if (!isNewSpot) {
+        currentSpotData = spotDoc.data() as TouristSpot;
+      }
+      
+      // Check if user is admin
+      const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+      const isUserAdmin = adminDoc.exists() && adminDoc.data()?.email === user.email;
+      
+      // If not admin, check if user is barangay admin for this spot
+      if (!isUserAdmin && !isNewSpot) {
+        const barangayAdminDoc = await getDoc(doc(db, 'barangayAdmins', user.uid));
+        const isBarangayAdmin = barangayAdminDoc.exists() && 
+                              barangayAdminDoc.data()?.barangay === currentSpotData.barangay;
+        
+        if (!isBarangayAdmin) {
+          throw new Error('You do not have permission to update this spot');
+        }
+      }
+      
+      // Create update data
+      const updateData: Partial<TouristSpot> = {
+        name: editedSpot.name || '',
+        description: editedSpot.description || '',
+        location: editedSpot.location || '',
+        barangay: editedSpot.barangay || '',
+        category: editedSpot.category || 'other',
         contact: editedSpot.contact || '',
         entranceFee: editedSpot.entranceFee || '',
         detailedDescription: editedSpot.detailedDescription || '',
@@ -132,31 +179,49 @@ export default function TouristSpots() {
         updatedAt: new Date().toISOString()
       };
       
-      // Update the document in Firestore
-      await updateDoc(spotRef, updateData);
+      // Handle image separately if it was changed
+      if (editedSpot.image !== selectedSpot?.image) {
+        updateData.image = editedSpot.image || '';
+      } else if (editedSpot.image) {
+        updateData.image = editedSpot.image;
+      }
+      
+      // Update or create the document in Firestore
+      if (isNewSpot) {
+        // For new spots, we need to use setDoc with merge
+        await setDoc(spotRef, {
+          ...updateData,
+          createdAt: new Date().toISOString(),
+          createdBy: user.uid
+        }, { merge: true });
+      } else {
+        // For existing spots, use updateDoc
+        await updateDoc(spotRef, updateData);
+      }
+      
+      // Get the updated document
+      const updatedDoc = await getDoc(spotRef);
+      const updatedSpot = {
+        id: updatedDoc.id,
+        ...updatedDoc.data()
+      } as TouristSpot;
       
       // Update local state
-      const updatedSpots = spots.map(spot => 
-        spot.id === editedSpot.id ? { ...spot, ...updateData } : spot
-      );
+      const updatedSpots = isNewSpot 
+        ? [...spots, updatedSpot]
+        : spots.map(spot => spot.id === updatedSpot.id ? updatedSpot : spot);
       
-      setSelectedSpot(prev => prev ? { ...prev, ...updateData } : null);
-      setEditedSpot(prev => prev ? { ...prev, ...updateData } : null);
-      
-      // Update the spots state
+      setSelectedSpot(updatedSpot);
+      setEditedSpot(updatedSpot);
       setSpots(updatedSpots);
       
-      // Show success message
-      toast.success('Spot updated successfully!');
+      toast.success(`Tourist spot ${isNewSpot ? 'created' : 'updated'} successfully!`);
       setIsEditing(false);
-      
-      // Show success message
-      toast.success('Tourist spot updated successfully!');
-    } catch (error) {
-      console.error('Error updating document: ', error);
-      toast.error('Failed to update tourist spot. Please try again.');
+    } catch (error: any) {
+      console.error('Error saving document: ', error);
+      toast.error(error.message || 'Failed to save tourist spot. Please try again.');
     } finally {
-      setIsEditing(false);
+      setLoading(false);
     }
   };
 
@@ -165,6 +230,125 @@ export default function TouristSpots() {
       setEditedSpot({...selectedSpot});
     }
     setIsEditing(false);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !editedSpot) return;
+    
+    const file = e.target.files[0];
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      
+      // Create a temporary URL for immediate preview
+      const tempUrl = URL.createObjectURL(file);
+      
+      // Update both editedSpot and selectedSpot with the temporary URL
+      const updateWithTempImage = {
+        ...editedSpot,
+        image: tempUrl,
+        _tempImage: file
+      };
+      
+      setEditedSpot(updateWithTempImage);
+      setSelectedSpot(updateWithTempImage);
+      
+      try {
+        // Upload the file in the background
+        const result = await uploadFile(file);
+        const fileUrl = result.url;
+        
+        // If there was a previous image, delete it (but only if it's not the same as the new one)
+        const oldImage = editedSpot.image;
+        if (oldImage && typeof oldImage === 'string' && oldImage.includes('appwrite.io') && oldImage !== fileUrl) {
+          try {
+            const fileId = oldImage.split('/files/')[1]?.split('/view')[0];
+            if (fileId) {
+              await deleteFile(fileId);
+            }
+          } catch (error) {
+            console.error('Error deleting old image:', error);
+            // Continue even if deletion fails
+          }
+        }
+
+        // Update with the permanent URL
+        const updateWithPermanentImage = {
+          ...editedSpot,
+          image: fileUrl,
+          _tempImage: undefined
+        };
+        
+        setEditedSpot(updateWithPermanentImage);
+        setSelectedSpot(updateWithPermanentImage);
+        
+        toast.success('Image uploaded successfully');
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        toast.error('Failed to upload image');
+        // Revert to previous state on error
+        setEditedSpot(prev => ({
+          ...prev!,
+          image: selectedSpot?.image || '',
+          _tempImage: undefined
+        }));
+      }
+    } catch (error) {
+      console.error('Error handling file change:', error);
+      toast.error('An error occurred while processing the image');
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    if (!editedSpot || !editedSpot.image) return;
+    
+    const oldImageUrl = editedSpot.image;
+    
+    try {
+      setIsUploading(true);
+      
+      // Update UI immediately
+      setEditedSpot(prev => ({
+        ...prev!,
+        image: '',
+        _tempImage: undefined
+      }));
+      
+      // Delete the old image in the background
+      if (oldImageUrl.includes('appwrite.io')) {
+        try {
+          const fileId = oldImageUrl.split('/files/')[1]?.split('/view')[0];
+          if (fileId) {
+            await deleteFile(fileId);
+          }
+        } catch (error) {
+          console.error('Error deleting image from storage:', error);
+          // Don't show error to user as the UI is already updated
+        }
+      }
+      
+      toast.success('Image removed successfully');
+    } catch (error) {
+      console.error('Error removing image:', error);
+      // Revert the change if something goes wrong
+      setEditedSpot(prev => ({
+        ...prev!,
+        image: oldImageUrl
+      }));
+      toast.error('Failed to remove image');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -207,14 +391,68 @@ export default function TouristSpots() {
             {/* Left Column - Image and Info */}
             <div className="space-y-6">
               {/* Image */}
-              <div className="relative h-96 w-full rounded-lg overflow-hidden shadow-lg">
-                <Image
-                  src={selectedSpot.image}
-                  alt={selectedSpot.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                />
+              <div className="relative h-96 w-full rounded-lg overflow-hidden shadow-lg bg-gray-100">
+                {(selectedSpot.image || (editedSpot?._tempImage && isEditing)) ? (
+                  <div className="relative h-full w-full">
+                    {editedSpot?._tempImage ? (
+                      <Image
+                        src={URL.createObjectURL(editedSpot._tempImage)}
+                        alt={selectedSpot.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                        onLoad={(e) => {
+                          // Revoke the object URL to avoid memory leaks
+                          if (e.currentTarget.src.startsWith('blob:')) {
+                            URL.revokeObjectURL(e.currentTarget.src);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <Image
+                        src={selectedSpot.image}
+                        alt={selectedSpot.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                        unoptimized={selectedSpot.image.includes('appwrite.io')}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <span>No image available</span>
+                  </div>
+                )}
+                {isEditing && (
+                  <div className="absolute bottom-4 right-4 flex gap-2">
+                    <label 
+                      className="bg-white/90 hover:bg-white text-primary-green px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-colors shadow-md"
+                      htmlFor="spot-image-upload"
+                    >
+                      {isUploading ? 'Uploading...' : 'Change Image'}
+                    </label>
+                    {selectedSpot.image && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        disabled={isUploading}
+                        className="bg-red-500/90 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium disabled:opacity-50 transition-colors shadow-md"
+                      >
+                        Remove
+                      </button>
+                    )}
+                    <input
+                      id="spot-image-upload"
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      disabled={isUploading}
+                    />
+                  </div>
+                )}
               </div>
               <div className="bg-light-green rounded-lg p-6">
                 <div className="flex justify-between items-start">

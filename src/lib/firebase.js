@@ -24,13 +24,13 @@ import {
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCYucmpCSWuzbK43rhQH6Lo4ymhHTuFjMc",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "kapangan-wonders.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "kapangan-wonders",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "kapangan-wonders.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "165080462751",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:165080462751:web:d58d11e6782e2d1ab0f9aa",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-83QFFC44DP"
+  apiKey: "AIzaSyCYucmpCSWuzbK43rhQH6Lo4ymhHTuFjMc",
+  authDomain: "kapangan-wonders.firebaseapp.com",
+  projectId: "kapangan-wonders",
+  storageBucket: "kapangan-wonders.firebasestorage.app",
+  messagingSenderId: "165080462751",
+  appId: "1:165080462751:web:d58d11e6782e2d1ab0f9aa",
+  measurementId: "G-83QFFC44DP"
 };
 
 // Initialize Firebase only if no apps exist
