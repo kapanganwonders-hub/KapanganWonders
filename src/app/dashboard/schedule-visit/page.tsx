@@ -23,7 +23,6 @@ export default function ScheduleVisitPage() {
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
-  // ✅ Use useEffect instead of useState for auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsubscribe();
@@ -33,6 +32,7 @@ export default function ScheduleVisitPage() {
     fullName: '',
     email: '',
     age: '',
+    visitorType: '', // 🆕 Added field
     barangays: [] as string[],
     spots: [] as string[],
     companions: [''],
@@ -81,13 +81,14 @@ export default function ScheduleVisitPage() {
         fullName: form.fullName,
         email: form.email,
         age: form.age,
+        visitorType: form.visitorType, // 🆕 Save to Firestore
         barangays: form.barangays,
         spots: form.spots,
         companions: form.companions.filter((c) => c.trim() !== ''),
         date: form.date,
         agree: form.agree,
-        status: 'pending', // ✅ added for admin approval
-        createdAt: serverTimestamp(), // ✅ more accurate than Timestamp.now()
+        status: 'pending',
+        createdAt: serverTimestamp(),
       });
 
       setShowSuccess(true);
@@ -124,8 +125,8 @@ export default function ScheduleVisitPage() {
             <h2 className="text-xl font-semibold text-green-700 mb-4 border-l-4 border-green-400 pl-2">
               Personal Information
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-1">
                 <label className="block text-gray-600 mb-1">Full Name</label>
                 <input
                   type="text"
@@ -135,7 +136,7 @@ export default function ScheduleVisitPage() {
                   onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                 />
               </div>
-              <div>
+              <div className="md:col-span-1">
                 <label className="block text-gray-600 mb-1">Email</label>
                 <input
                   type="email"
@@ -145,7 +146,7 @@ export default function ScheduleVisitPage() {
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
               </div>
-              <div>
+              <div className="md:col-span-1">
                 <label className="block text-gray-600 mb-1">Age</label>
                 <input
                   type="number"
@@ -156,8 +157,26 @@ export default function ScheduleVisitPage() {
                   onChange={(e) => setForm({ ...form, age: e.target.value })}
                 />
               </div>
+
+              {/* 🆕 Visitor Type */}
+              <div className="md:col-span-1">
+                <label className="block text-gray-600 mb-1">Visitor Type</label>
+                <select
+                  required
+                  value={form.visitorType}
+                  className="border border-gray-300 rounded-md w-full p-2.5 bg-white focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                  onChange={(e) => setForm({ ...form, visitorType: e.target.value })}
+                >
+                  <option value="">Select type</option>
+                  <option value="domestic">Domestic</option>
+                  <option value="foreign">Foreign</option>
+                </select>
+              </div>
             </div>
           </section>
+
+          {/* Rest of your code remains unchanged */}
+          {/* ... Companions, Destination, Visit Details, Submit button, Success modal ... */}
 
           {/* Companions */}
           <section>
