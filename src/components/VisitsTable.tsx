@@ -5,21 +5,32 @@ import { collection, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firesto
 import { db } from '@/lib/firebase';
 import { Check, Trash } from 'lucide-react';
 
+// Define the shape of a Visit
+interface Visit {
+  id: string;
+  fullName?: string;
+  barangays?: string[];
+  spots?: string[];
+  date?: string;
+  status?: string;
+}
+
 interface VisitsTableProps {
   role: 'admin' | 'barangay' | 'private';
-  filterFn?: (visit: any) => boolean; // optional filter based on role
+  filterFn?: (visit: Visit) => boolean; // optional filter based on user role
 }
 
 export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
-  const [visits, setVisits] = useState<any[]>([]);
+  const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch all visits from Firestore
   const fetchVisits = async () => {
     try {
       const snap = await getDocs(collection(db, 'visits'));
-      let data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      let data: Visit[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Visit, 'id'>) }));
 
-      // ✅ Apply filtering based on role (barangay/private)
+      // ✅ Apply filtering (for barangay/private accounts)
       if (filterFn) data = data.filter(filterFn);
 
       setVisits(data);
@@ -30,6 +41,7 @@ export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
     }
   };
 
+  // Approve a visit
   const handleApprove = async (id: string) => {
     try {
       await updateDoc(doc(db, 'visits', id), { status: 'Approved' });
@@ -39,9 +51,11 @@ export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
       alert('✅ Visit approved successfully.');
     } catch (error) {
       console.error('Error approving visit:', error);
+      alert('Failed to approve visit.');
     }
   };
 
+  // Delete a visit
   const handleDelete = async (id: string) => {
     const ok = confirm('Are you sure you want to delete this visit?');
     if (!ok) return;
@@ -51,10 +65,10 @@ export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
       alert('🗑️ Visit deleted successfully.');
     } catch (error) {
       console.error('Error deleting visit:', error);
+      alert('Failed to delete visit.');
     }
   };
 
-  // ✅ Re-fetch whenever filterFn changes (e.g., user switches or loads)
   useEffect(() => {
     fetchVisits();
   }, [filterFn]);
@@ -88,17 +102,22 @@ export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
                 <td className="py-2 px-4 border-b">{v.barangays?.join(', ') || 'N/A'}</td>
                 <td className="py-2 px-4 border-b">{v.spots?.join(', ') || 'N/A'}</td>
                 <td className="py-2 px-4 border-b">{v.date}</td>
-                <td className="py-2 px-4 border-b font-medium">{v.status || 'Pending'}</td>
-                <td className="py-2 px-4 border-b space-x-2">
-                  {/* ✅ Only admin and barangay/private admins can approve */}
-                  {v.status !== 'Approved' && role === 'admin' && (
-                    <button
-                      onClick={() => handleApprove(v.id)}
-                      className="text-green-700 hover:underline flex items-center gap-1"
-                    >
-                      <Check size={14} /> Approve
-                    </button>
-                  )}
+                <td className="py-2 px-4 border-b font-medium">
+                  {v.status || 'Pending'}
+                </td>
+                <td className="py-2 px-4 border-b space-x-2 flex items-center">
+                  {/* ✅ Allow approve for all admin roles */}
+                  {v.status !== 'Approved' &&
+                    (role === 'admin' || role === 'barangay' || role === 'private') && (
+                      <button
+                        onClick={() => handleApprove(v.id)}
+                        className="text-green-700 hover:underline flex items-center gap-1"
+                      >
+                        <Check size={14} /> Approve
+                      </button>
+                    )}
+
+                  {/* 🗑️ Delete option available for all roles */}
                   <button
                     onClick={() => handleDelete(v.id)}
                     className="text-red-600 hover:underline flex items-center gap-1"
