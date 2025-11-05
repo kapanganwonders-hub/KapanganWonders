@@ -87,6 +87,7 @@ export default function HeroSection() {
     }
   };
 
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
     align: 'start',
@@ -97,6 +98,20 @@ export default function HeroSection() {
     startIndex: 0,
     inViewThreshold: 0.7
   });
+
+  // Track the current slide index
+  useEffect(() => {
+    if (!emblaApi) return;
+
+    const onSelect = () => {
+      setSelectedIndex(emblaApi.selectedScrollSnap());
+    };
+
+    emblaApi.on('select', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi]);
 
   // Load carousel items from Firestore
   useEffect(() => {
@@ -112,11 +127,9 @@ export default function HeroSection() {
       }
     };
 
-    // Load carousel items for all users, including non-authenticated ones
     loadCarouselItems();
   }, []);
 
-  // Save carousel items to Firestore
   const saveCarouselItems = async (items: CarouselItem[]) => {
     try {
       await setDoc(doc(db, 'carousel', 'items'), { items });
@@ -136,7 +149,6 @@ export default function HeroSection() {
     if (emblaApi) emblaApi.scrollNext();
   }, [emblaApi]);
 
-  // Auto-scroll functionality
   useEffect(() => {
     if (!emblaApi) return;
 
@@ -153,8 +165,36 @@ export default function HeroSection() {
   }, [emblaApi]);
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-white to-green-50 overflow-hidden border-b-8 border-green-100">
-      {/* Decorative elements */}
+    <div className="relative min-h-screen overflow-hidden border-b-8 border-green-100">
+      {/* Background that syncs with carousel */}
+      <div className="absolute inset-0 -z-10">
+        {carouselItems.length > 0 ? (
+          carouselItems.map((item, index) => (
+            <div 
+              key={`bg-${item.id}`}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                index === selectedIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              }`}
+            >
+              <div 
+                className="absolute inset-0 w-full h-full"
+                style={{
+                  backgroundImage: `url(${item.image})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  filter: 'blur(12px) brightness(0.8)',
+                  transform: 'scale(1.1)'
+                }}
+              />
+              <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+            </div>
+          ))
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100"></div>
+        )}
+      </div>
+      
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-green-100 rounded-full opacity-20"></div>
         <div className="absolute -left-40 top-1/3 w-80 h-80 bg-green-200 rounded-full opacity-10"></div>
@@ -162,9 +202,7 @@ export default function HeroSection() {
       </div>
       
       <div className="relative w-full max-w-7xl mx-auto px-4 py-16 md:py-24 flex flex-col md:flex-row items-center">
-        {/* Left Column - Text Content */}
-        <div className="relative w-full md:w-5/12 pr-0 md:pr-12 mb-12 md:mb-0 bg-white/80 backdrop-blur-sm p-8 rounded-2xl border-2 border-green-100 shadow-lg">
-          {/* Editable Title */}
+        <div className="relative w-full md:w-5/12 pr-0 md:pr-12 mb-12 md:mb-0 bg-white/90 backdrop-blur-sm p-8 rounded-2xl border-2 border-green-100 shadow-lg">
           <div className="relative group mb-6">
             {isEditingTitle ? (
               <input
@@ -191,7 +229,6 @@ export default function HeroSection() {
             )}
           </div>
 
-          {/* Editable Description */}
           <div className="relative group mb-8">
             {isEditingDescription ? (
               <textarea
@@ -225,7 +262,6 @@ export default function HeroSection() {
           </Link>
         </div>
 
-        {/* Right Column - Image Carousel */}
         <div className="w-full md:w-7/12 relative group z-10">
           {isAdmin && (
             <button
@@ -236,41 +272,32 @@ export default function HeroSection() {
               <Settings className="w-5 h-5" />
             </button>
           )}
-          <div className="embla overflow-hidden w-full rounded-3xl shadow-2xl mx-auto border-4 border-white ring-2 ring-green-100" style={{ maxWidth: '1200px' }} ref={emblaRef}>
-            <div className="embla__container flex">
-              {carouselItems.length > 0 ? carouselItems.map((item, index) => (
-                <div key={item.id} className="embla__slide flex-[0_0_100%] min-w-0 group">
-                  <div className="relative h-80 md:h-96 w-full">
-                    {item.image ? (
-                      <Image
-                        src={item.image}
-                        alt={`Carousel image ${index + 1}`}
-                        fill
-                        className="object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
-                        priority={index < 3} // Only preload first 3 images
-                        unoptimized={item.image.startsWith('blob:')} // Don't optimize blob URLs
-                        onError={(e) => {
-                          // Fallback to a placeholder if image fails to load
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null; // Prevent infinite loop
-                          target.src = '/placeholder-image.jpg';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-green-50 to-white flex items-center justify-center rounded-2xl border-2 border-dashed border-green-200">
-                        <span className="text-gray-500">Image not available</span>
+          <div className="relative overflow-hidden rounded-2xl shadow-2xl border-4 border-white bg-white/20 backdrop-blur-sm">
+            <div className="embla__viewport" ref={emblaRef}>
+              <div className="embla__container">
+                {carouselItems.length > 0 ? (
+                  carouselItems.map((item, index) => (
+                    <div key={item.id} className="embla__slide">
+                      <div className="embla__slide__inner">
+                        <Image
+                          src={item.image}
+                          alt="Carousel slide"
+                          width={800}
+                          height={600}
+                          className={`w-full h-auto aspect-video object-cover transition-opacity duration-500 ${index === selectedIndex ? 'opacity-100' : 'opacity-0 absolute'}`}
+                          priority
+                        />
                       </div>
-                    )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="w-full h-80 md:h-96 bg-gradient-to-br from-green-50 to-white rounded-2xl flex items-center justify-center text-gray-400 border-2 border-dashed border-green-200 p-8 text-center">
+                    No images available. Add some images to the carousel.
                   </div>
-                </div>
-              )) : (
-                <div className="w-full h-80 md:h-96 bg-gradient-to-br from-green-50 to-white rounded-2xl flex items-center justify-center text-gray-400 border-2 border-dashed border-green-200 p-8 text-center">
-                  No images available. Add some images to the carousel.
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            {/* Navigation Buttons */}
             <button 
               className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-green-700 p-3 rounded-full shadow-lg z-10 transition-all duration-300 hover:scale-110 border-2 border-green-100"
               onClick={scrollPrev}
@@ -293,7 +320,6 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* Carousel Management Modal */}
       <CarouselManagementModal
         isOpen={isManageModalOpen}
         onClose={() => setIsManageModalOpen(false)}
@@ -304,25 +330,3 @@ export default function HeroSection() {
     </div>
   );
 }
-
-// Add these styles to your global CSS or a CSS module
-// They should be in your global.css or a CSS module file
-/*
-.embla {
-  position: relative;
-}
-.embla__container {
-  display: flex;
-}
-.embla__slide {
-  position: relative;
-  min-width: 100%;
-  flex: 0 0 100%;
-}
-.embla__slide img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-*/
