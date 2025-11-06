@@ -8,7 +8,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { motion } from 'framer-motion';
 import { 
   User, LogOut, LayoutDashboard, MapPin, FileText, QrCode, 
-  Megaphone, BookOpen, CalendarCheck // 🆕 Added icon
+  Megaphone, BookOpen, CalendarCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
@@ -20,22 +20,15 @@ export default function BarangayAdminLayout({ children }: { children: React.Reac
   const router = useRouter();
   const pathname = usePathname();
   
-  // Debug logging
-  useEffect(() => {
-    console.log('Barangay Admin Layout - Current User:', currentUser);
-    console.log('Barangay Admin Layout - isBarangayAdmin:', isBarangayAdmin);
-    console.log('Barangay Admin Layout - barangayAdminData:', barangayAdminData);
-  }, [currentUser, isBarangayAdmin, barangayAdminData]);
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => setUser(user));
     return () => unsubscribe();
   }, []);
 
+  // ✅ Fixed redirect logic
   useEffect(() => {
-    if (typeof isBarangayAdmin === "undefined") return;
-    if (!isBarangayAdmin) {
-      router.push("/");
+    if (isBarangayAdmin === false) {
+      router.replace('/');
     }
   }, [isBarangayAdmin, router]);
 
@@ -51,10 +44,10 @@ export default function BarangayAdminLayout({ children }: { children: React.Reac
         : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
     }`;
 
-  if (typeof isBarangayAdmin === "undefined" || !currentUser || !isBarangayAdmin) {
+  if (isBarangayAdmin === undefined || !currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading...
+        Checking permissions...
       </div>
     );
   }
@@ -101,7 +94,7 @@ export default function BarangayAdminLayout({ children }: { children: React.Reac
                     </Link>
                   </li>
                   <li>
-                    <Link href="/barangay-admin/scan-qr" className={linkClass('/barangay-admin/scan-qr')}>
+                    <Link href="/barangay-admin/scan" className={linkClass('/barangay-admin/scan-qr')}>
                       <QrCode size={18}/>
                       Scan QR Code
                     </Link>
@@ -131,8 +124,6 @@ export default function BarangayAdminLayout({ children }: { children: React.Reac
                       Blogs
                     </Link>
                   </li>
-
-                  {/* 🆕 Added Visits Link */}
                   <li>
                     <Link href="/barangay-admin/visits" className={linkClass('/barangay-admin/visits')}>
                       <CalendarCheck size={18}/>
