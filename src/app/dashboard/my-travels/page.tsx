@@ -5,7 +5,6 @@ import {
   collection,
   query,
   where,
-  getDocs,
   updateDoc,
   doc,
   onSnapshot,
@@ -20,12 +19,17 @@ export default function MyTravelsPage() {
   const [visits, setVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Listen for auth changes and real-time Firestore updates
+  // 🔄 Listen for real-time user visits excluding completed
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
       if (u) {
         setUser(u);
-        const q = query(collection(db, 'visits'), where('userId', '==', u.uid));
+        const q = query(
+          collection(db, 'visits'),
+          where('userId', '==', u.uid),
+          where('status', 'in', ['Pending', 'Accepted', 'Cancelled']) // ✅ exclude completed
+        );
+
         const unsubscribeVisits = onSnapshot(q, (snapshot) => {
           const data = snapshot.docs.map((docSnap) => ({
             id: docSnap.id,
@@ -44,7 +48,7 @@ export default function MyTravelsPage() {
     return () => unsubscribeAuth();
   }, []);
 
-  // Cancel visit (sets status instead of deleting)
+  // ❌ Cancel visit
   const handleCancel = async (id: string) => {
     const confirmCancel = confirm('Are you sure you want to cancel this scheduled visit?');
     if (!confirmCancel) return;
@@ -113,7 +117,6 @@ export default function MyTravelsPage() {
                 )}
               </div>
 
-              {/* Status Display */}
               <div className="mb-3">
                 <span
                   className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
