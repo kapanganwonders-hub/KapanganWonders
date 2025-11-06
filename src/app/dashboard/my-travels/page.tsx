@@ -12,6 +12,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
 import { motion } from 'framer-motion';
+import { deleteDoc } from 'firebase/firestore';
 import { Calendar, MapPin, Users, XCircle, Clock } from 'lucide-react';
 
 export default function MyTravelsPage() {
@@ -27,7 +28,7 @@ export default function MyTravelsPage() {
         const q = query(
           collection(db, 'visits'),
           where('userId', '==', u.uid),
-          where('status', 'in', ['Pending', 'Accepted', 'Cancelled']) // ✅ exclude completed
+          where('status', 'in', ['pending', 'accepted']) // ✅ exclude completed
         );
 
         const unsubscribeVisits = onSnapshot(q, (snapshot) => {
@@ -49,18 +50,18 @@ export default function MyTravelsPage() {
   }, []);
 
   // ❌ Cancel visit
-  const handleCancel = async (id: string) => {
-    const confirmCancel = confirm('Are you sure you want to cancel this scheduled visit?');
-    if (!confirmCancel) return;
+ const handleCancel = async (id: string) => {
+  const confirmCancel = confirm('Are you sure you want to cancel this scheduled visit?');
+  if (!confirmCancel) return;
 
-    try {
-      await updateDoc(doc(db, 'visits', id), { status: 'Cancelled' });
-      alert('Your scheduled visit has been cancelled.');
-    } catch (error) {
-      console.error('Error cancelling visit:', error);
-      alert('Failed to cancel visit. Please try again.');
-    }
-  };
+  try {
+    await deleteDoc(doc(db, 'visits', id)); // ✅ remove from firestore
+    alert('Your scheduled visit has been cancelled and removed.');
+  } catch (error) {
+    console.error('Error deleting visit:', error);
+    alert('Failed to cancel visit. Please try again.');
+  }
+};
 
   if (loading)
     return (

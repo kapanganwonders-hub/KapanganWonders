@@ -13,7 +13,7 @@ export default function OverviewPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [scheduledCount, setScheduledCount] = useState(0);
-  const [visitedCount, setVisitedCount] = useState(0); // optional feature
+  const [visitedCount, setVisitedCount] = useState(0);
   const [companionsCount, setCompanionsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -25,55 +25,75 @@ export default function OverviewPage() {
           router.replace('/admin');
           return;
         }
-        
+
         // Check if barangay admin
         const barangayStatus = await checkIsBarangayAdmin(u);
         if (barangayStatus && barangayStatus.isBarangayAdmin) {
           router.replace('/barangay-admin');
           return;
         }
-        
+
         // Check if private spot admin
         const privateSpotStatus = await checkIsPrivateSpotAdmin(u);
         if (privateSpotStatus && privateSpotStatus.isPrivateSpotAdmin) {
           router.replace('/private-spot-admin');
           return;
         }
-        
+
         // Regular tourist user
         setUser(u);
         await fetchStats(u.uid);
       } else {
         setUser(null);
-        setScheduledCount(0);
-        setVisitedCount(0);
-        setCompanionsCount(0);
+        resetStats();
       }
       setLoading(false);
     });
     return () => unsubscribe();
   }, [router]);
 
+  const resetStats = () => {
+    setScheduledCount(0);
+    setVisitedCount(0);
+    setCompanionsCount(0);
+  };
+
   const fetchStats = async (uid: string) => {
     try {
       const q = query(collection(db, 'visits'), where('userId', '==', uid));
       const snapshot = await getDocs(q);
 
+      // If no visits found, reset all stats
+      if (snapshot.empty) {
+        resetStats();
+        return;
+      }
+
       const visits = snapshot.docs.map((doc) => doc.data());
 
-      setScheduledCount(visits.length);
+      // ✅ Scheduled = only 'pending' or 'approved' visits
+      const scheduledVisits = visits.filter(
+        (v) =>
+          v.status?.toLowerCase() === 'pending' ||
+          v.status?.toLowerCase() === 'approved'
+      );
+      setScheduledCount(scheduledVisits.length);
 
-      // Sum all companions
+      // ✅ Visited = only 'completed' visits
+      const completedVisits = visits.filter(
+        (v) => v.status?.toLowerCase() === 'completed'
+      );
+      setVisitedCount(completedVisits.length);
+
+      // ✅ Companions = total from all visits (or change to completedVisits if you prefer)
       const totalCompanions = visits.reduce(
         (acc, v) => acc + (v.companions?.length || 0),
         0
       );
       setCompanionsCount(totalCompanions);
-
-      // Optional: if you later track "completed visits"
-      setVisitedCount(0);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
+      resetStats(); // Reset if any error occurs
     }
   };
 
@@ -85,8 +105,7 @@ export default function OverviewPage() {
     );
   }
 
-  const profileImage =
-    user?.photoURL || '/assets/default-avatar.png';
+  const profileImage = user?.photoURL || '/assets/default-avatar.png';
 
   return (
     <div className="p-6">
@@ -109,7 +128,9 @@ export default function OverviewPage() {
       )}
 
       {/* --- Dashboard Summary --- */}
-      <h2 className="text-xl font-semibold mb-4 text-primary-green">Dashboard Overview</h2>
+      <h2 className="text-xl font-semibold mb-4 text-primary-green">
+        Dashboard Overview
+      </h2>
       <p className="text-gray-500 mb-6">Welcome back, Traveler!</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
