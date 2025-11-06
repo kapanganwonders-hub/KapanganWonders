@@ -114,7 +114,7 @@ export default function PrivateSpotAdminLayout({ children }: { children: React.R
                     </Link>
                   </li>
                   <li>
-                    <Link href="/private-spot-admin/scan-qr" className={linkClass('/private-spot-admin/scan-qr')}>
+                    <Link href="/private-spot-admin/scan" className={linkClass('/private-spot-admin/scan-qr')}>
                       <QrCode size={18}/>
                       Scan QR Code
                     </Link>
