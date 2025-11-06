@@ -109,8 +109,8 @@ export default function UsersManagement() {
         newUser.password,
         newUser.name,
         newUser.role,
-        newUser.barangay || null,
-        newUser.privateSpotName || null
+        newUser.barangay as any,
+        newUser.privateSpotName as any
       );
 
       if (result.success) {

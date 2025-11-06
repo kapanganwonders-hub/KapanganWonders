@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase/config';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, Timestamp, orderBy } from 'firebase/firestore';
 import { BookOpen, Plus, Edit, Trash2, Save, X, Calendar, Eye, ArrowLeft } from 'lucide-react';
+import { uploadFile, deleteFile } from '@/lib/appwrite';
+import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -44,8 +46,11 @@ export default function Blogs() {
     category: 'Tourism',
     tags: '',
     status: 'draft' as 'draft' | 'published',
-    imageUrl: ''
+    imageUrl: '',
+    _tempImage: undefined as File | undefined
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Function to open blog in modal
   const openBlogModal = (blog: Blog) => {
@@ -326,7 +331,8 @@ We highly recommend hiring a local guide for your safety and to learn more about
         category: 'Tourism',
         tags: '',
         status: 'draft',
-        imageUrl: ''
+        imageUrl: '',
+        _tempImage: undefined
       });
       
       fetchBlogs();
@@ -353,7 +359,19 @@ We highly recommend hiring a local guide for your safety and to learn more about
         imageUrl: formData.imageUrl,
         updatedAt: Timestamp.now()
       });
-      
+      // Update selectedBlog locally so detail view reflects edits immediately
+      setSelectedBlog(prev => prev ? ({
+        ...prev,
+        title: formData.title,
+        content: formData.content,
+        excerpt: formData.excerpt,
+        category: formData.category,
+        tags: tagsArray,
+        status: formData.status,
+        imageUrl: formData.imageUrl,
+        updatedAt: Timestamp.now()
+      } as Blog) : prev);
+
       setEditingBlog(null);
       setFormData({
         title: '',
@@ -362,13 +380,155 @@ We highly recommend hiring a local guide for your safety and to learn more about
         category: 'Tourism',
         tags: '',
         status: 'draft',
-        imageUrl: ''
+        imageUrl: '',
+        _tempImage: undefined
       });
-      
+
       fetchBlogs();
     } catch (error) {
       console.error('Error updating blog:', error);
       alert('Failed to update blog');
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !selectedBlog) return;
+    
+    const file = e.target.files[0];
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      
+      // Create a temporary URL for immediate preview
+      const tempUrl = URL.createObjectURL(file);
+      
+      // Update both editedSpot and selectedSpot with the temporary URL
+      const updateWithTempImage = {
+        ...selectedBlog,
+        imageUrl: tempUrl,
+        _tempImage: file
+      };
+      
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: tempUrl,
+        _tempImage: file
+      }));
+      setSelectedBlog(updateWithTempImage);
+      
+      try {
+        // Upload the file in the background
+        const result = await uploadFile(file, 'blogs');
+        const fileUrl = result.url;
+        
+        // If there was a previous image, delete it (but only if it's not the same as the new one)
+        const oldImage = selectedBlog.imageUrl;
+        if (oldImage && typeof oldImage === 'string' && oldImage.includes('appwrite.io') && oldImage !== fileUrl) {
+          try {
+            const fileId = oldImage.split('/files/')[1]?.split('/view')[0];
+            if (fileId) {
+              await deleteFile(fileId);
+            }
+          } catch (error) {
+            console.error('Error deleting old image:', error);
+            // Continue even if deletion fails
+          }
+        }
+
+        // Update with the permanent URL
+        const updateWithPermanentImage = {
+          ...selectedBlog,
+          imageUrl: fileUrl,
+          _tempImage: undefined
+        };
+        
+        setFormData(prev => ({
+          ...prev,
+          imageUrl: fileUrl,
+          _tempImage: undefined
+        }));
+        setSelectedBlog(updateWithPermanentImage);
+        
+        toast.success('Image uploaded successfully');
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        toast.error('Failed to upload image');
+        // Revert to previous state on error
+        setFormData(prev => ({
+          ...prev,
+          imageUrl: selectedBlog.imageUrl || '',
+          _tempImage: undefined
+        }));
+        setSelectedBlog(prev => ({
+          ...prev!,
+          imageUrl: selectedBlog.imageUrl || '',
+          _tempImage: undefined
+        }));
+      }
+    } catch (error) {
+      console.error('Error handling file change:', error);
+      toast.error('An error occurred while processing the image');
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    if (!selectedBlog || !selectedBlog.imageUrl) return;
+    
+    const oldImageUrl = selectedBlog.imageUrl;
+    
+    try {
+      setIsUploading(true);
+      
+      // Update UI immediately
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: '',
+        _tempImage: undefined
+      }));
+      setSelectedBlog(prev => ({
+        ...prev!,
+        imageUrl: '',
+        _tempImage: undefined
+      }));
+      
+      // Delete the old image in the background
+      if (oldImageUrl.includes('appwrite.io')) {
+        try {
+          const fileId = oldImageUrl.split('/files/')[1]?.split('/view')[0];
+          if (fileId) {
+            await deleteFile(fileId);
+          }
+        } catch (error) {
+          console.error('Error deleting image from storage:', error);
+          // Don't show error to user as the UI is already updated
+        }
+      }
+      
+      toast.success('Image removed successfully');
+    } catch (error) {
+      console.error('Error removing image:', error);
+      // Revert the change if something goes wrong
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: oldImageUrl
+      }));
+      setSelectedBlog(prev => ({
+        ...prev!,
+        imageUrl: oldImageUrl
+      }));
+      toast.error('Failed to remove image');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -395,7 +555,8 @@ We highly recommend hiring a local guide for your safety and to learn more about
       category: blog.category,
       tags: blog.tags?.join(', ') || '',
       status: blog.status,
-      imageUrl: blog.imageUrl || ''
+      imageUrl: blog.imageUrl || '',
+      _tempImage: undefined
     });
   };
 
@@ -408,7 +569,8 @@ We highly recommend hiring a local guide for your safety and to learn more about
       category: 'Tourism',
       tags: '',
       status: 'draft',
-      imageUrl: ''
+      imageUrl: '',
+      _tempImage: undefined
     });
   };
 
@@ -599,15 +761,13 @@ We highly recommend hiring a local guide for your safety and to learn more about
           )}
         </div>
 
-        {/* Add/Edit Blog Modal */}
-        {(showAddForm || editingBlog) && (
+        {/* Add Blog Modal (create only) */}
+        {showAddForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {editingBlog ? 'Edit Blog Post' : 'Create New Blog Post'}
-                  </h2>
+                  <h2 className="text-2xl font-bold text-gray-900">Create New Blog Post</h2>
                   <button
                     onClick={() => {
                       setShowAddForm(false);
@@ -619,7 +779,7 @@ We highly recommend hiring a local guide for your safety and to learn more about
                   </button>
                 </div>
                 
-                <form onSubmit={editingBlog ? (e) => { e.preventDefault(); handleUpdateBlog(editingBlog); } : handleAddBlog} className="space-y-6">
+                <form onSubmit={handleAddBlog} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-6">
                       <div>
@@ -759,7 +919,7 @@ We highly recommend hiring a local guide for your safety and to learn more about
                       type="submit"
                       className="px-6 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                     >
-                      {editingBlog ? 'Update' : 'Publish'} Post
+                      Publish Post
                     </button>
                   </div>
                 </form>
@@ -791,20 +951,49 @@ We highly recommend hiring a local guide for your safety and to learn more about
                     Back to Blogs
                   </button>
                   {isBarangayAdmin && (
-                    <button
-                      onClick={() => startEdit(selectedBlog)}
-                      className="flex items-center gap-1 text-primary-green hover:text-accent-green font-medium transition-colors duration-200"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                      Edit
-                    </button>
+                    editingBlog === selectedBlog.id ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdateBlog(selectedBlog.id)}
+                          className="flex items-center gap-1 bg-primary-green text-egg-white px-3 py-1 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+                        >
+                          <Save size={16} />
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="flex items-center gap-1 bg-gray-100 text-primary-green px-3 py-1 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
+                        >
+                          <X size={16} />
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startEdit(selectedBlog)}
+                        className="flex items-center gap-1 text-primary-green hover:text-accent-green font-medium transition-colors duration-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Edit
+                      </button>
+                    )
                   )}
                 </div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 line-clamp-2 mt-2">
-                  {selectedBlog.title}
-                </h1>
+
+                {editingBlog === selectedBlog.id ? (
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full mt-2 text-2xl md:text-3xl font-bold text-gray-900 border border-border-green rounded px-3 py-2"
+                  />
+                ) : (
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 line-clamp-2 mt-2">
+                    {selectedBlog.title}
+                  </h1>
+                )}
               </div>
             </div>
             
@@ -826,6 +1015,58 @@ We highly recommend hiring a local guide for your safety and to learn more about
                       <span className="text-white text-2xl font-semibold">{selectedBlog.category}</span>
                     </div>
                   )}
+                  {editingBlog === selectedBlog.id && (
+                    <>
+                      <div className="absolute bottom-4 right-4 flex gap-2">
+                        <label
+                          htmlFor="blog-image-upload"
+                          className={`bg-white/90 hover:bg-white text-primary-green px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-colors shadow-md ${isUploading ? 'opacity-60 pointer-events-none' : ''}`}
+                        >
+                          {isUploading ? 'Uploading...' : 'Change Image'}
+                        </label>
+                        {selectedBlog.imageUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            disabled={isUploading}
+                            className="bg-red-500/90 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium disabled:opacity-50 transition-colors shadow-md"
+                          >
+                            Remove
+                          </button>
+                        )}
+                        <input
+                          id="blog-image-upload"
+                          type="file"
+                          ref={fileInputRef}
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="hidden"
+                          disabled={isUploading}
+                        />
+                      </div>
+
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                        <input
+                          type="url"
+                          value={formData.imageUrl}
+                          onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                          placeholder="https://example.com/image.jpg"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green"
+                        />
+                        {formData.imageUrl && (
+                          <div className="mt-2 w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={formData.imageUrl}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
                 
                 {/* Date and Category */}
@@ -840,7 +1081,21 @@ We highly recommend hiring a local guide for your safety and to learn more about
                   </span>
                   <span>•</span>
                   <span className="font-medium">
-                    {selectedBlog.category}
+                    {editingBlog === selectedBlog.id ? (
+                      <select
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        className="px-2 py-1 border border-border-green rounded text-sm"
+                      >
+                        <option value="Tourism">Tourism</option>
+                        <option value="Culture">Culture</option>
+                        <option value="Events">Events</option>
+                        <option value="News">News</option>
+                        <option value="Guide">Guide</option>
+                      </select>
+                    ) : (
+                      selectedBlog.category
+                    )}
                   </span>
                 </div>
                 
@@ -856,17 +1111,30 @@ We highly recommend hiring a local guide for your safety and to learn more about
                 </div>
                 
                 {/* Tags */}
-                {selectedBlog.tags && selectedBlog.tags.length > 0 && (
+                {editingBlog === selectedBlog.id ? (
                   <div className="mt-6">
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Tags</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedBlog.tags.map((tag, index) => (
-                        <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">Tags (comma separated)</h3>
+                    <input
+                      type="text"
+                      value={formData.tags}
+                      onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="travel, adventure, kapangan"
+                    />
                   </div>
+                ) : (
+                  selectedBlog.tags && selectedBlog.tags.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-medium text-gray-500 mb-2">Tags</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedBlog.tags.map((tag, index) => (
+                          <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
               
@@ -874,22 +1142,44 @@ We highly recommend hiring a local guide for your safety and to learn more about
               <div className="w-full md:w-1/2 h-full overflow-y-auto p-6 md:p-8">
                 {/* Blog Content */}
                 <article className="prose max-w-none text-gray-700 leading-relaxed">
-                  {selectedBlog.excerpt && (
-                    <p className="text-lg text-gray-700 mb-8 leading-relaxed font-medium">
-                      {selectedBlog.excerpt}
-                    </p>
-                  )}
-                  <div 
-                    className="prose-lg max-w-none"
-                    dangerouslySetInnerHTML={{ 
-                      __html: selectedBlog.content
-                        .replace(/\n\n/g, '</p><p class="my-6 text-gray-700 leading-relaxed">')
-                        .replace(/^##\s+(.*$)/gm, '</p><h2 class="text-2xl font-bold text-gray-900 mt-12 mb-6 pb-2">$1</h2><p>')
-                        .replace(/^###\s+(.*$)/gm, '</p><h3 class="text-xl font-semibold text-gray-900 mt-10 mb-4">$1</h3><p>')
-                        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-                    }}
-                  />
+                    {editingBlog === selectedBlog.id ? (
+                      <div className="space-y-4">
+                        <label className="block text-sm font-medium text-gray-700">Excerpt</label>
+                        <textarea
+                          value={formData.excerpt}
+                          onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+                          rows={3}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+
+                        <label className="block text-sm font-medium text-gray-700">Content</label>
+                        <textarea
+                          value={formData.content}
+                          onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                          rows={12}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        {selectedBlog.excerpt && (
+                          <p className="text-lg text-gray-700 mb-8 leading-relaxed font-medium">
+                            {selectedBlog.excerpt}
+                          </p>
+                        )}
+                        <div 
+                          className="prose-lg max-w-none"
+                          dangerouslySetInnerHTML={{ 
+                            __html: selectedBlog.content
+                              .replace(/\n\n/g, '</p><p class="my-6 text-gray-700 leading-relaxed">')
+                              .replace(/^##\s+(.*$)/gm, '</p><h2 class="text-2xl font-bold text-gray-900 mt-12 mb-6 pb-2">$1</h2><p>')
+                              .replace(/^###\s+(.*$)/gm, '</p><h3 class="text-xl font-semibold text-gray-900 mt-10 mb-4">$1</h3><p>')
+                              .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                              .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+                          }}
+                        />
+                      </>
+                    )}
                 </article>
               </div>
             </div>
@@ -943,4 +1233,3 @@ We highly recommend hiring a local guide for your safety and to learn more about
     </div>
   );
 }
-
