@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import {
+  collection,
+  onSnapshot,
+  updateDoc,
+  deleteDoc,
+  doc,
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Check, Trash } from 'lucide-react';
 
@@ -24,30 +30,32 @@ export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all visits from Firestore
-  const fetchVisits = async () => {
-    try {
-      const snap = await getDocs(collection(db, 'visits'));
-      let data: Visit[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Visit, 'id'>) }));
+  useEffect(() => {
+    // ✅ Real-time listener for visits collection
+    const unsub = onSnapshot(collection(db, 'visits'), (snap) => {
+      let data: Visit[] = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Visit, 'id'>),
+      }));
 
-      // ✅ Apply filtering (for barangay/private accounts)
+      // ❌ Exclude "completed" visits
+      data = data.filter((v) => v.status?.toLowerCase() !== 'completed');
+
+      // ✅ Apply custom filter (barangay/private)
       if (filterFn) data = data.filter(filterFn);
 
       setVisits(data);
-    } catch (error) {
-      console.error('Error fetching visits:', error);
-    } finally {
       setLoading(false);
-    }
-  };
+    });
 
-  // Approve a visit
+    // 🧹 Cleanup listener on unmount
+    return () => unsub();
+  }, [filterFn]);
+
+  // ✅ Approve a visit
   const handleApprove = async (id: string) => {
     try {
       await updateDoc(doc(db, 'visits', id), { status: 'Approved' });
-      setVisits((prev) =>
-        prev.map((v) => (v.id === id ? { ...v, status: 'Approved' } : v))
-      );
       alert('✅ Visit approved successfully.');
     } catch (error) {
       console.error('Error approving visit:', error);
@@ -55,23 +63,18 @@ export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
     }
   };
 
-  // Delete a visit
+  // 🗑️ Delete a visit
   const handleDelete = async (id: string) => {
     const ok = confirm('Are you sure you want to delete this visit?');
     if (!ok) return;
     try {
       await deleteDoc(doc(db, 'visits', id));
-      setVisits((prev) => prev.filter((v) => v.id !== id));
       alert('🗑️ Visit deleted successfully.');
     } catch (error) {
       console.error('Error deleting visit:', error);
       alert('Failed to delete visit.');
     }
   };
-
-  useEffect(() => {
-    fetchVisits();
-  }, [filterFn]);
 
   if (loading) return <div>Loading visits...</div>;
 
@@ -99,16 +102,22 @@ export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
             visits.map((v) => (
               <tr key={v.id} className="hover:bg-gray-50">
                 <td className="py-2 px-4 border-b">{v.fullName}</td>
-                <td className="py-2 px-4 border-b">{v.barangays?.join(', ') || 'N/A'}</td>
-                <td className="py-2 px-4 border-b">{v.spots?.join(', ') || 'N/A'}</td>
+                <td className="py-2 px-4 border-b">
+                  {v.barangays?.join(', ') || 'N/A'}
+                </td>
+                <td className="py-2 px-4 border-b">
+                  {v.spots?.join(', ') || 'N/A'}
+                </td>
                 <td className="py-2 px-4 border-b">{v.date}</td>
                 <td className="py-2 px-4 border-b font-medium">
                   {v.status || 'Pending'}
                 </td>
                 <td className="py-2 px-4 border-b space-x-2 flex items-center">
-                  {/* ✅ Allow approve for all admin roles */}
+                  {/* ✅ Approve button for admin/barangay/private */}
                   {v.status !== 'Approved' &&
-                    (role === 'admin' || role === 'barangay' || role === 'private') && (
+                    (role === 'admin' ||
+                      role === 'barangay' ||
+                      role === 'private') && (
                       <button
                         onClick={() => handleApprove(v.id)}
                         className="text-green-700 hover:underline flex items-center gap-1"
