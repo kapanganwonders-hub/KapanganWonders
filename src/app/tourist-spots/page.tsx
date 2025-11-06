@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, updateDoc, setDoc, getFirestore, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -41,6 +42,41 @@ export default function TouristSpots() {
 
   // Initialize spots state
   const [spots, setSpots] = useState<TouristSpot[]>([]);
+
+  // Handle URL parameters for direct edit
+  useEffect(() => {
+    if (typeof window === 'undefined' || !spots.length) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const spotId = params.get('spotId') || params.get('id');
+    const editMode = params.get('edit') === 'true';
+    
+    if (!spotId) return;
+    
+    // Try to find the spot with type-safe comparison
+    const spot = spots.find(s => {
+      const spotIdStr = String(s.id);
+      return spotIdStr === spotId || spotIdStr === String(parseInt(spotId as string));
+    });
+    if (!spot) {
+      console.error('Spot not found:', spotId);
+      return;
+    }
+    
+    // Set the spot and show details
+    setSelectedSpot(spot);
+    setEditedSpot(spot);
+    setShowDetails(true);
+    
+    // If in edit mode, enable editing
+    if (editMode) {
+      setIsEditing(true);
+      // Clean up the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('edit');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [spots]);
 
   // Fetch all tourist spots
   useEffect(() => {
@@ -361,9 +397,17 @@ export default function TouristSpots() {
     });
   };
 
+  const router = useRouter();
+
   const closeDetails = () => {
-    setSelectedSpot(null);
-    setShowDetails(false);
+    if (isEditing) {
+      // If in edit mode, navigate to dashboard
+      router.push('/barangay-admin');
+    } else {
+      // Otherwise, just close the details view
+      setSelectedSpot(null);
+      setShowDetails(false);
+    }
   };
 
   // If showing details, render the detail page
@@ -380,7 +424,7 @@ export default function TouristSpots() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Back to Tourist Spots
+              {isEditing ? 'Back to Dashboard' : 'Back to Tourist Spots'}
             </button>
           </div>
         </div>
@@ -468,31 +512,20 @@ export default function TouristSpots() {
                     <h1 className="text-3xl font-bold text-primary-green">{selectedSpot.name}</h1>
                   )}
                   
-                  {isBarangayAdmin && barangayAdminData?.barangay === selectedSpot.barangay && (
+                  {isBarangayAdmin && barangayAdminData?.barangay === selectedSpot.barangay && isEditing && (
                     <div className="flex gap-2">
-                      {isEditing ? (
-                        <>
-                          <button
-                            onClick={handleSave}
-                            className="bg-primary-green text-egg-white px-3 py-1 rounded text-sm font-medium hover:bg-opacity-90 transition-colors"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={handleCancelEdit}
-                            className="bg-gray-300 text-primary-green px-3 py-1 rounded text-sm font-medium hover:bg-opacity-90 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={handleEdit}
-                          className="bg-accent-green text-egg-white px-3 py-1 rounded text-sm font-medium hover:bg-opacity-90 transition-colors"
-                        >
-                          Edit Spot
-                        </button>
-                      )}
+                      <button
+                        onClick={handleSave}
+                        className="bg-primary-green text-egg-white px-3 py-1 rounded text-sm font-medium hover:bg-opacity-90 transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="bg-gray-300 text-primary-green px-3 py-1 rounded text-sm font-medium hover:bg-opacity-90 transition-colors"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   )}
                 </div>
@@ -758,7 +791,6 @@ export default function TouristSpots() {
                         <h3 className="text-xl font-semibold text-primary-green mb-2 group-hover:text-accent-green transition-colors duration-300">
                           {spot.name}
                         </h3>
-                        <p className="text-primary-green/70 mb-3 line-clamp-3">{spot.description}</p>
                         <p className="text-sm text-accent-green font-medium mb-4">{spot.location}</p>
                         <button
                           onClick={() => openDetails(spot)}

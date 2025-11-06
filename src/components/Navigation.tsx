@@ -8,13 +8,15 @@ import { useRouter, usePathname } from 'next/navigation';
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { currentUser, isAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
+  
+  const navigateToDashboard = () => {
+    router.push(isAdmin ? '/admin' : '/dashboard');
+  };
 
   const handleLogout = async () => {
     try {
@@ -59,65 +61,17 @@ export default function Navigation() {
           {/* Right - Auth or Profile */}
           <div className="flex items-center space-x-4 relative">
             {currentUser ? (
-              <div className="relative">
-                <button
-                  onClick={toggleDropdown}
-                  className="focus:outline-none flex items-center"
-                >
-                  <img
-                    src={currentUser.photoURL || '/assets/default-avatar.png'}
-                    onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
-                    alt="Profile"
-                    className="w-9 h-9 rounded-full border-2 border-border-green hover:scale-105 transition"
-                  />
-                </button>
-
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-44 bg-egg-white border border-border-green rounded-lg shadow-lg">
-                    {isAdmin ? (
-                      <>
-                        <Link
-                          href="/admin"
-                          className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
-                          onClick={() => setIsDropdownOpen(false)}
-                        >
-                          Admin Dashboard
-                        </Link>
-                        <Link
-                          href="/profile"
-                          className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
-                          onClick={() => setIsDropdownOpen(false)}
-                        >
-                          Profile
-                        </Link>
-                      </>
-                    ) : (
-                      <>
-                        <Link
-                          href="/dashboard"
-                          className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
-                          onClick={() => setIsDropdownOpen(false)}
-                        >
-                          Dashboard
-                        </Link>
-                        <Link
-                          href="/profile"
-                          className="block px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
-                          onClick={() => setIsDropdownOpen(false)}
-                        >
-                          Profile
-                        </Link>
-                      </>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-sm text-primary-green hover:bg-light-green/30 transition"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={navigateToDashboard}
+                className="focus:outline-none"
+              >
+                <img
+                  src={currentUser.photoURL || '/assets/default-avatar.png'}
+                  onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
+                  alt="Profile"
+                  className="w-9 h-9 rounded-full border-2 border-border-green hover:scale-105 transition"
+                />
+              </button>
             ) : (
               <>
                 <Link href="/signin" className={authLink.border}>Sign In</Link>
