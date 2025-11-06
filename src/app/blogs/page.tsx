@@ -78,7 +78,7 @@ export default function Blogs() {
     return () => window.removeEventListener('keydown', handleEscape);
   }, []);
 
-  const categories = ["All", "Tourism", "Culture", "Events", "News", "Guide"];
+  const categories = ["All", "Tourism", "Culture", "Events", "News", "Guide", "Where to Stay", "Where to Eat"];
 
   // Sample blog data with images from assets
   const sampleBlogs: Blog[] = [
@@ -227,29 +227,200 @@ We highly recommend hiring a local guide for your safety and to learn more about
       authorName: 'Adventure Kapangan',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
+    },
+    {
+      id: 'sample-6',
+      title: "Where to Stay: Cozy Homestays in Kapangan",
+      excerpt: "Looking for a place to stay? Discover the best homestays and inns in Kapangan for a comfortable and authentic experience.",
+      content: `Kapangan offers a variety of homestays and inns that provide visitors with a warm and authentic Cordilleran experience.
+
+## Top Homestays
+
+- **Balakbak Mountain Homestay**: Nestled in the heart of Balakbak, this homestay offers panoramic mountain views, home-cooked meals, and friendly hosts.
+- **Central Guesthouse**: Located near the town center, this guesthouse is perfect for travelers who want easy access to local attractions and markets.
+
+## Tips for Booking
+
+- Book in advance during peak seasons (December to February, and during festivals).
+- Ask your host about guided tours and local delicacies!
+`,
+      category: 'Where to Stay',
+      tags: ['homestay', 'accommodation', 'lodging', 'guesthouse'],
+      status: 'published',
+      views: 321,
+      imageUrl: '/assets/homestay.jpg',
+      barangay: 'Balakbak',
+      author: 'admin',
+      authorName: 'Stay Kapangan',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    },
+    {
+      id: 'sample-7',
+      title: "Where to Eat: Must-Try Local Eateries in Kapangan",
+      excerpt: "Savor the flavors of Kapangan! Here are some of the best local eateries and what to order when you visit.",
+      content: `Kapangan is home to a number of eateries and carinderias that serve delicious local dishes.
+
+## Recommended Places
+
+- **Sagubo Riverside Eatery**: Famous for their pinikpikan and fresh river fish dishes.
+- **Central Food Hub**: Try their etag (smoked pork) and vegetable dishes sourced from local farms.
+
+## Must-Try Dishes
+
+- Pinikpikan
+- Etag
+- Inanchila (rice cake)
+- Fresh river fish
+
+Don't forget to ask for the day's special!`,
+      category: 'Where to Eat',
+      tags: ['food', 'restaurant', 'local cuisine', 'eatery'],
+      status: 'published',
+      views: 278,
+      imageUrl: '/assets/eatery.jpg',
+      barangay: 'Sagubo',
+      author: 'admin',
+      authorName: 'Eat Kapangan',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    },
+    {
+      id: 'sample-8',
+      title: "Where to Stay: Riverside Eco-Lodge",
+      excerpt: "Experience nature at its best at Riverside Eco-Lodge, a top accommodation in Kapangan for eco-conscious travelers.",
+      content: `Riverside Eco-Lodge is located along the Amburayan River, offering rustic cottages, bonfire nights, and guided river treks.
+
+## Amenities
+- Riverside cottages
+- Local organic meals
+- Guided river and forest tours
+
+## Contact
+Call: 0912-345-6789
+Location: Amburayan, Kapangan
+`,
+      category: 'Where to Stay',
+      tags: ['eco-lodge', 'nature', 'riverside', 'accommodation'],
+      status: 'published',
+      views: 150,
+      imageUrl: '/assets/riverside-lodge.jpg',
+      barangay: 'Amburayan',
+      author: 'admin',
+      authorName: 'Stay Kapangan',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    },
+    {
+      id: 'sample-9',
+      title: "Where to Eat: Mountain View Café",
+      excerpt: "Enjoy coffee and local delicacies with a breathtaking view at Mountain View Café in Kapangan.",
+      content: `Mountain View Café is a favorite stop for travelers looking for a relaxing spot with scenic views.
+
+## What to Order
+- Benguet coffee
+- Pancit with local vegetables
+- Homemade bibingka
+
+## Location
+Sitio Toplac, Pudong, Kapangan
+Open: 7am - 7pm
+`,
+      category: 'Where to Eat',
+      tags: ['cafe', 'coffee', 'view', 'local food'],
+      status: 'published',
+      views: 110,
+      imageUrl: '/assets/mountain-cafe.jpg',
+      barangay: 'Pudong',
+      author: 'admin',
+      authorName: 'Eat Kapangan',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    },
+    {
+      id: 'sample-10',
+      title: "Where to Eat: Kapangan Grill House",
+      excerpt: "Taste grilled specialties and local favorites at Kapangan Grill House, a must-visit restaurant in the town center.",
+      content: `Kapangan Grill House is known for its grilled pork, chicken, and fresh vegetable sides.
+
+## House Specials
+- Grilled pork belly
+- Chicken inasal
+- Fresh pako salad
+
+## Location
+Poblacion, Kapangan (beside the public market)
+Open: 10am - 9pm
+`,
+      category: 'Where to Eat',
+      tags: ['grill', 'restaurant', 'barbecue', 'local food'],
+      status: 'published',
+      views: 95,
+      imageUrl: '/assets/grill-house.jpg',
+      barangay: 'Poblacion',
+      author: 'admin',
+      authorName: 'Eat Kapangan',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    },
+    {
+      id: 'sample-11',
+      title: "Where to Stay: Pine Grove Inn",
+      excerpt: "Pine Grove Inn offers affordable rooms and a peaceful pine forest setting for families and groups visiting Kapangan.",
+      content: `Pine Grove Inn is a family-friendly accommodation surrounded by pine trees, with easy access to hiking trails.
+
+## Features
+- Family rooms
+- Free breakfast
+- Shuttle service to tourist spots
+
+## Contact
+Call: 0917-888-1234
+Location: Balakbak, Kapangan
+`,
+      category: 'Where to Stay',
+      tags: ['inn', 'family', 'pine forest', 'accommodation'],
+      status: 'published',
+      views: 80,
+      imageUrl: '/assets/pine-grove-inn.jpg',
+      barangay: 'Balakbak',
+      author: 'admin',
+      authorName: 'Stay Kapangan',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
     }
   ];
 
-  // Function to initialize sample blogs if none exist
+  // Function to ensure all sample blogs for 'Where to Eat' and 'Where to Stay' are imported into Firestore if not present
   const initializeSampleBlogs = async () => {
     try {
       const blogsRef = collection(db, 'blogs');
       const querySnapshot = await getDocs(blogsRef);
-      
-      // Only add sample blogs if the collection is empty
-      if (querySnapshot.empty) {
+      const existingTitles = new Set(querySnapshot.docs.map(doc => doc.data().title));
+      // Only add sample blogs that do not exist by title
+      const missingSamples = sampleBlogs.filter(
+        (blog) => (blog.category === 'Where to Eat' || blog.category === 'Where to Stay') && !existingTitles.has(blog.title)
+      );
+      if (missingSamples.length > 0) {
         const batch = [];
-        for (const blog of sampleBlogs) {
-          const docRef = doc(blogsRef);
-          batch.push(setDoc(docRef, {
+        for (const blog of missingSamples) {
+          // Use addDoc to let Firestore generate a unique ID
+          batch.push(addDoc(blogsRef, {
             ...blog,
-            id: docRef.id,
+            id: '', // Will be updated after creation
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now()
           }));
         }
-        await Promise.all(batch);
-        console.log('Sample blogs added successfully');
+        // Wait for all docs to be added, then update their 'id' field to match Firestore's generated ID
+        const addedDocs = await Promise.all(batch);
+        const updateBatch = [];
+        for (let i = 0; i < addedDocs.length; i++) {
+          const docRef = addedDocs[i];
+          updateBatch.push(updateDoc(docRef, { id: docRef.id }));
+        }
+        await Promise.all(updateBatch);
+        console.log('Sample "Where to Eat" and "Where to Stay" blogs added successfully');
         fetchBlogs(); // Refresh the blogs list
       }
     } catch (error) {
@@ -263,19 +434,33 @@ We highly recommend hiring a local guide for your safety and to learn more about
     fetchBlogs();
   }, []);
 
+  // Merge sample blogs with fetched blogs (avoid duplicates by id)
+  const getAllBlogs = () => {
+    // If a blog with the same id exists in db, skip the sample
+    const dbIds = new Set(blogs.map((b) => b.id));
+    return [
+      ...blogs,
+      ...sampleBlogs.filter((sample) => !dbIds.has(sample.id))
+    ];
+  };
+
   useEffect(() => {
     // Filter blogs based on category
-    let result = [...blogs];
-    
+    let result = getAllBlogs();
     if (selectedCategory !== 'All') {
       result = result.filter(blog => blog.category === selectedCategory);
     }
-    
     // Only show published blogs to non-admin users
     if (!isBarangayAdmin) {
       result = result.filter(blog => blog.status === 'published');
     }
-    
+    // Sort so that sample blogs for 'Where to Eat' and 'Where to Stay' appear at the top
+    if (selectedCategory === 'Where to Eat' || selectedCategory === 'Where to Stay') {
+      result = [
+        ...result.filter(b => b.id.startsWith('sample-')),
+        ...result.filter(b => !b.id.startsWith('sample-'))
+      ];
+    }
     setFilteredBlogs(result);
   }, [blogs, selectedCategory, isBarangayAdmin]);
 
@@ -855,6 +1040,8 @@ We highly recommend hiring a local guide for your safety and to learn more about
                           <option value="Events">Events</option>
                           <option value="News">News</option>
                           <option value="Guide">Guide</option>
+                          <option value="Where to Stay">Where to Stay</option>
+                          <option value="Where to Eat">Where to Eat</option>
                         </select>
                       </div>
                       
@@ -1092,6 +1279,8 @@ We highly recommend hiring a local guide for your safety and to learn more about
                         <option value="Events">Events</option>
                         <option value="News">News</option>
                         <option value="Guide">Guide</option>
+                        <option value="Where to Stay">Where to Stay</option>
+                        <option value="Where to Eat">Where to Eat</option>
                       </select>
                     ) : (
                       selectedBlog.category
