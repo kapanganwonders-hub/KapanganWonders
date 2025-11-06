@@ -10,8 +10,20 @@ import { getAuth } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { uploadFile, deleteFile } from '@/lib/appwrite';
 
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  touristSpotId?: string;
+  touristSpotName?: string;
+  expiryDate?: string;
+  createdAt: any;
+}
+
 interface TouristSpot {
   id: string;
+  numericId?: string | number; // For flexible ID matching
   name: string;
   description: string;
   image: string;
@@ -23,6 +35,9 @@ interface TouristSpot {
   googleMapsLink?: string;
   detailedDescription?: string;
   status?: 'active' | 'inactive';
+  closed?: boolean;
+  closedReason?: string;
+  closedUntil?: string;
   createdAt?: any;
   updatedAt?: any;
   _tempImage?: File; // Temporary file object for upload preview
@@ -30,6 +45,7 @@ interface TouristSpot {
 
 export default function TouristSpots() {
   const { isBarangayAdmin, barangayAdminData, user } = useAuth();
+  const [closureAnnouncements, setClosureAnnouncements] = useState<Announcement[]>([]);
   const [selectedBarangay, setSelectedBarangay] = useState<string>('all');
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -78,22 +94,158 @@ export default function TouristSpots() {
     }
   }, [spots]);
 
+  // Fetch closure announcements
+  const fetchClosureAnnouncements = async () => {
+    try {
+      const db = getFirestore();
+      const now = new Date().toISOString();
+      
+      // Fetch all announcements (we'll filter in memory)
+      const q = query(collection(db, 'announcements'));
+      const querySnapshot = await getDocs(q);
+      
+      // Filter announcements in memory
+      const announcements = querySnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            title: data.title || '',
+            content: data.content || '',
+            category: data.category || '',
+            touristSpotId: data.touristSpotId,
+            touristSpotName: data.touristSpotName,
+            expiryDate: data.expiryDate,
+            createdAt: data.createdAt
+          } as Announcement;
+        })
+        .filter(announcement => {
+          const isClosure = [
+            'Closure - Maintenance', 
+            'Closure - Weather Conditions', 
+            'Closure - Road Access'
+          ].includes(announcement.category);
+          
+          const isNotExpired = !announcement.expiryDate || 
+            announcement.expiryDate >= now;
+            
+          return isClosure && isNotExpired;
+        });
+      
+      setClosureAnnouncements(announcements);
+      return announcements;
+    } catch (error) {
+      console.error('Error fetching closure announcements:', error);
+      return [];
+    }
+  };
+
+  // Process spots and update with closure status
+  const processSpotsWithClosures = (spots: TouristSpot[], announcements: Announcement[]) => {
+    console.log('Processing spots with closures...');
+    console.log('Announcements:', announcements);
+    
+    const spotMap = new Map<string, Announcement>();
+    
+    // Create a map of spot IDs to their closure announcements
+    announcements.forEach(announcement => {
+      if (announcement.touristSpotId) {
+        const announcementSpotId = announcement.touristSpotId;
+        console.log(`Found closure announcement for spot ${announcementSpotId} (${typeof announcementSpotId}):`, announcement);
+        
+        // Store under both string and number keys to handle type mismatches
+        spotMap.set(announcementSpotId.toString(), announcement);
+        
+        // If the ID can be parsed as a number, also store it as a number
+        const numericId = parseInt(announcementSpotId);
+        if (!isNaN(numericId)) {
+          spotMap.set(numericId.toString(), announcement);
+        }
+      } else {
+        console.log('Announcement missing touristSpotId:', announcement);
+      }
+    });
+    
+    console.log('Spot map:', Array.from(spotMap.entries()));
+    
+    // Update spots with closure information
+    const processedSpots = spots.map(spot => {
+      // Try multiple ID lookups to handle different formats
+      const possibleIds = [
+        spot.id,
+        spot.numericId?.toString(),
+        spot.id?.toString(),
+        // If ID is a number, try it as a number too
+        ...(spot.id && !isNaN(Number(spot.id)) ? [Number(spot.id).toString()] : [])
+      ].filter(Boolean) as string[];
+      
+      // Find the first matching announcement
+      const closureAnnouncement = possibleIds
+        .map(id => spotMap.get(id))
+        .find(Boolean);
+      
+      console.log(`Processing spot ID: ${spot.id} (${typeof spot.id}), numericId: ${spot.numericId}, closureAnnouncement:`, closureAnnouncement);
+      
+      if (closureAnnouncement) {
+        console.log(`Marking spot ${spot.id} (${typeof spot.id}) as closed. Reason: ${closureAnnouncement.content}`);
+        return {
+          ...spot,
+          closed: true,
+          closedReason: closureAnnouncement.content || 'This spot is temporarily closed',
+          closedUntil: closureAnnouncement.expiryDate
+        };
+      }
+      
+      // Ensure closed is explicitly set to false if no closure announcement exists
+      return {
+        ...spot,
+        closed: false
+      };
+    });
+    
+    console.log('Processed spots:', processedSpots);
+    return processedSpots;
+  };
+
   // Fetch all tourist spots
   useEffect(() => {
     const fetchSpots = async () => {
       try {
         setLoading(true);
         const db = getFirestore();
-        // Fetch all spots without any filters
-        const q = query(collection(db, 'touristSpots'));
         
-        const querySnapshot = await getDocs(q);
-        const spotsData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as TouristSpot[];
+        console.log('Fetching spots and announcements...');
         
-        setSpots(spotsData);
+        // Fetch spots and announcements in parallel
+        const [announcements, spotsSnapshot] = await Promise.all([
+          fetchClosureAnnouncements(),
+          getDocs(query(collection(db, 'touristSpots')))
+        ]);
+        
+        console.log('Raw spots from Firestore:', spotsSnapshot.docs.map(doc => doc.data()));
+        
+        const spotsData = spotsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          const docId = doc.id;
+          // Try to get numeric ID from data or parse the document ID
+          const numericId = data.id || (!isNaN(Number(docId)) ? Number(docId) : docId);
+          
+          console.log(`Spot ID: ${docId}, Type: ${typeof docId}, Numeric ID: ${numericId} (${typeof numericId})`);
+          
+          return {
+            ...data,
+            id: docId,  // Keep original ID as string
+            numericId,  // Add numeric ID for flexible matching
+          } as TouristSpot;
+        });
+        
+        console.log('Fetched spots:', spotsData);
+        
+        // Process spots with closure information
+        const processedSpots = processSpotsWithClosures(spotsData, announcements);
+        
+        console.log('Processed spots with closures:', processedSpots);
+        setSpots(processedSpots);
         setError(null);
       } catch (err) {
         console.error('Error fetching spots:', err);
@@ -115,13 +267,13 @@ export default function TouristSpots() {
   });
 
   // Group spots by barangay for display
-  const groupedSpots = filteredSpots.reduce((acc, spot) => {
+  const groupedSpots = filteredSpots.reduce<Record<string, TouristSpot[]>>((acc, spot) => {
     if (!acc[spot.barangay]) {
       acc[spot.barangay] = [];
     }
     acc[spot.barangay].push(spot);
     return acc;
-  }, {} as Record<string, TouristSpot[]>);
+  }, {});
 
   // Scroll to section when barangay is selected
   const scrollToSection = (barangay: string) => {
@@ -767,36 +919,58 @@ export default function TouristSpots() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {spots.map((spot) => (
-                    <div key={spot.id} className="bg-egg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-border-green hover:scale-105 group">
+                    <div key={spot.id} className={`bg-egg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 border ${spot.closed ? 'border-red-300' : 'border-border-green hover:shadow-xl hover:scale-105 group'}`}>
                       <div className="relative h-48 w-full">
                         {spot.image ? (
-                          <Image
-                            src={spot.image}
-                            alt={spot.name}
-                            fill
-                            className="object-cover group-hover:scale-110 transition-transform duration-300"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            unoptimized={spot.image.includes('appwrite.io')}
-                          />
+                          <>
+                            <Image
+                              src={spot.image}
+                              alt={spot.name}
+                              fill
+                              className={`object-cover transition-transform duration-300 ${spot.closed ? 'opacity-50' : 'group-hover:scale-110'}`}
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              unoptimized={spot.image.includes('appwrite.io')}
+                            />
+                            {spot.closed && (
+                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                <div className="bg-red-500/90 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                  Temporarily Closed
+                                </div>
+                              </div>
+                            )}
+                          </>
                         ) : (
-                          <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
-                            <span>No image</span>
+                          <div className={`w-full h-full bg-gray-100 flex items-center justify-center ${spot.closed ? 'opacity-50' : ''}`}>
+                            <span className={spot.closed ? 'text-gray-500' : 'text-gray-400'}>No image</span>
                           </div>
                         )}
-                        <div className="absolute top-2 right-2 bg-accent-green/90 text-egg-white px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm">
-                          {spot.category}
+                        <div className={`absolute top-2 right-2 ${spot.closed ? 'bg-red-500/90' : 'bg-accent-green/90'} text-egg-white px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm`}>
+                          {spot.closed ? 'Closed' : spot.category}
                         </div>
                       </div>
                       <div className="p-6">
                         <h3 className="text-xl font-semibold text-primary-green mb-2 group-hover:text-accent-green transition-colors duration-300">
                           {spot.name}
                         </h3>
-                        <p className="text-sm text-accent-green font-medium mb-4">{spot.location}</p>
+                        <p className={`text-sm ${spot.closed ? 'text-red-500' : 'text-accent-green'} font-medium mb-4`}>
+                          {spot.location}
+                          {spot.closed && spot.closedUntil && (
+                            <span className="block text-xs mt-1">Closed until: {new Date(spot.closedUntil).toLocaleDateString()}</span>
+                          )}
+                        </p>
                         <button
-                          onClick={() => openDetails(spot)}
-                          className="w-full bg-primary-green hover:bg-accent-green text-egg-white px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (spot.closed) {
+                              toast.error('This spot is temporarily closed' + (spot.closedReason ? `: ${spot.closedReason}` : ''));
+                            } else {
+                              openDetails(spot);
+                            }
+                          }}
+                          disabled={spot.closed}
+                          className={`w-full ${spot.closed ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary-green hover:bg-accent-green hover:scale-105 hover:shadow-lg'} text-egg-white px-4 py-2 rounded-lg font-medium transition-all duration-300 shadow-md`}
                         >
-                          View More
+                          {spot.closed ? 'Temporarily Unavailable' : 'View More'}
                         </button>
                       </div>
                     </div>

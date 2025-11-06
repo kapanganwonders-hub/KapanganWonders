@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { logout } from '@/lib/auth';
 import { motion } from 'framer-motion';
-import { User, Map, Calendar, Bell, LogOut, LayoutDashboard } from 'lucide-react';
+import { User, Map, Calendar, Bell, LogOut, LayoutDashboard, Megaphone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -146,6 +146,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     >
                       <Calendar size={18} />
                       Schedule Visit
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dashboard/announcements"
+                      className={linkClass('/dashboard/announcements')}
+                    >
+                      <Megaphone size={18} />
+                      Announcements
                     </Link>
                   </li>
 
