@@ -29,7 +29,24 @@ interface Blog {
 }
 
 export default function Blogs() {
-  const { currentUser, isBarangayAdmin } = useAuth();
+  const { currentUser, isBarangayAdmin, barangayAdminData } = useAuth();
+  
+  // Debug logging for auth state
+  useEffect(() => {
+    console.log('Auth State:', {
+      currentUser: {
+        uid: currentUser?.uid,
+        email: currentUser?.email
+      },
+      isBarangayAdmin,
+      barangayAdminData: {
+        ...barangayAdminData,
+        // Log only specific fields to avoid sensitive data
+        barangayName: barangayAdminData?.barangayName,
+        displayName: barangayAdminData?.displayName
+      }
+    });
+  }, [currentUser, isBarangayAdmin, barangayAdminData]);
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [filteredBlogs, setFilteredBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,21 +68,39 @@ export default function Blogs() {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  
+
+  // Check if the current user is a barangay admin from the same barangay as the blog
+  const isAuthor = (blog: Blog) => {
+    // Get barangay name from either barangayAdminData.barangay or barangayAdminData.data.barangayName
+    const adminBarangay = barangayAdminData?.barangayName || barangayAdminData?.data?.barangayName;
+    const isFromSameBarangay = adminBarangay === blog.barangay;
+    
+    console.log('isAuthor check:', {
+      blogId: blog.id,
+      currentUserUid: currentUser?.uid,
+      barangayAdminData: barangayAdminData, // Log the full barangayAdminData
+      adminBarangay,
+      blogBarangay: blog.barangay,
+      isFromSameBarangay
+    });
+    
+    return isFromSameBarangay && isBarangayAdmin;
+  };
+
   // Function to open blog in modal
   const openBlogModal = (blog: Blog) => {
     setSelectedBlog(blog);
     setShowBlogModal(true);
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
   };
-  
+
   // Function to close blog modal
   const closeBlogModal = () => {
     setShowBlogModal(false);
     setSelectedBlog(null);
     document.body.style.overflow = 'auto'; // Re-enable scrolling
   };
-  
+
   // Effect to handle escape key press
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -73,7 +108,7 @@ export default function Blogs() {
         closeBlogModal();
       }
     };
-    
+
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, []);
@@ -82,6 +117,34 @@ export default function Blogs() {
 
   // Sample blog data with images from assets
   const sampleBlogs: Blog[] = [
+    {
+      id: 'sample-pongayan',
+      title: "Discovering the Natural Beauty of Barangay Pongayan",
+      excerpt: "Explore the hidden treasures of Barangay Pongayan, where nature's beauty meets rich cultural heritage.",
+      content: `Nestled in the heart of Kapangan, Barangay Pongayan offers a perfect blend of natural wonders and cultural experiences that will leave you in awe.
+
+## Pongayan's Natural Attractions
+
+Pongayan is home to breathtaking landscapes, from rolling hills to crystal-clear streams. The barangay's elevated location provides panoramic views of the surrounding mountains and valleys, making it a favorite spot for nature lovers and photographers.
+
+## Cultural Heritage
+
+The community takes pride in preserving its indigenous traditions. Visitors can witness traditional weaving demonstrations and learn about the local way of life that has been passed down through generations.
+
+## Local Delicacies
+
+Don't miss the chance to taste Pongayan's famous local dishes, prepared with fresh ingredients sourced directly from the community's farms. The warm hospitality of the locals will make your visit truly memorable.`,
+      category: 'Tourism',
+      tags: ['nature', 'culture', 'adventure', 'scenic views', 'local food'],
+      status: 'published',
+      views: 0,
+      imageUrl: '/assets/Green and White Modern Travel Presentation (3).jpg',
+      barangay: 'Pongayan',
+      author: 'admin',
+      authorName: 'Pongayan Tourism',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    },
     {
       id: 'sample-1',
       title: "Exploring the Hidden Gems of Kapangan's Rice Terraces",
@@ -230,41 +293,47 @@ We highly recommend hiring a local guide for your safety and to learn more about
     },
     {
       id: 'sample-6',
-      title: "Where to Stay: Cozy Homestays in Kapangan",
-      excerpt: "Looking for a place to stay? Discover the best homestays and inns in Kapangan for a comfortable and authentic experience.",
-      content: `Kapangan offers a variety of homestays and inns that provide visitors with a warm and authentic Cordilleran experience.
+      title: "Where to Stay: Cozy Homestays in Pongayan",
+      excerpt: "Experience authentic Cordilleran hospitality at Pongayan's best homestays and guesthouses.",
+      content: `Pongayan offers a variety of homestays that provide visitors with a warm and authentic local experience in a peaceful mountain setting.
 
-## Top Homestays
+## Top Picks in Pongayan
 
-- **Balakbak Mountain Homestay**: Nestled in the heart of Balakbak, this homestay offers panoramic mountain views, home-cooked meals, and friendly hosts.
-- **Central Guesthouse**: Located near the town center, this guesthouse is perfect for travelers who want easy access to local attractions and markets.
+- **Pongayan Highland Homestay**: Enjoy breathtaking mountain views and traditional Ifugao-inspired architecture. Known for their warm hospitality and home-cooked meals using organic ingredients from their garden.
+- **Sunset View Lodge**: Perfect for those who want to experience Pongayan's famous sunsets. Features cozy rooms with private balconies overlooking the valley.
 
-## Tips for Booking
+## Local Tips
 
-- Book in advance during peak seasons (December to February, and during festivals).
-- Ask your host about guided tours and local delicacies!
+- Best time to visit: November to February for cool, dry weather
+- Don't miss: The morning fog rolling over the mountains - a photographer's dream!
+- Ask your hosts about guided nature walks and cultural demonstrations.
 `,
       category: 'Where to Stay',
-      tags: ['homestay', 'accommodation', 'lodging', 'guesthouse'],
+      tags: ['homestay', 'mountain view', 'local experience', 'eco-tourism'],
       status: 'published',
-      views: 321,
+      views: 215,
       imageUrl: '/assets/homestay.jpg',
-      barangay: 'Balakbak',
+      barangay: 'Pongayan',
       author: 'admin',
-      authorName: 'Stay Kapangan',
+      authorName: 'Pongayan Tourism',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     },
     {
       id: 'sample-7',
-      title: "Where to Eat: Must-Try Local Eateries in Kapangan",
-      excerpt: "Savor the flavors of Kapangan! Here are some of the best local eateries and what to order when you visit.",
-      content: `Kapangan is home to a number of eateries and carinderias that serve delicious local dishes.
+      title: "Where to Eat: Pongayan's Local Delicacies",
+      excerpt: "Discover the unique flavors of Pongayan through these must-try local eateries and dishes.",
+      content: `Pongayan's culinary scene offers a delightful mix of traditional Cordilleran flavors and local specialties that reflect the community's agricultural heritage.
 
-## Recommended Places
+## Must-Visit Eateries
 
-- **Sagubo Riverside Eatery**: Famous for their pinikpikan and fresh river fish dishes.
-- **Central Food Hub**: Try their etag (smoked pork) and vegetable dishes sourced from local farms.
+- **Pongayan Farmers' Kitchen**: Specializes in farm-to-table dishes featuring organic vegetables and free-range chicken. Their signature dish is the 'Pinikpikan sa Sayote'.
+- **Highland Brew Café**: Famous for their locally-grown coffee and homemade rice cakes. Don't miss their 'Kape Pongayan' - a special blend of highland coffee beans.
+
+## Local Specialties to Try
+
+- **Etag Pizza**: A unique fusion of traditional smoked meat and Italian cuisine
+- **Salted Black Rice**: A Pongayan specialty made with heirloom rice varieties
 
 ## Must-Try Dishes
 
@@ -468,15 +537,36 @@ Location: Balakbak, Kapangan
     try {
       setLoading(true);
       const blogsRef = collection(db, 'blogs');
-      const blogsQuery = query(
-        blogsRef,
-        orderBy('createdAt', 'desc')
-      );
+      
+      // If user is logged in and is a barangay admin, fetch blogs from their barangay
+      let blogsQuery;
+      if (currentUser?.uid && isBarangayAdmin && barangayAdminData?.barangayName) {
+        // Fetch without orderBy to avoid composite index requirement
+        blogsQuery = query(
+          blogsRef,
+          where('barangay', '==', barangayAdminData.barangayName),
+          where('status', '==', 'published')
+        );
+      } else {
+        // For non-admin users, fetch all published blogs
+        blogsQuery = query(
+          blogsRef,
+          where('status', '==', 'published')
+        );
+      }
+      
       const blogsSnapshot = await getDocs(blogsQuery);
-      const blogsData = blogsSnapshot.docs.map(doc => ({
+      let blogsData = blogsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Blog[];
+      
+      // Sort in memory by createdAt in descending order
+      blogsData.sort((a, b) => {
+        const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return bDate.getTime() - aDate.getTime();
+      });
       setBlogs(blogsData);
       setLoading(false);
     } catch (error) {
@@ -500,9 +590,9 @@ Location: Balakbak, Kapangan
         tags: tagsArray,
         status: formData.status,
         imageUrl: formData.imageUrl,
-        barangay: currentUser?.barangay || 'Kapangan',
+        barangay: barangayAdminData?.barangayName || 'Kapangan',
         author: currentUser?.uid,
-        authorName: currentUser?.displayName || 'Admin',
+        authorName: barangayAdminData?.displayName || 'Barangay Admin',
         views: 0,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
@@ -877,7 +967,7 @@ Location: Balakbak, Kapangan
                     
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                       <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span>By {post.authorName || 'Admin'}</span>
+                        <span>Barangay {post.barangay}</span>
                         <span>•</span>
                         <span>
                           {post.createdAt?.toDate 
@@ -906,7 +996,7 @@ Location: Balakbak, Kapangan
                   </div>
                   
                   {/* Admin Actions */}
-                  {isBarangayAdmin && (
+                  {isBarangayAdmin && isAuthor(post) && (
                     <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex justify-end">
                       <button
                         onClick={() => handleDeleteBlog(post.id)}
@@ -1137,7 +1227,7 @@ Location: Balakbak, Kapangan
                     </svg>
                     Back to Blogs
                   </button>
-                  {isBarangayAdmin && (
+                  {isBarangayAdmin && isAuthor(selectedBlog) && (
                     editingBlog === selectedBlog.id ? (
                       <div className="flex gap-2">
                         <button
@@ -1291,11 +1381,11 @@ Location: Balakbak, Kapangan
                 {/* Author Info */}
                 <div className="flex items-center gap-4 pt-4 border-t border-gray-100 mt-6">
                   <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                    {selectedBlog.authorName.charAt(0).toUpperCase()}
+                    {selectedBlog.barangay.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{selectedBlog.authorName}</p>
-                    <p className="text-sm text-gray-500">Author</p>
+                    <p className="font-medium text-gray-900">Barangay {selectedBlog.barangay}</p>
+                    <p className="text-sm text-gray-500">Barangay Admin</p>
                   </div>
                 </div>
                 

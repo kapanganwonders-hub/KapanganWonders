@@ -32,21 +32,28 @@ export const checkIsBarangayAdmin = async (user) => {
       const docData = uidQuerySnapshot.docs[0].data();
       const barangayAdminData = {
         ...docData,
-        id: uidQuerySnapshot.docs[0].id
+        id: uidQuerySnapshot.docs[0].id,
+        // Ensure barangayName is set from available fields
+        barangayName: docData.barangay || docData.barangayName || docData.displayName || 'Unknown Barangay'
       };
       
       console.log('🏘️ Barangay Admin found by UID:', {
         documentId: uidQuerySnapshot.docs[0].id,
         data: barangayAdminData,
-        hasBarangayName: !!barangayAdminData.barangayName,
-        hasDisplayName: !!barangayAdminData.displayName
+        hasBarangay: !!docData.barangay,
+        hasBarangayName: !!docData.barangayName,
+        hasDisplayName: !!docData.displayName,
+        finalBarangayName: barangayAdminData.barangayName
       });
       
-      return {
+      const result = {
         isBarangayAdmin: true,
-        barangayName: barangayAdminData.barangay || barangayAdminData.barangayName || barangayAdminData.displayName || 'Unknown Barangay',
+        barangayName: barangayAdminData.barangayName,
         data: barangayAdminData
       };
+      
+      console.log('🏘️ Returning barangay admin data (by UID):', result);
+      return result;
     }
     
     // If not found by UID, try by email (for backward compatibility)
@@ -57,15 +64,18 @@ export const checkIsBarangayAdmin = async (user) => {
       const docData = emailQuerySnapshot.docs[0].data();
       const barangayAdminData = {
         ...docData,
-        id: emailQuerySnapshot.docs[0].id
+        id: emailQuerySnapshot.docs[0].id,
+        // Ensure barangayName is set from available fields
+        barangayName: docData.barangay || docData.barangayName || docData.displayName || 'Unknown Barangay'
       };
       
       console.log('🏘️ Barangay Admin found by email:', {
         documentId: emailQuerySnapshot.docs[0].id,
         data: barangayAdminData,
-        hasBarangay: !!barangayAdminData.barangay,
-        hasBarangayName: !!barangayAdminData.barangayName,
-        hasDisplayName: !!barangayAdminData.displayName
+        hasBarangay: !!docData.barangay,
+        hasBarangayName: !!docData.barangayName,
+        hasDisplayName: !!docData.displayName,
+        finalBarangayName: barangayAdminData.barangayName
       });
       
       // Update the document to include userId for future lookups
@@ -74,11 +84,14 @@ export const checkIsBarangayAdmin = async (user) => {
         // Note: You might want to add this update logic if needed
       }
       
-      return {
+      const result = {
         isBarangayAdmin: true,
-        barangayName: barangayAdminData.barangay || barangayAdminData.barangayName || barangayAdminData.displayName || 'Unknown Barangay',
+        barangayName: barangayAdminData.barangayName,
         data: barangayAdminData
       };
+      
+      console.log('🏘️ Returning barangay admin data (by email):', result);
+      return result;
     }
     
     // Try lowercase email comparison if still not found
