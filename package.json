@@ -2,6 +2,7 @@
   "name": "kapanganwonders",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
@@ -12,16 +13,20 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@headlessui/react": "^2.2.9",
+    "@heroicons/react": "^2.2.0",
+    "@radix-ui/react-alert-dialog": "^1.1.15",
     "@yudiel/react-qr-scanner": "^2.4.1",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
     "appwrite": "^21.3.0",
     "chart.js": "^4.5.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "file-saver": "^2.0.5",
     "firebase": "^12.3.0",
-    "firebase-admin": "^13.5.0",
+    "firebase-admin": "^13.6.0",
     "framer-motion": "^12.23.24",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^3.0.3",
@@ -41,8 +46,13 @@
     "react-zxing": "^2.1.0",
     "recharts": "^3.3.0",
     "sonner": "^2.0.7",
+<<<<<<< HEAD
     "uuid": "^13.0.0",
     "xlsx": "^0.18.5"
+=======
+    "tailwind-merge": "^3.3.1",
+    "uuid": "^13.0.0"
+>>>>>>> 739675f6cdda3ee2aefd520a96962a7fe33de851
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -3,18 +3,21 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase/config';
-import {
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  where,
-  doc,
-  getDoc,
-  Timestamp,
+import ConfirmationDialog from '@/components/ui/confirmation-dialog';
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  orderBy, 
+  where, 
+  doc, 
+  getDoc, 
+  deleteDoc, 
+  Timestamp 
 } from 'firebase/firestore';
-import { Megaphone, MapPin, Save, X } from 'lucide-react';
+import { Megaphone, MapPin, Save, X, Trash2 } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert"
 
 interface TouristSpot {
   id: string;
@@ -39,21 +42,22 @@ export default function AnnouncementsPage() {
   const { currentUser, barangayAdminData } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [touristSpots, setTouristSpots] = useState<TouristSpot[]>([]);
+  const [loadingSpots, setLoadingSpots] = useState(false);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<{id: string, title: string} | null>(null);
+  const [alert, setAlert] = useState<{type: 'success' | 'destructive' | 'info' | 'warning', message: string} | null>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     category: 'Tourist Spot Updates',
     touristSpotId: '',
   });
-  const [touristSpots, setTouristSpots] = useState<TouristSpot[]>([]);
-  const [loadingSpots, setLoadingSpots] = useState(false);
 
   const categories = [
     'Tourist Spot Updates',
-    'Now Open',
     'Closure - Maintenance',
     'Closure - Weather Conditions',
     'Closure - Road Access',
@@ -65,54 +69,59 @@ export default function AnnouncementsPage() {
     barangayAdminData?.barangayName || barangayAdminData?.barangay || '';
 
   // ✅ Fetch announcements
-  useEffect(() => {
-    const fetchAnnouncements = async () => {
-      try {
-        const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
+  const fetchAnnouncements = async () => {
+    setLoading(true);
+    try {
+      const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const announcementsData: Announcement[] = [];
 
-        const announcementsData: Announcement[] = [];
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data() as Announcement;
+        let touristSpotName = '';
+        let touristSpotImage = '';
 
-        for (const docSnap of querySnapshot.docs) {
-          const data = docSnap.data() as Announcement;
-          let touristSpotName = '';
-          let touristSpotImage = '';
-
-          if (data.touristSpotId) {
-            try {
-              const spotRef = doc(db, 'touristSpots', data.touristSpotId);
-              const spotSnap = await getDoc(spotRef);
-              if (spotSnap.exists()) {
-                const spotData = spotSnap.data();
-                touristSpotName = spotData.name || '';
-                touristSpotImage = spotData.image || '';
-              }
-            } catch (err) {
-              console.error('Error fetching tourist spot details:', err);
+        if (data.touristSpotId) {
+          try {
+            const spotRef = doc(db, 'touristSpots', data.touristSpotId);
+            const spotSnap = await getDoc(spotRef);
+            if (spotSnap.exists()) {
+              const spotData = spotSnap.data();
+              touristSpotName = spotData.name || '';
+              touristSpotImage = spotData.image || '';
             }
-          }
-
-          announcementsData.push({
-            
-            ...data,
-            touristSpotName,
-            touristSpotImage,
+          } catch (err) {
+            setAlert({
+            type: 'destructive',
+            message: `Error fetching tourist spot details: ${err instanceof Error ? err.message : String(err)}`
           });
+          }
         }
 
-        setAnnouncements(announcementsData);
-      } catch (err) {
-        console.error('Error fetching announcements:', err);
-        setError('Failed to load announcements.');
-      } finally {
-        setLoading(false);
+        announcementsData.push({
+          ...data,
+          touristSpotName,
+          touristSpotImage,
+          id: docSnap.id, // ✅ move last to avoid overwrite warning
+        });
       }
-    };
 
+      setAnnouncements(announcementsData);
+    } catch (err) {
+      setAlert({
+        type: 'destructive',
+        message: `Error fetching announcements: ${err instanceof Error ? err.message : String(err)}`
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAnnouncements();
   }, []);
 
-  // ✅ Fetch tourist spots (for closure categories)
+  // ✅ Fetch tourist spots for closure categories
   useEffect(() => {
     const fetchSpots = async () => {
       if (!isClosureCategory || !barangayName) {
@@ -122,10 +131,7 @@ export default function AnnouncementsPage() {
 
       try {
         setLoadingSpots(true);
-        const q = query(
-          collection(db, 'touristSpots'),
-          where('barangay', '==', barangayName)
-        );
+        const q = query(collection(db, 'touristSpots'), where('barangay', '==', barangayName));
         const querySnapshot = await getDocs(q);
         const spots = querySnapshot.docs.map((doc) => ({
           id: doc.id,
@@ -134,7 +140,10 @@ export default function AnnouncementsPage() {
         }));
         setTouristSpots(spots);
       } catch (err) {
-        console.error('Error fetching tourist spots:', err);
+        setAlert({
+          type: 'destructive',
+          message: `Error fetching tourist spots: ${err instanceof Error ? err.message : String(err)}`
+        });
       } finally {
         setLoadingSpots(false);
       }
@@ -143,22 +152,43 @@ export default function AnnouncementsPage() {
     fetchSpots();
   }, [isClosureCategory, barangayName]);
 
-  // ✅ Handle add announcement
-  const handleAddAnnouncement = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!currentUser || !barangayName) {
-      alert('Missing barangay or user data.');
-      return;
-    }
-
-    if (isClosureCategory && !formData.touristSpotId) {
-      alert('Please select a tourist spot for closure announcements.');
-      return;
-    }
+  // ✅ Delete announcement
+  const handleDeleteAnnouncement = async () => {
+    if (!currentUser || !announcementToDelete) return;
 
     try {
-      setSaving(true);
+      await deleteDoc(doc(db, 'announcements', announcementToDelete.id));
+      setAnnouncements(announcements.filter(a => a.id !== announcementToDelete.id));
+      setAlert({ type: 'success', message: 'Announcement deleted successfully' });
+      setAnnouncementToDelete(null);
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      setAlert({ type: 'destructive', message: 'Failed to delete announcement' });
+      setAnnouncementToDelete(null);
+    }
+  };
+
+  // ✅ Add announcement
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    
+    try {
+      if (!currentUser || !barangayName) {
+        setAlert({
+          type: 'destructive',
+          message: 'Missing barangay or user data.'
+        });
+        return;
+      }
+
+      if (isClosureCategory && !formData.touristSpotId) {
+        setAlert({
+          type: 'destructive',
+          message: 'Please select a tourist spot for closure announcements.'
+        });
+        return;
+      }
 
       const newAnnouncement: any = {
         title: formData.title.trim(),
@@ -166,40 +196,50 @@ export default function AnnouncementsPage() {
         category: formData.category,
         barangay: barangayName,
         createdBy: currentUser.email,
-        createdAt: Timestamp.now(),
+        createdAt: Timestamp.now(), // ✅ Correct timestamp type
       };
 
       if (isClosureCategory && formData.touristSpotId) {
-        const selectedSpot = touristSpots.find(
-          (spot) => spot.id === formData.touristSpotId
-        );
+        const selectedSpot = touristSpots.find((spot) => spot.id === formData.touristSpotId);
         if (selectedSpot) {
           newAnnouncement.touristSpotId = selectedSpot.id;
           newAnnouncement.touristSpotName = selectedSpot.name;
         }
       }
 
-      const docRef = await addDoc(collection(db, 'announcements'), newAnnouncement);
-      setAnnouncements((prev) => [{ id: docRef.id, ...newAnnouncement }, ...prev]);
-
-      setFormData({
-        title: '',
-        content: '',
-        category: 'Tourist Spot Updates',
-        touristSpotId: '',
-      });
-
+      await addDoc(collection(db, 'announcements'), newAnnouncement);
+      setFormData({ title: '', content: '', category: 'general', touristSpotId: '' });
       setShowForm(false);
-      alert('✅ Announcement added successfully!');
+      setAlert({
+        type: 'success',
+        message: 'Announcement created successfully!'
+      });
+      fetchAnnouncements();
     } catch (err) {
-      console.error('Error adding announcement:', err);
-      alert('❌ Failed to add announcement.');
+      setAlert({
+        type: 'destructive',
+        message: `Error creating announcement: ${err instanceof Error ? err.message : String(err)}`
+      });
+      setAlert({
+        type: 'destructive',
+        message: 'Failed to create announcement. Please try again.'
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  // ✅ Loading state
+  // Auto-dismiss alert after 5 seconds
+  useEffect(() => {
+    if (alert) {
+      const timer = setTimeout(() => {
+        setAlert(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [alert]);
+
+  // ✅ Loading State
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50">
@@ -214,6 +254,24 @@ export default function AnnouncementsPage() {
   // ✅ Page Layout
   return (
     <div className="p-6 min-h-screen bg-gray-50">
+      {alert && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-md w-full">
+          <div className={`bg-white rounded-lg border-l-4 ${
+            alert.type === 'success' ? 'border-green-500' : 
+            alert.type === 'destructive' ? 'border-red-500' :
+            alert.type === 'warning' ? 'border-yellow-500' : 'border-blue-500'
+          } shadow-lg`}>
+            <Alert variant={alert.type} withIcon className="bg-white">
+              <AlertTitle className="font-medium">
+                {alert.type === 'success' ? 'Success!' : 
+                 alert.type === 'destructive' ? 'Error' : 
+                 alert.type.charAt(0).toUpperCase() + alert.type.slice(1)}
+              </AlertTitle>
+              <AlertDescription>{alert.message}</AlertDescription>
+            </Alert>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -234,7 +292,7 @@ export default function AnnouncementsPage() {
       {/* Add Form */}
       {showForm && (
         <form
-          onSubmit={handleAddAnnouncement}
+          onSubmit={handleSubmit}
           className="bg-white p-6 rounded-lg shadow-md mb-8"
         >
           <h2 className="text-lg font-semibold mb-4">New Announcement</h2>
@@ -247,11 +305,7 @@ export default function AnnouncementsPage() {
             <select
               value={formData.category}
               onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  category: e.target.value,
-                  touristSpotId: '',
-                })
+                setFormData({ ...formData, category: e.target.value, touristSpotId: '' })
               }
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
             >
@@ -278,7 +332,6 @@ export default function AnnouncementsPage() {
                     setFormData({ ...formData, touristSpotId: e.target.value })
                   }
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  required
                 >
                   <option value="">-- Select --</option>
                   {touristSpots.map((spot) => (
@@ -343,43 +396,70 @@ export default function AnnouncementsPage() {
       )}
 
       {/* Announcements List */}
-      {announcements.length === 0 ? (
-        <p className="text-gray-500 text-center">No announcements available.</p>
-      ) : (
-        <div className="grid gap-4">
-          {announcements.map((a) => (
-            <div
-              key={a.id}
-              className="bg-white p-5 rounded-lg shadow border border-gray-200"
-            >
-              <span className="text-green-600 font-semibold text-sm">
-                {a.category}
-              </span>
-              <h2 className="text-lg font-bold mt-1">{a.title}</h2>
-              <p className="text-gray-700 mt-2 whitespace-pre-line">{a.content}</p>
+      <div className="space-y-6">
+        {announcements.length === 0 ? (
+          <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
+            <Megaphone className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-gray-600">No announcements yet</h3>
+            <p className="text-gray-500 mt-1">Click 'Add Announcement' to create your first announcement</p>
+          </div>
+        ) : (
+          <div className="grid gap-5">
+            {announcements.map((a) => (
+              <div
+                key={`${a.id}-${a.createdAt?.seconds || ''}`}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-200"
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700">
+                        {a.category}
+                      </span>
+                      <h2 className="text-xl font-bold mt-2 text-gray-800">{a.title}</h2>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-red-600 hover:text-red-800"
+                      onClick={() => setAnnouncementToDelete({ id: a.id, title: a.title })}
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
 
-              {a.touristSpotName && (
-                <div className="mt-3 flex items-center text-sm text-gray-600">
-                  <MapPin className="w-4 h-4 mr-1 text-green-500" />
-                  <span>{a.touristSpotName}</span>
+                  <p className="mt-3 text-gray-600 leading-relaxed">{a.content}</p>
+
+                  {a.touristSpotName && (
+                    <div className="mt-4 flex items-center text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg inline-flex">
+                      <MapPin className="w-4 h-4 mr-2 text-green-500 flex-shrink-0" />
+                      <span className="font-medium">{a.touristSpotName}</span>
+                    </div>
+                  )}
+
+                  <div className="mt-5 pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
+                    <span className="text-gray-500">
+                      Barangay {a.barangay}
+                    </span>
+                    <span className="text-gray-400 text-xs">
+                      {a.createdAt?.toDate ? new Date(a.createdAt.toDate()).toLocaleString() : 'Recently'}
+                    </span>
+                  </div>
                 </div>
-              )}
-
-              {a.touristSpotImage && (
-                <img
-                  src={a.touristSpotImage}
-                  alt={a.touristSpotName || 'Tourist Spot'}
-                  className="mt-3 rounded-lg w-full max-h-60 object-cover"
-                />
-              )}
-
-              <div className="mt-3 text-xs text-gray-500">
-                Posted by {a.createdBy} in {a.barangay}
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+            ))}
+          </div>
+        )}
+
+        <ConfirmationDialog
+          isOpen={!!announcementToDelete}
+          onClose={() => setAnnouncementToDelete(null)}
+          onConfirm={handleDeleteAnnouncement}
+          title="Delete Announcement"
+          message={`Are you sure you want to delete the announcement "${announcementToDelete?.title}"? This action cannot be undone.`}
+          confirmText="Delete Announcement"
+          cancelText="Cancel"
+        />
+      </div>
+  </div>
+);
 }
