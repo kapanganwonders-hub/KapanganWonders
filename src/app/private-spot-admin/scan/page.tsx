@@ -1,14 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Scanner as QrScanner } from '@yudiel/react-qr-scanner';
-import { doc, updateDoc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import {
+  doc,
+  updateDoc,
+  getDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function PrivateSpotScanPage() {
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [successPopup, setSuccessPopup] = useState(false);
+  const [spotName, setSpotName] = useState<string | null>(null);
+
+  // 🟢 Get private spot owner's spot name from Firestore user profile
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        setSpotName(userSnap.data().spotName || null); // 🔹 Ensure your users collection has this field
+      }
+    });
+
+    return () => unsub();
+  }, []);
 
   const handleScan = async (data: string) => {
     if (!data || scanning) return;
@@ -28,13 +52,21 @@ export default function PrivateSpotScanPage() {
 
       const visitData = visitSnap.data();
 
-      // ✅ Update visit status in Firestore
+      // 🚫 Check if the visit includes this spot owner's spot
+      const visitSpots = visitData.spots || [];
+      if (!spotName || !visitSpots.includes(spotName)) {
+        alert('🚫 You are not allowed to scan visits for other spots.');
+        setScanning(false);
+        return;
+      }
+
+      // ✅ Update visit status
       await updateDoc(visitRef, {
         status: 'Completed',
         completedAt: serverTimestamp(),
       });
 
-      // ✅ Save complete info to visitLogs for reports
+      // ✅ Add visit log entry
       await addDoc(collection(db, 'visitLogs'), {
         visitId: parsed.visitId,
         userId: parsed.userId,
@@ -45,13 +77,13 @@ export default function PrivateSpotScanPage() {
         spots: visitData.spots || [],
         date: visitData.date || '',
         numberOfVisitors: visitData.numberOfVisitors || 1,
-        scannedBy: 'private-spot-owner',
+        scannedBy: spotName,
         scannedAt: serverTimestamp(),
         month: new Date().toLocaleString('default', { month: 'long' }),
         year: new Date().getFullYear(),
       });
 
-      // ✅ Show success popup and reset
+      // ✅ Popup and reset
       setSuccessPopup(true);
       setScannedData(null);
       setTimeout(() => setSuccessPopup(false), 3000);
@@ -65,7 +97,14 @@ export default function PrivateSpotScanPage() {
 
   return (
     <div className="flex flex-col items-center p-6 relative">
-      <h1 className="text-2xl font-bold text-blue-700 mb-4">Private Spot QR Scanner</h1>
+      <h1 className="text-2xl font-bold text-blue-700 mb-2">
+        Private Spot QR Scanner
+      </h1>
+      {spotName && (
+        <p className="text-gray-600 mb-4 text-sm">
+          Logged in as: <strong>{spotName}</strong> Owner
+        </p>
+      )}
 
       <div className="w-full max-w-md border-4 border-blue-600 rounded-2xl overflow-hidden">
         <QrScanner
@@ -77,13 +116,6 @@ export default function PrivateSpotScanPage() {
           onError={(error) => console.error(error)}
         />
       </div>
-
-      {/* ✅ Hide raw JSON after scan */}
-      {scannedData && !successPopup && (
-        <p className="mt-4 text-gray-600 text-sm break-all">
-          Last scanned: <code>{scannedData}</code>
-        </p>
-      )}
 
       {successPopup && (
         <div
