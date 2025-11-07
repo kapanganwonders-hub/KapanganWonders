@@ -9,6 +9,26 @@ const nextConfig: NextConfig = {
       "cloud.appwrite.io", // ✅ Appwrite storage
     ],
   },
+  // Disable caching in development
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
+  // Add cache control headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

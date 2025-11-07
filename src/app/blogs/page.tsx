@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase/config';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, Timestamp, orderBy, getDoc } from 'firebase/firestore';
 import { BookOpen, Plus, Edit, Trash2, Save, X, Calendar, Eye, ArrowLeft } from 'lucide-react';
 import { uploadFile, deleteFile } from '@/lib/appwrite';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Blog {
   id: string;
@@ -29,7 +30,12 @@ interface Blog {
 }
 
 export default function Blogs() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { currentUser, isBarangayAdmin, barangayAdminData } = useAuth();
+  
+  // Check for edit mode in URL
+  const editBlogId = searchParams?.get('edit');
   
   // Debug logging for auth state
   useEffect(() => {
@@ -88,10 +94,14 @@ export default function Blogs() {
   };
 
   // Function to open blog in modal
-  const openBlogModal = (blog: Blog) => {
+  const openBlogModal = (blog: Blog, editMode = false) => {
     setSelectedBlog(blog);
     setShowBlogModal(true);
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    
+    if (editMode) {
+      startEdit(blog);
+    }
   };
 
   // Function to close blog modal
@@ -99,6 +109,13 @@ export default function Blogs() {
     setShowBlogModal(false);
     setSelectedBlog(null);
     document.body.style.overflow = 'auto'; // Re-enable scrolling
+    
+    // If we were in edit mode, clean up the URL
+    if (editBlogId) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('edit');
+      window.history.replaceState({}, '', url.toString());
+    }
   };
 
   // Effect to handle escape key press
@@ -114,6 +131,61 @@ export default function Blogs() {
   }, []);
 
   const categories = ["All", "Tourism", "Culture", "Events", "News", "Guide", "Where to Stay", "Where to Eat"];
+
+  // Handle URL parameters when component mounts
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const blogId = params.get('id');
+    const editParam = params.get('edit');
+    
+    if (blogId) {
+      // Find the blog in the existing blogs
+      const blogToEdit = [...blogs, ...sampleBlogs].find(blog => blog.id === blogId);
+      
+      if (blogToEdit) {
+        // Open the blog in the modal
+        setSelectedBlog(blogToEdit);
+        setShowBlogModal(true);
+        
+        // If edit mode is requested, start editing
+        if (editParam === 'true') {
+          startEdit(blogToEdit);
+        }
+        
+        // Clean up the URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('id');
+        url.searchParams.delete('edit');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [blogs]);
+  
+  // Load blogs from Firestore
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        const blogsQuery = query(collection(db, 'blogs'), orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(blogsQuery);
+        const blogsData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          // Convert Firestore timestamp to Date if it exists
+          createdAt: doc.data().createdAt,
+          updatedAt: doc.data().updatedAt
+        })) as Blog[];
+        
+        setBlogs(blogsData);
+      } catch (error) {
+        console.error('Error loading blogs:', error);
+        toast.error('Failed to load blogs');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchBlogs();
+  }, []);
 
   // Sample blog data with images from assets
   const sampleBlogs: Blog[] = [
@@ -820,19 +892,27 @@ Location: Balakbak, Kapangan
   };
 
   const startEdit = (blog: Blog) => {
-    if (!isBarangayAdmin) return;
+    if (!isBarangayAdmin) return false;
     
-    setEditingBlog(blog.id);
     setFormData({
       title: blog.title,
       content: blog.content,
       excerpt: blog.excerpt,
       category: blog.category,
       tags: blog.tags?.join(', ') || '',
-      status: blog.status,
+      status: blog.status || 'draft',
       imageUrl: blog.imageUrl || '',
       _tempImage: undefined
     });
+    setEditingBlog(blog.id);
+    
+    // Ensure the blog modal is open
+    if (!showBlogModal) {
+      setSelectedBlog(blog);
+      setShowBlogModal(true);
+    }
+    
+    return true;
   };
 
   const cancelEdit = () => {
@@ -998,13 +1078,7 @@ Location: Balakbak, Kapangan
                   {/* Admin Actions */}
                   {isBarangayAdmin && isAuthor(post) && (
                     <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex justify-end">
-                      <button
-                        onClick={() => handleDeleteBlog(post.id)}
-                        className="p-2 text-gray-500 hover:text-red-500 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {/* Delete button removed as per request */}
                     </div>
                   )}
                 </article>
@@ -1219,47 +1293,50 @@ Location: Balakbak, Kapangan
               <div className="max-w-7xl mx-auto px-6 md:px-12 py-3">
                 <div className="flex justify-between items-start">
                   <button
-                    onClick={closeBlogModal}
+                    onClick={() => {
+                      const fromDashboard = searchParams.get('from') === 'dashboard' || editingBlog === selectedBlog?.id;
+                      console.log('From dashboard or editing:', { fromDashboard, editingBlog, selectedBlogId: selectedBlog?.id });
+                      
+                      if (fromDashboard) {
+                        router.push('/dashboard');
+                        closeBlogModal();
+                      } else {
+                        closeBlogModal();
+                      }
+                    }}
                     className="flex items-center gap-1 text-primary-green hover:text-accent-green font-medium transition-colors duration-200"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                    Back to Blogs
+                    {searchParams.get('from') === 'dashboard' || editingBlog === selectedBlog?.id ? 'Back to Dashboard' : 'Back to Blogs'}
                   </button>
-                  {isBarangayAdmin && isAuthor(selectedBlog) && (
-                    editingBlog === selectedBlog.id ? (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleUpdateBlog(selectedBlog.id)}
-                          className="flex items-center gap-1 bg-primary-green text-egg-white px-3 py-1 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
-                        >
-                          <Save size={16} />
-                          Save
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="flex items-center gap-1 bg-gray-100 text-primary-green px-3 py-1 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
-                        >
-                          <X size={16} />
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
+                  
+                  {isBarangayAdmin && isAuthor(selectedBlog) && editingBlog === selectedBlog?.id && (
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => startEdit(selectedBlog)}
-                        className="flex items-center gap-1 text-primary-green hover:text-accent-green font-medium transition-colors duration-200"
+                        onClick={() => handleUpdateBlog(selectedBlog.id)}
+                        className="flex items-center gap-1 bg-primary-green text-egg-white px-3 py-1 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        Edit
+                        Save
                       </button>
-                    )
+                      <button
+                        onClick={cancelEdit}
+                        className="flex items-center gap-1 bg-gray-100 text-primary-green px-3 py-1 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Cancel
+                      </button>
+                    </div>
                   )}
                 </div>
 
-                {editingBlog === selectedBlog.id ? (
+                {editingBlog === selectedBlog?.id ? (
                   <input
                     type="text"
                     value={formData.title}
@@ -1268,7 +1345,7 @@ Location: Balakbak, Kapangan
                   />
                 ) : (
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-900 line-clamp-2 mt-2">
-                    {selectedBlog.title}
+                    {selectedBlog?.title}
                   </h1>
                 )}
               </div>

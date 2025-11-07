@@ -97,26 +97,49 @@ const generateFileName = (file) => {
 };
 
 // --- Function: Upload file to Appwrite Storage ---
-const uploadFile = async (file, folder = 'touristSpots') => {
+const uploadFile = async (file, folder = 'blog-images') => {
   try {
-    if (!BUCKET_ID) throw new Error('Appwrite bucket ID is not configured.');
+    if (!BUCKET_ID) {
+      console.error('Appwrite bucket ID is not configured.');
+      throw new Error('Storage service is not properly configured. Please contact support.');
+    }
 
-    // Generate a clean filename
-    const fileName = generateFileName(file);
+    // Ensure user is authenticated with Appwrite
+    try {
+      await ensureAppwriteUser();
+    } catch (authError) {
+      console.error('Appwrite authentication failed:', authError);
+      throw new Error('Authentication failed. Please refresh the page and try again.');
+    }
+
+    // Generate a clean filename with folder
+    const fileName = folder ? `${folder}/${generateFileName(file)}` : generateFileName(file);
     const fileToUpload = new File([file], fileName, { type: file.type });
+
+    console.log('Uploading file to Appwrite...', {
+      bucketId: BUCKET_ID,
+      fileName,
+      fileSize: file.size,
+      fileType: file.type,
+      folder
+    });
 
     // Upload the file with default permissions (public read)
     const result = await storage.createFile(
       BUCKET_ID,
       ID.unique(),
-      fileToUpload
+      fileToUpload,
+      [
+        'role:all' // This makes the file publicly readable
+      ]
     );
 
-    // Wait a moment to ensure the file is fully processed
-    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log('File upload successful:', result);
 
     // Get the file URL
     const fileUrl = `${client.config.endpoint}/storage/buckets/${BUCKET_ID}/files/${result.$id}/view?project=${client.config.project}`;
+    
+    console.log('Generated file URL:', fileUrl);
 
     return {
       ...result,
@@ -124,11 +147,28 @@ const uploadFile = async (file, folder = 'touristSpots') => {
       name: fileName,
       originalName: file.name,
       size: file.size,
-      type: file.type
+      type: file.type,
+      mimeType: file.type
     };
   } catch (error) {
-    console.error('Error uploading file:', error);
-    throw error;
+    console.error('Detailed upload error:', {
+      error: error.message,
+      code: error.code,
+      response: error.response,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Provide more specific error messages for common issues
+    if (error.code === 401 || error.code === 403) {
+      throw new Error('Authentication error. Please refresh the page and try again.');
+    } else if (error.code === 404) {
+      throw new Error('Storage bucket not found. Please check your Appwrite configuration.');
+    } else if (error.code === 413) {
+      throw new Error('File is too large. Maximum file size is 5MB.');
+    } else {
+      throw new Error(`Failed to upload file: ${error.message}`);
+    }
   }
 };
 
