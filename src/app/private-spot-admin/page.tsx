@@ -1,247 +1,199 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { useEffect, useState, useMemo } from 'react';
+import { db, auth } from '@/lib/firebase';
+import { collection, onSnapshot, query, getDoc, doc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { Card, CardContent } from '@/components/ui/card';
+import { Users, MapPin, BarChart3, User, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { 
-  Users, 
-  MapPin, 
-  TrendingUp, 
-  Calendar,
-  Eye,
-  MessageSquare
-} from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
-export default function PrivateSpotAdminDashboard() {
-  const { privateSpotAdminData } = useAuth();
-  const [stats, setStats] = useState({
-    totalVisits: 0,
-    totalSpots: 0,
-    totalAnnouncements: 0,
-    totalBlogs: 0,
-  });
-  const [recentVisits, setRecentVisits] = useState<any[]>([]);
+export default function PrivateAdminDashboard() {
+  const [visits, setVisits] = useState<any[]>([]);
+  const [spotName, setSpotName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
+  // 🔥 Fetch private spot name + relevant visit logs
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!privateSpotAdminData?.uid) return;
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user) return setLoading(false);
 
-      try {
-        // Fetch spots owned by this admin
-        const spotsQuery = query(
-          collection(db, 'touristSpots'),
-          where('ownerId', '==', privateSpotAdminData.uid),
-          where('isPrivate', '==', true)
-        );
-        const spotsSnapshot = await getDocs(spotsQuery);
-        const spotIds = spotsSnapshot.docs.map(doc => doc.id);
+      const privateRef = doc(db, 'privateAdmins', user.uid);
+      const privateSnap = await getDoc(privateRef);
 
-        // Fetch visits to owned spots
-        let totalVisits = 0;
-        if (spotIds.length > 0) {
-          const visitsQuery = query(
-            collection(db, 'visits'),
-            where('spotId', 'in', spotIds)
-          );
-          const visitsSnapshot = await getDocs(visitsQuery);
-          totalVisits = visitsSnapshot.size;
-
-          // Get recent visits
-          const recentVisitsQuery = query(
-            collection(db, 'visits'),
-            where('spotId', 'in', spotIds),
-            orderBy('visitDate', 'desc'),
-            limit(5)
-          );
-          const recentVisitsSnapshot = await getDocs(recentVisitsQuery);
-          setRecentVisits(recentVisitsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        }
-
-        // Fetch announcements
-        const announcementsQuery = query(
-          collection(db, 'announcements'),
-          where('createdBy', '==', privateSpotAdminData.uid)
-        );
-        const announcementsSnapshot = await getDocs(announcementsQuery);
-
-        // Fetch blogs
-        const blogsQuery = query(
-          collection(db, 'blogs'),
-          where('authorId', '==', privateSpotAdminData.uid)
-        );
-        const blogsSnapshot = await getDocs(blogsQuery);
-
-        setStats({
-          totalVisits,
-          totalSpots: spotsSnapshot.size,
-          totalAnnouncements: announcementsSnapshot.size,
-          totalBlogs: blogsSnapshot.size,
-        });
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
+      if (!privateSnap.exists()) {
         setLoading(false);
+        return;
       }
-    };
 
-    fetchDashboardData();
-  }, [privateSpotAdminData]);
+      const spot = privateSnap.data().spotName;
+      setSpotName(spot);
 
-  const StatCard = ({ icon: Icon, title, value, color }: any) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-white rounded-xl shadow-sm p-6 border-l-4 ${color}`}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-600 text-sm font-medium">{title}</p>
-          <p className="text-3xl font-bold text-gray-800 mt-2">{value}</p>
-        </div>
-        <div className={`p-3 rounded-full ${color.replace('border', 'bg').replace('500', '100')}`}>
-          <Icon className={color.replace('border-', 'text-')} size={24} />
-        </div>
-      </div>
-    </motion.div>
-  );
+      const q = query(collection(db, 'visitLogs'));
+      const unsub = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((log: any) =>
+            log.spots?.map((s: string) => s.toLowerCase()).includes(spot.toLowerCase())
+          );
+        setVisits(data);
+        setLoading(false);
+      });
+
+      return () => unsub();
+    });
+
+    return () => unsubAuth();
+  }, []);
+
+  // 📊 Processed Data for Bar Chart
+  const filteredData = useMemo(() => {
+    const grouped: Record<string, number> = {};
+
+    visits.forEach((v: any) => {
+      const date = new Date(v.date);
+      const month = date.toLocaleString('default', { month: 'short' });
+      const year = date.getFullYear();
+
+      if (filter === 'monthly') {
+        const key = `${month} ${year}`;
+        grouped[key] = (grouped[key] || 0) + v.numberOfVisitors;
+      } else if (filter === 'quarterly') {
+        const quarter = Math.floor(date.getMonth() / 3) + 1;
+        const key = `Q${quarter} ${year}`;
+        grouped[key] = (grouped[key] || 0) + v.numberOfVisitors;
+      } else if (filter === 'yearly') {
+        const key = `${year}`;
+        grouped[key] = (grouped[key] || 0) + v.numberOfVisitors;
+      }
+    });
+
+    return Object.entries(grouped).map(([period, visitors]) => ({
+      period,
+      visitors,
+    }));
+  }, [visits, filter]);
+
+  const totalVisitors = visits.reduce((sum, v) => sum + (v.numberOfVisitors || 0), 0);
+  const uniqueUsers = new Set(visits.map((v) => v.email)).size;
+
+  const recentActivities = [...visits]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 6);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-600">Loading dashboard...</div>
-      </div>
-    );
+    return <p className="text-center mt-10 text-gray-600">Loading dashboard...</p>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-        <p className="text-gray-600 mt-1">
-          Welcome back, {privateSpotAdminData?.displayName || 'Admin'}!
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h1 className="text-3xl font-bold text-green-700">
+          {spotName} Dashboard
+        </h1>
+        <div className="flex gap-2 mt-4 sm:mt-0">
+          {['monthly', 'quarterly', 'yearly'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f as any)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                filter === f
+                  ? 'bg-green-600 text-white'
+                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+              }`}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          icon={Users}
-          title="Total Visits"
-          value={stats.totalVisits}
-          color="border-blue-500"
-        />
-        <StatCard
-          icon={MapPin}
-          title="Tourist Spots"
-          value={stats.totalSpots}
-          color="border-green-500"
-        />
-        <StatCard
-          icon={MessageSquare}
-          title="Announcements"
-          value={stats.totalAnnouncements}
-          color="border-purple-500"
-        />
-        <StatCard
-          icon={TrendingUp}
-          title="Blog Posts"
-          value={stats.totalBlogs}
-          color="border-orange-500"
-        />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <motion.div whileHover={{ scale: 1.03 }}>
+          <Card className="shadow-md border border-green-100">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm text-gray-500">Total Visitors</h2>
+                <p className="text-2xl font-bold text-green-700">{totalVisitors}</p>
+              </div>
+              <Users className="text-green-600" size={28} />
+            </CardContent>
+          </Card>
+        </motion.div>
+
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Visits */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl shadow-sm p-6"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Recent Visits</h2>
-            <Eye className="text-gray-400" size={20} />
-          </div>
-          <div className="space-y-3">
-            {recentVisits.length > 0 ? (
-              recentVisits.map((visit) => (
-                <div key={visit.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-800">{visit.spotName || 'Unknown Spot'}</p>
-                    <p className="text-sm text-gray-500">{visit.visitorName || 'Anonymous'}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">
-                      {visit.visitDate ? new Date(visit.visitDate).toLocaleDateString() : 'N/A'}
+      {/* Charts + Activities */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* 📊 Visitors Chart */}
+        <Card className="shadow-md border border-green-100">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4 text-green-700">
+              Visitors per {filter === 'yearly' ? 'Year' : filter === 'quarterly' ? 'Quarter' : 'Month'}
+            </h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={filteredData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="period" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="visitors" fill="#22c55e" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* 🕒 Recent Activities */}
+        <Card className="shadow-md border border-green-100">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4 text-green-700">Recent Activities</h2>
+            <div className="space-y-4 max-h-[320px] overflow-y-auto">
+              {recentActivities.length > 0 ? (
+                recentActivities.map((log) => (
+                  <motion.div
+                    key={log.id}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-green-50 rounded-xl border border-green-100 shadow-sm"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium text-green-700">{log.name}</p>
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <MapPin size={14} /> {log.spots?.join(', ') || '—'}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Calendar size={12} /> {log.date}
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2 flex items-center gap-1">
+                      <User size={14} /> {log.email}
                     </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-center py-4">No recent visits</p>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-xl shadow-sm p-6"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Quick Actions</h2>
-            <Calendar className="text-gray-400" size={20} />
-          </div>
-          <div className="space-y-3">
-            <a
-              href="/private-spot-admin/scan-qr"
-              className="block p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition text-center"
-            >
-              <p className="font-medium text-blue-700">Scan QR Code</p>
-              <p className="text-sm text-blue-600">Record visitor check-ins</p>
-            </a>
-            <a
-              href="/private-spot-admin/tourist-spots"
-              className="block p-4 bg-green-50 hover:bg-green-100 rounded-lg transition text-center"
-            >
-              <p className="font-medium text-green-700">Manage Spots</p>
-              <p className="text-sm text-green-600">Add or edit tourist spots</p>
-            </a>
-            <a
-              href="/private-spot-admin/announcements"
-              className="block p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition text-center"
-            >
-              <p className="font-medium text-purple-700">Post Announcement</p>
-              <p className="text-sm text-purple-600">Share updates with visitors</p>
-            </a>
-          </div>
-        </motion.div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Visitors: <strong>{log.numberOfVisitors || 0}</strong>
+                    </p>
+                  </motion.div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center">No recent activities found.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
-
-      {/* Business Info */}
-      {privateSpotAdminData?.businessName && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-sm p-6 text-white"
-        >
-          <h2 className="text-2xl font-bold mb-2">{privateSpotAdminData.businessName}</h2>
-          {privateSpotAdminData.businessAddress && (
-            <p className="text-blue-100">{privateSpotAdminData.businessAddress}</p>
-          )}
-          {privateSpotAdminData.contactNumber && (
-            <p className="text-blue-100 mt-1">Contact: {privateSpotAdminData.contactNumber}</p>
-          )}
-        </motion.div>
-      )}
     </div>
   );
 }

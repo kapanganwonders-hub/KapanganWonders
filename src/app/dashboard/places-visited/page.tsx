@@ -103,13 +103,7 @@ export default function PlacesVisitedPage() {
                 </p>
               </div>
 
-              <div className="mt-4 flex items-center gap-2 text-yellow-500">
-                <Star size={18} />
-                <Star size={18} />
-                <Star size={18} />
-                <Star size={18} />
-                <Star size={18} />
-              </div>
+            
             </motion.div>
           ))}
         </div>

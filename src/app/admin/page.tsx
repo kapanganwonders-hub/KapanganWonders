@@ -1,224 +1,226 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import Link from "next/link";
+import { useEffect, useState, useMemo } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 
 export default function AdminDashboard() {
-  const { currentUser, isAdmin } = useAuth();
-  const router = useRouter();
+  const [visitLogs, setVisitLogs] = useState<any[]>([]);
+  const [activeUsers, setActiveUsers] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
+  // 🎯 Fetch visit logs + active users
   useEffect(() => {
-    // wait until isAdmin is resolved
-    if (typeof isAdmin === "undefined") return;
-    if (!isAdmin) {
-      router.push("/");
+    const fetchData = async () => {
+      try {
+        const visitSnapshot = await getDocs(collection(db, 'visitLogs'));
+        const logs = visitSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setVisitLogs(logs);
+
+        const barangayAdminsSnapshot = await getDocs(collection(db, 'barangayAdmins'));
+        const privateOwnersSnapshot = await getDocs(collection(db, 'privateSpotOwners'));
+
+        const barangayAdmins = barangayAdminsSnapshot.docs
+          .map((doc) => doc.data())
+          .filter((user: any) => user.status === 'Active');
+        const privateOwners = privateOwnersSnapshot.docs
+          .map((doc) => doc.data())
+          .filter((user: any) => user.status === 'Active');
+
+        setActiveUsers(barangayAdmins.length + privateOwners.length);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // ⚡ Data filtering logic (for monthly, quarterly, yearly)
+  const filteredData = useMemo(() => {
+    const now = new Date();
+
+    if (filter === 'monthly') {
+      const thisMonth = now.toLocaleString('default', { month: 'long' });
+      return visitLogs.filter((log) => log.month === thisMonth);
+    } else if (filter === 'quarterly') {
+      const currentMonth = now.getMonth();
+      const startMonth = Math.floor(currentMonth / 3) * 3;
+      const monthsInQuarter = Array.from({ length: 3 }, (_, i) =>
+        new Date(0, startMonth + i).toLocaleString('default', { month: 'long' })
+      );
+      return visitLogs.filter((log) => monthsInQuarter.includes(log.month));
+    } else {
+      const currentYear = now.getFullYear();
+      return visitLogs.filter((log) => log.year === currentYear);
     }
-  }, [isAdmin, router]);
+  }, [filter, visitLogs]);
 
-  // show loading while auth is resolving
-  if (typeof isAdmin === "undefined") {
+  // ✅ Elegant shimmer skeleton loader
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
+      <div className="p-6 space-y-6 animate-pulse">
+        <div className="h-8 bg-gray-300 rounded w-1/3 mx-auto" />
+        <div className="grid md:grid-cols-3 gap-4 mt-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 bg-gray-200 rounded-xl" />
+          ))}
+        </div>
+        <div className="h-64 bg-gray-200 rounded-xl mt-6" />
+        <div className="h-64 bg-gray-200 rounded-xl" />
       </div>
     );
   }
 
-  if (!currentUser || !isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
+  // --- 📊 Process Data ---
+  const monthlyCounts: Record<string, number> = {};
+  const spotCounts: Record<string, number> = {};
+  const visitorTypes = { domestic: 0, foreign: 0 };
+
+  filteredData.forEach((log) => {
+    const month = log.month || 'Unknown';
+    monthlyCounts[month] = (monthlyCounts[month] || 0) + (log.numberOfVisitors || 1);
+
+    const spot = log.spots?.[0] || 'Unknown';
+    spotCounts[spot] = (spotCounts[spot] || 0) + (log.numberOfVisitors || 1);
+
+    if (log.originType === 'foreign') visitorTypes.foreign++;
+    else visitorTypes.domestic++;
+  });
+
+  const monthlyData = Object.entries(monthlyCounts).map(([month, count]) => ({ month, count }));
+  const spotData = Object.entries(spotCounts).map(([spot, count]) => ({ spot, count }));
+  const visitorTypeData = [
+    { name: 'Domestic', value: visitorTypes.domestic },
+    { name: 'Foreign', value: visitorTypes.foreign },
+  ];
+
+  const COLORS = ['#34d399', '#60a5fa'];
+
+  // --- 🧮 Totals ---
+  const totalVisitors = filteredData.reduce(
+    (sum, log) => sum + (log.numberOfVisitors || 1),
+    0
+  );
+  const totalThisMonth = monthlyCounts[new Date().toLocaleString('default', { month: 'long' })] || 0;
+  const totalYear = new Date().getFullYear();
 
   return (
-    <div className="min-h-screen">
-      <div className="p-6 bg-white border-b">
-        <h1 className="text-xl text-gray-700">
-          Manage tourism activities, content, users, and analytics
-        </h1>
-      </div>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-green-700">📈 Tourism Dashboard</h1>
 
-      {/* Stats Cards / Page Content */}
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Total Visits */}
-          <div className="bg-white rounded-lg shadow p-6 flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800">1,254</h2>
-              <p className="text-gray-500">Total Visits</p>
-              <p className="text-green-500 text-sm mt-2">
-                +12% from last month
-              </p>
-            </div>
-            <div className="bg-blue-500 p-3 rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
-          </div>
-
-          {/* Unique Tourists */}
-          <div className="bg-white rounded-lg shadow p-6 flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800">842</h2>
-              <p className="text-gray-500">Unique Tourists</p>
-              <p className="text-green-500 text-sm mt-2">+15% from last month</p>
-            </div>
-            <div className="bg-purple-500 p-3 rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-            </div>
-          </div>
-
-          {/* Total Revenue */}
-          <div className="bg-white rounded-lg shadow p-6 flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800">₱100,134</h2>
-              <p className="text-gray-500">Total Revenue</p>
-              <p className="text-green-500 text-sm mt-2">+8% from last quarter</p>
-            </div>
-            <div className="bg-green-500 p-3 rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          {/* Tourist Spots */}
-          <div className="bg-white rounded-lg shadow p-6 flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800">10</h2>
-              <p className="text-gray-500">Tourist Spots</p>
-              <p className="text-yellow-500 text-sm mt-2">
-                5 pending approval
-              </p>
-            </div>
-            <div className="bg-orange-500 p-3 rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-            </div>
-          </div>
-
-          {/* Barangay Admins */}
-          <div className="bg-white rounded-lg shadow p-6 flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800">7</h2>
-              <p className="text-gray-500">Barangay Admins</p>
-            </div>
-            <div className="bg-red-500 p-3 rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activities */}
-        <div className="mt-6 bg-white rounded-lg shadow">
-          <div className="p-6 border-b">
-            <h2 className="text-xl font-semibold">Recent Activities</h2>
-          </div>
-          <div className="p-6">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-gray-500">
-                  <th className="pb-3 w-1/3">Activity</th>
-                  <th className="pb-3 w-1/3">User</th>
-                  <th className="pb-3 w-1/3">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* You can map through activities here */}
-                {/* This is just placeholder content */}
-                <tr className="border-t">
-                  <td className="py-3">New tourist spot added</td>
-                  <td className="py-3">John Doe</td>
-                  <td className="py-3">2 hours ago</td>
-                </tr>
-                <tr className="border-t">
-                  <td className="py-3">Updated accommodation details</td>
-                  <td className="py-3">Jane Smith</td>
-                  <td className="py-3">Yesterday</td>
-                </tr>
-                <tr className="border-t">
-                  <td className="py-3">New blog post published</td>
-                  <td className="py-3">Admin</td>
-                  <td className="py-3">3 days ago</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        {/* Filter buttons */}
+        <div className="flex gap-2">
+          {(['monthly', 'quarterly', 'yearly'] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilter(type)}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
+                filter === type
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* Summary Cards */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-gray-500">Total Visitors This {filter}</p>
+            <p className="text-3xl font-bold text-green-600">{totalVisitors}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-gray-500">Total Visitors This Year ({totalYear})</p>
+            <p className="text-3xl font-bold text-green-600">{totalThisMonth}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-gray-500">Active Users</p>
+            <p className="text-3xl font-bold text-green-600">{activeUsers}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Monthly Visitors Chart */}
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-xl font-semibold mb-3">Visitors by Month</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={monthlyData}>
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" fill="#34d399" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Visitor Type Pie Chart */}
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-xl font-semibold mb-3">Visitor Type Distribution</h2>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={visitorTypeData}
+                dataKey="value"
+                nameKey="name"
+                outerRadius={80}
+                label={({ name, value }) => `${name}: ${value}`}
+              >
+                {visitorTypeData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Most Visited Tourist Spots */}
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-xl font-semibold mb-3">Most Visited Tourist Spots</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={spotData}>
+              <XAxis dataKey="spot" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" fill="#60a5fa" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 }

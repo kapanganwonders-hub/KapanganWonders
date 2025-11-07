@@ -171,20 +171,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </ul>
               </div>
 
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Updates</p>
-                <ul className="space-y-2">
-                  <li>
-                    <Link
-                      href="#"
-                      className="flex items-center gap-2 text-gray-700 hover:text-green-600"
-                    >
-                      <Bell size={18} />
-                      Announcements
-                    </Link>
-                  </li>
-                </ul>
-              </div>
+           
 
               {isAdmin && (
                 <div>

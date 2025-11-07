@@ -1,389 +1,126 @@
 'use client';
 
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { FileText, Download, TrendingUp, Users, MapPin, Calendar, BarChart2, PieChart, Globe, User } from 'lucide-react';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
-import { Bar, Pie } from 'react-chartjs-2';
+import { useEffect, useState } from 'react';
+import { collection, query, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { motion } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
 
-// Register ChartJS components
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
-
-type TimeRange = 'monthly' | 'quarterly' | 'yearly';
-
-// Sample data
-const generateReportData = (): ReportData => ({
-  totalVisits: 1245,
-  uniqueTourists: 842,
-  touristSpots: 8,
-  topSpots: [
-    { name: 'Ampongot Rice Terraces', visits: 450 },
-    { name: 'Amburayan River', visits: 380 },
-    { name: 'Mt. Tagpew', visits: 210 },
-    { name: 'Taba-ao Falls', visits: 185 },
-    { name: 'Balakbak Rice Terraces', visits: 120 }
-  ],
-  monthlyVisits: [
-    { month: 'Jan', count: 85 },
-    { month: 'Feb', count: 92 },
-    { month: 'Mar', count: 78 },
-    { month: 'Apr', count: 64 },
-    { month: 'May', count: 105 },
-    { month: 'Jun', count: 132 },
-    { month: 'Jul', count: 148 },
-    { month: 'Aug', count: 126 },
-    { month: 'Sep', count: 89 },
-    { month: 'Oct', count: 97 },
-    { month: 'Nov', count: 110 },
-    { month: 'Dec', count: 98 }
-  ],
-  visitorsByMonth: 0 // Will be calculated
-});
-
-interface ReportData {
-  totalVisits: number;
-  uniqueTourists: number;
-  touristSpots: number;
-  topSpots: Array<{ name: string; visits: number }>;
-  monthlyVisits: Array<{ month: string; count: number }>;
-  visitorsByMonth: number;
+interface VisitLog {
+  id: string;
+  name: string;
+  email: string;
+  date: string;
+  barangays: string[];
+  spots: string[];
+  scannedBy: string;
+  month: string;
+  year: number;
+  numberOfVisitors: number;
 }
 
-export default function ReportsPage() {
-  const { barangayAdminData } = useAuth();
-  const [timeRange, setTimeRange] = useState<TimeRange>('monthly');
-  const [activeTab, setActiveTab] = useState('overview');
-  
-  // Generate sample data
-  const reportData = generateReportData();
-  // Calculate visitors for current month
-  const currentMonth = new Date().getMonth();
-  reportData.visitorsByMonth = reportData.monthlyVisits[currentMonth]?.count || 0;
+export default function BarangayReportsListPage() {
+  const [logs, setLogs] = useState<VisitLog[]>([]);
+  const [barangay, setBarangay] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  // Chart data
-  const spotData = {
-    labels: reportData.topSpots.map(spot => spot.name),
-    datasets: [
-      {
-        label: 'Number of Visitors',
-        data: reportData.topSpots.map(spot => spot.visits),
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.7)',
-          'rgba(54, 162, 235, 0.7)',
-          'rgba(255, 206, 86, 0.7)',
-          'rgba(75, 192, 192, 0.7)',
-          'rgba(153, 102, 255, 0.7)',
-        ],
-        borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(153, 102, 255, 1)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  };
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-  const visitorDemographics = {
-    labels: ['Local', 'National', 'International'],
-    datasets: [
-      {
-        label: 'Number of Visitors',
-        data: [620, 380, 245],
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.7)',
-          'rgba(54, 162, 235, 0.7)',
-          'rgba(255, 206, 86, 0.7)',
-        ],
-        borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  };
+      const barangayRef = doc(db, 'barangayAdmins', user.uid);
+      const barangaySnap = await getDoc(barangayRef);
 
-  const revenueData = {
-    labels: reportData.monthlyVisits.map(month => month.month),
-    datasets: [
-      {
-        label: 'Entrance Fees',
-        data: reportData.monthlyVisits.map(month => month.count * 100), // Sample multiplier for revenue
-        backgroundColor: 'rgba(75, 192, 192, 0.7)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 1,
-      },
-      {
-        label: 'Guide Fees',
-        data: reportData.monthlyVisits.map(month => month.count * 50), // Sample multiplier for guide fees
-        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-        borderColor: 'rgba(54, 162, 235, 1)',
-        borderWidth: 1,
-      },
-    ],
-  };
+      if (!barangaySnap.exists()) {
+        setLoading(false);
+        return;
+      }
 
-  const originData = {
-    labels: ['Local', 'National', 'International'],
-    datasets: [
-      {
-        label: 'Visitors by Origin',
-        data: [
-          Math.floor(reportData.uniqueTourists * 0.6), // 60% local
-          Math.floor(reportData.uniqueTourists * 0.3), // 30% national
-          Math.ceil(reportData.uniqueTourists * 0.1)   // 10% international
-        ],
-        backgroundColor: [
-          'rgba(75, 192, 192, 0.7)',
-          'rgba(54, 162, 235, 0.7)',
-          'rgba(255, 99, 132, 0.7)'
-        ],
-        borderColor: [
-          'rgba(75, 192, 192, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 99, 132, 1)'
-        ],
-        borderWidth: 1,
-      },
-    ],
-  };
+      const barangayName = barangaySnap.data().barangay;
+      setBarangay(barangayName);
 
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-    },
-  };
+      const q = query(collection(db, 'visitLogs'));
+      const unsubLogs = onSnapshot(q, (snapshot) => {
+        const allLogs = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as VisitLog[];
 
-  const handleExportReport = () => {
-    // Create CSV content
-    let csvContent = `Barangay Tourism Report - ${barangayAdminData?.barangayName}\n\n`;
-    csvContent += `Report Generated: ${new Date().toLocaleDateString()}\n\n`;
-    csvContent += `Summary Statistics\n`;
-    csvContent += `Total Visits,${reportData.totalVisits}\n`;
-    csvContent += `Unique Tourists,${reportData.uniqueTourists}\n`;
-    csvContent += `Tourist Spots,${reportData.touristSpots}\n`;
-    csvContent += `This Month Visitors,${reportData.visitorsByMonth}\n\n`;
-    
-    csvContent += `Top Tourist Spots\n`;
-    csvContent += `Spot Name,Number of Visits\n`;
-    reportData.topSpots.forEach(spot => {
-      csvContent += `${spot.name},${spot.visits}\n`;
+        const filtered = allLogs.filter((log) =>
+          log.barangays?.map((b) => b.toLowerCase()).includes(barangayName.toLowerCase())
+        );
+
+        setLogs(filtered);
+        setLoading(false);
+      });
+
+      return () => unsubLogs();
     });
 
-    csvContent += `\nMonthly Visits\n`;
-    csvContent += `Month,Visits\n`;
-    reportData.monthlyVisits.forEach(month => {
-      csvContent += `${month.month},${month.count}\n`;
-    });
+    return () => unsubAuth();
+  }, []);
 
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${barangayAdminData?.barangayName}_Tourism_Report_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
+  if (loading) {
+    return <p className="text-center mt-10 text-gray-600">Loading report details...</p>;
+  }
 
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'visitors':
-        return (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Users size={24} />
-              Visitor Demographics
-            </h2>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <Bar data={visitorDemographics} options={chartOptions} />
-            </div>
-          </div>
-        );
-      case 'revenue':
-        return (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <BarChart2 size={24} />
-              Revenue Overview
-            </h2>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <Bar data={revenueData} options={{
-                ...chartOptions,
-                scales: {
-                  x: { stacked: true },
-                  y: { stacked: true }
-                },
-              }} />
-            </div>
-          </div>
-        );
-      case 'origin':
-        return (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Globe size={24} />
-              Visitor Origin
-            </h2>
-            <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto">
-              <Pie data={originData} options={chartOptions} />
-            </div>
-          </div>
-        );
-      default:
-        return (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <MapPin size={24} />
-              Visitors per Tourist Spot
-            </h2>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <Bar data={spotData} options={chartOptions} />
-            </div>
-          </div>
-        );
-    }
-  };
+  if (logs.length === 0) {
+    return (
+      <p className="text-center mt-10 text-gray-600">
+        No visit records found for Barangay <strong>{barangay}</strong>.
+      </p>
+    );
+  }
 
   return (
-    <div className="min-h-screen">
-      <div className="p-6 bg-white border-b">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <FileText size={28} />
-              Barangay Reports
-            </h1>
-            <p className="text-gray-600">
-              Tourism statistics and analytics for {barangayAdminData?.barangayName}
-            </p>
-          </div>
-          <button
-            onClick={handleExportReport}
-            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition flex items-center gap-2 h-fit"
-          >
-            <Download size={20} />
-            Export Report
-          </button>
-        </div>
-        
-        {/* Time Range Selector */}
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setTimeRange('monthly')}
-            className={`px-4 py-2 rounded-lg ${timeRange === 'monthly' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setTimeRange('quarterly')}
-            className={`px-4 py-2 rounded-lg ${timeRange === 'quarterly' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-          >
-            Quarterly
-          </button>
-          <button
-            onClick={() => setTimeRange('yearly')}
-            className={`px-4 py-2 rounded-lg ${timeRange === 'yearly' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-          >
-            Yearly
-          </button>
-        </div>
-        
-        {/* Navigation Tabs */}
-        <div className="flex border-b">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 font-medium ${activeTab === 'overview' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('visitors')}
-            className={`px-4 py-2 font-medium ${activeTab === 'visitors' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
-          >
-            <div className="flex items-center gap-2">
-              <Users size={18} />
-              Visitor Demographics
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('revenue')}
-            className={`px-4 py-2 font-medium ${activeTab === 'revenue' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
-          >
-            <div className="flex items-center gap-2">
-              <BarChart2 size={18} />
-              Revenue
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('origin')}
-            className={`px-4 py-2 font-medium ${activeTab === 'origin' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
-          >
-            <div className="flex items-center gap-2">
-              <Globe size={18} />
-              Visitor Origin
-            </div>
-          </button>
-        </div>
-      </div>
+    <div className="p-8">
+      <h1 className="text-2xl font-bold text-green-700 mb-6">
+        Barangay {barangay} — Detailed Visit Reports
+      </h1>
 
-      <div className="p-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-gray-600 text-sm font-medium">Total Visits</h3>
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <TrendingUp size={20} className="text-blue-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-800">{reportData.totalVisits}</p>
-            <p className="text-sm text-gray-500 mt-1">All time</p>
+      <Card className="p-4">
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+              <thead className="bg-green-600 text-white">
+                <tr>
+                  <th className="px-4 py-2 text-left">Name</th>
+                  <th className="px-4 py-2 text-left">Email</th>
+                  <th className="px-4 py-2 text-left">Date</th>
+                  <th className="px-4 py-2 text-left">Spots</th>
+                  <th className="px-4 py-2 text-left">Visitors</th>
+                  <th className="px-4 py-2 text-left">Scanned By</th>
+                  <th className="px-4 py-2 text-left">Month</th>
+                  <th className="px-4 py-2 text-left">Year</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <motion.tr
+                    key={log.id}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="border-b border-gray-100 hover:bg-green-50 transition"
+                  >
+                    <td className="px-4 py-2">{log.name}</td>
+                    <td className="px-4 py-2 text-gray-600">{log.email}</td>
+                    <td className="px-4 py-2">{log.date}</td>
+                    <td className="px-4 py-2">{log.spots?.join(', ') || '—'}</td>
+                    <td className="px-4 py-2 text-center">{log.numberOfVisitors}</td>
+                    <td className="px-4 py-2">{log.scannedBy}</td>
+                    <td className="px-4 py-2">{log.month}</td>
+                    <td className="px-4 py-2">{log.year}</td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-gray-600 text-sm font-medium">Unique Tourists</h3>
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Users size={20} className="text-purple-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-800">{reportData.uniqueTourists}</p>
-            <p className="text-sm text-gray-500 mt-1">Different visitors</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-gray-600 text-sm font-medium">Tourist Spots</h3>
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <MapPin size={20} className="text-orange-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-800">{reportData.touristSpots}</p>
-            <p className="text-sm text-gray-500 mt-1">Active locations</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-gray-600 text-sm font-medium">This Month</h3>
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Calendar size={20} className="text-green-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-800">{reportData.visitorsByMonth}</p>
-            <p className="text-sm text-gray-500 mt-1">This month's visitors</p>
-          </div>
-        </div>
-        {renderTabContent()}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
