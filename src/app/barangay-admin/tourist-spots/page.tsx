@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { storage, uploadFile, deleteFile } from '@/lib/appwrite';
 import { db } from '@/firebase/config';
 import {
   collection,
@@ -16,6 +17,8 @@ import {
   doc
 } from 'firebase/firestore';
 import { MapPin, Plus, Edit, Trash2, X } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
+import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 
 interface TouristSpot {
   id: string;
@@ -27,12 +30,15 @@ interface TouristSpot {
   address: string;
   location: string;
   image: string;
+  imageId?: string;
   images?: string[];
   contact?: string;
   entranceFee?: string;
   googleMapsLink?: string;
   status: 'active' | 'inactive';
   coordinates?: { lat: number; lng: number };
+  lat: number;
+  lng: number;
   createdAt: any;
   updatedAt: any;
 }
@@ -44,6 +50,8 @@ export default function TouristSpotsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingSpot, setEditingSpot] = useState<string | null>(null);
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
+  const [alertState, setAlertState] = useState<{ variant: 'success' | 'destructive' | 'warning' | 'info' | 'default'; message: string } | null>(null);
+  const [spotToDelete, setSpotToDelete] = useState<{ id: string; name: string } | null>(null);
 
   interface FormData {
     name: string;
@@ -111,17 +119,41 @@ export default function TouristSpotsPage() {
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      setAlertState({
+        variant: 'destructive',
+        message: 'Please upload an image file (JPEG, PNG, etc.)'
+      });
+      return;
     }
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setAlertState({
+        variant: 'destructive',
+        message: 'Image size should be less than 5MB'
+      });
+      return;
+    }
+
+    setImageFile(file);
+    
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.onerror = () => {
+      setAlertState({
+        variant: 'destructive',
+        message: 'Failed to read the image file'
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAddSpot = async (e: React.FormEvent) => {
@@ -129,7 +161,10 @@ export default function TouristSpotsPage() {
     try {
       if (!barangayAdminData) throw new Error('No barangay admin data available');
       if (!imageFile) {
-        alert('Please select an image for the tourist spot');
+        setAlertState({
+          variant: 'destructive',
+          message: 'Please select an image for the tourist spot'
+        });
         return;
       }
 
@@ -140,9 +175,9 @@ export default function TouristSpotsPage() {
 
       if (!barangayName) throw new Error('Barangay name missing');
 
-      // In a real implementation, you would upload the image to a storage service here
-      // and get the download URL. For now, we'll just use the file name.
-      const imageUrl = URL.createObjectURL(imageFile);
+      // Upload image to Appwrite Storage
+      const uploadedFile = await uploadFile(imageFile);
+      const imageUrl = `https://cloud.appwrite.io/v1/storage/buckets/69062d080010accbfb9e/files/${uploadedFile.$id}/view?project=6905f83f00038caa24fb`;
 
       const spotData = {
         ...formData,
@@ -150,34 +185,38 @@ export default function TouristSpotsPage() {
         location: formData.address,
         image: imageUrl,
         images: [imageUrl],
+        imageId: uploadedFile.$id, // Store the file ID for future reference
+        status: 'active', // Set default status
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
       await addDoc(collection(db, 'touristSpots'), spotData);
-
+      setShowAddForm(false);
       setFormData({
         name: '',
         description: '',
-        category: 'Natural',
+        category: '',
         address: '',
         contact: '',
         entranceFee: '',
         googleMapsLink: '',
         detailedDescription: ''
       });
-      setImageFile(null);
-      setImagePreview(null);
-      setShowAddForm(false);
+      setAlertState({ variant: 'success', message: 'Tourist spot added successfully' });
       fetchSpots();
     } catch (err) {
-      console.error('Error adding tourist spot:', err);
-      alert('Failed to add tourist spot');
+      console.error('Error adding spot:', err);
+      setAlertState({ variant: 'destructive', message: 'Failed to add tourist spot' });
     }
   };
 
   const handleUpdateSpot = async (spotId: string) => {
+    if (!spotId) return;
+    
     try {
+      setLoading(true);
+      
       // Get the current spot data to preserve existing fields
       const spotDoc = await getDoc(doc(db, 'touristSpots', spotId));
       if (!spotDoc.exists()) {
@@ -195,15 +234,34 @@ export default function TouristSpotsPage() {
         entranceFee: formData.entranceFee,
         googleMapsLink: formData.googleMapsLink,
         detailedDescription: formData.detailedDescription,
+        status: 'active',
         updatedAt: new Date()
       };
 
       // Handle image update if a new image was selected
       if (imageFile) {
-        // In a real implementation, upload the image to storage here
-        const imageUrl = URL.createObjectURL(imageFile);
-        updateData.image = imageUrl;
-        updateData.images = [imageUrl, ...(currentData.images || []).filter(Boolean)];
+        try {
+          // Delete old image if it exists
+          if (currentData.imageId) {
+            try {
+              await deleteFile(currentData.imageId);
+            } catch (error) {
+              console.warn('Failed to delete old image:', error);
+              // Continue even if deletion fails
+            }
+          }
+
+          // Upload new image
+          const uploadedFile = await uploadFile(imageFile);
+          const imageUrl = `https://cloud.appwrite.io/v1/storage/buckets/69062d080010accbfb9e/files/${uploadedFile.$id}/view?project=6905f83f00038caa24fb`;
+          
+          updateData.image = imageUrl;
+          updateData.images = [imageUrl];
+          updateData.imageId = uploadedFile.$id;
+        } catch (error) {
+          console.error('Error handling image upload:', error);
+          throw new Error('Failed to upload image');
+        }
       }
       
       await updateDoc(doc(db, 'touristSpots', spotId), updateData);
@@ -212,28 +270,94 @@ export default function TouristSpotsPage() {
       setEditingSpot(null);
       setImageFile(null);
       setImagePreview(null);
-      fetchSpots();
+      setShowAddForm(false);
+      setFormData({
+        name: '',
+        description: '',
+        category: 'Natural',
+        address: '',
+        contact: '',
+        entranceFee: '',
+        googleMapsLink: '',
+        detailedDescription: ''
+      });
+      
+      setAlertState({ 
+        variant: 'success', 
+        message: 'Tourist spot updated successfully' 
+      });
+      
+      await fetchSpots();
     } catch (err) {
       console.error('Error updating tourist spot:', err);
-      alert('Failed to update tourist spot');
+      setAlertState({ 
+        variant: 'destructive', 
+        message: err instanceof Error ? err.message : 'Failed to update tourist spot' 
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteSpot = async (spotId: string) => {
-    if (!confirm('Are you sure you want to delete this tourist spot?')) return;
+  const handleDeleteSpot = async () => {
+    if (!spotToDelete) return;
+
     try {
-      await deleteDoc(doc(db, 'touristSpots', spotId));
-      fetchSpots();
+      setLoading(true);
+      
+      // Get the spot data first to get the image ID
+      const spotDoc = await getDoc(doc(db, 'touristSpots', spotToDelete.id));
+      if (spotDoc.exists()) {
+        const spotData = spotDoc.data() as TouristSpot;
+        
+        // Delete the associated image from Appwrite Storage if it exists
+        if (spotData.imageId) {
+          try {
+            await deleteFile(spotData.imageId);
+          } catch (error) {
+            console.warn('Failed to delete image from storage:', error);
+            // Continue with spot deletion even if image deletion fails
+          }
+        }
+      }
+
+      // Delete the spot document from Firestore
+      await deleteDoc(doc(db, 'touristSpots', spotToDelete.id));
+      
+      setAlertState({
+        variant: 'success',
+        message: 'Tourist spot deleted successfully'
+      });
+      
+      await fetchSpots();
     } catch (err) {
       console.error('Error deleting spot:', err);
+      setAlertState({
+        variant: 'destructive',
+        message: err instanceof Error ? err.message : 'Failed to delete tourist spot'
+      });
+    } finally {
+      setSpotToDelete(null);
+      setLoading(false);
     }
   };
+
+  // All hooks must be called at the top level, before any conditional returns
+  const router = useRouter();
+
+  // Auto-hide alert after 5 seconds
+  useEffect(() => {
+    if (alertState) {
+      const timer = setTimeout(() => {
+        setAlertState(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [alertState]);
 
   const handleViewDetails = (spot: TouristSpot) => {
     window.location.href = `/tourist-spots?id=${spot.id}`;
   };
-
-  const router = useRouter();
 
   const handleEditNavigation = (spot: TouristSpot) => {
     // Use Next.js router for client-side navigation
@@ -252,6 +376,43 @@ export default function TouristSpotsPage() {
 
   return (
     <div className="min-h-screen">
+      {/* Alert - Moved to bottom right */}
+      {alertState && (
+        <div className="fixed bottom-6 right-6 z-50 w-96 animate-fade-in-up">
+          <Alert 
+            variant={alertState.variant} 
+            className="flex items-start gap-3 shadow-lg"
+            withIcon
+          >
+            <div>
+              <p className="font-medium">
+                {alertState.variant === 'success' ? 'Success' : 
+                 alertState.variant === 'destructive' ? 'Error' : 
+                 alertState.variant === 'warning' ? 'Warning' : 'Info'}
+              </p>
+              <p className="text-sm">{alertState.message}</p>
+            </div>
+          </Alert>
+        </div>
+      )}
+      
+      {/* Add animation keyframes to your global CSS */}
+      <style jsx global>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.3s ease-out forwards;
+        }
+      `}</style>
+
       {/* Header */}
       <div className="p-6 bg-white border-b flex justify-between items-center">
         <div>
@@ -274,8 +435,8 @@ export default function TouristSpotsPage() {
 
       {/* Add Form Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative shadow-2xl border border-gray-200">
             <button
               onClick={() => setShowAddForm(false)}
               className="absolute top-4 right-4 bg-white rounded-full p-2 shadow hover:bg-gray-100"
@@ -298,7 +459,24 @@ export default function TouristSpotsPage() {
                 />
               </div>
 
-{/* Category */}
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Short Description *
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  required
+                  rows={2}
+                  className="w-full border rounded-lg px-3 py-2"
+                  placeholder="A brief description of the tourist spot..."
+                />
+              </div>
+
+              {/* Category */}
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Category *
@@ -454,84 +632,125 @@ export default function TouristSpotsPage() {
         </div>
       )}
 
-      {/* Spots List */}
-      {spots.length === 0 ? (
-        <div className="text-center py-12">
-          <MapPin size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">
-            No tourist spots found
-          </h3>
-          <p className="text-gray-500 mt-1">
-            Get started by adding a new tourist spot.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-          {spots.map((spot) => (
-            <div
-              key={spot.id}
-              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition"
+      {/* Spots List - Updated to match announcements style */}
+      <div className="p-6">
+        {spots.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+            <MapPin size={48} className="mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-600">No tourist spots found</h3>
+            <p className="text-gray-500 mt-1">Get started by adding a new tourist spot.</p>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
+              <Plus size={16} className="mr-2" />
+              Add First Spot
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-5">
+            {spots.map((spot) => (
               <div
-                className="h-48 bg-gray-200 relative group cursor-pointer"
-                onClick={() => handleViewDetails(spot)}
+                key={spot.id}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
               >
-                {spot.images?.length ? (
-                  <img
-                    src={spot.images[0]}
-                    alt={spot.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                    <MapPin size={32} className="text-gray-400" />
+                <div className="md:flex">
+                  <div className="md:flex-shrink-0 md:w-48 h-48 bg-gray-100 relative">
+                    {spot.images?.length ? (
+                      <img
+                        src={spot.images[0]}
+                        alt={spot.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <MapPin size={32} />
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                      {spot.category}
+                    </div>
                   </div>
-                )}
-                <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-                  {spot.category}
+                  <div className="p-6 flex-1">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-800">{spot.name}</h2>
+                        <div className="mt-1 flex items-center">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            spot.status === 'active' 
+                              ? 'bg-green-100 text-green-800 border border-green-200' 
+                              : 'bg-gray-100 text-gray-800 border border-gray-200'
+                          }`}>
+                            {spot.status}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditNavigation(spot);
+                          }}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (spot?.id && spot?.name) {
+                              setSpotToDelete({ id: spot.id, name: spot.name });
+                            } else {
+                              setAlertState({ variant: 'destructive', message: 'Cannot delete this spot. Missing required data.' });
+                            }
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-gray-600">{spot.description}</p>
+                    
+                    {spot.address && (
+                      <div className="mt-3 flex items-center text-sm text-gray-500">
+                        <MapPin className="w-4 h-4 mr-1.5 text-gray-400" />
+                        <span>{spot.address}</span>
+                      </div>
+                    )}
+                    
+                    <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-sm">
+                      {spot.contact && (
+                        <div className="text-gray-500">
+                          📞 {spot.contact}
+                        </div>
+                      )}
+                      {spot.entranceFee && (
+                        <div className="font-medium text-gray-700">
+                          {spot.entranceFee === 'Free' ? 'Free Entry' : `Entrance: ${spot.entranceFee}`}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-lg mb-1">{spot.name}</h3>
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                  {spot.description}
-                </p>
-                <div className="flex justify-between items-center">
-                  <span
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      spot.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {spot.status}
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditNavigation(spot);
-                      }}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <Edit size={18} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSpot(spot.id);
-                      }}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={!!spotToDelete}
+        onClose={() => setSpotToDelete(null)}
+        onConfirm={handleDeleteSpot}
+        title="Delete Tourist Spot"
+        message={`Are you sure you want to delete "${spotToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete Spot"
+        cancelText="Cancel"
+      />
     </div>
   );
-}
+};

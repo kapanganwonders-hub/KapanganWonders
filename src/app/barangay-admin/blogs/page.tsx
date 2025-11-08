@@ -3,12 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase/config';
-import { collection, query, where, getDocs, deleteDoc, doc, Timestamp, orderBy, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { client, storage, uploadFile } from '@/lib/appwrite';
+import { collection, query, where, getDocs, deleteDoc, doc, Timestamp, orderBy, addDoc, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
+import { client, storage, uploadFile, deleteFile } from '@/lib/appwrite';
 import { BookOpen, Trash2, Calendar, Eye, Edit, Plus } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const ConfirmationDialog = dynamic(
+  () => import('@/components/ui/confirmation-dialog'),
+  { ssr: false }
+);
 import { useRouter } from 'next/navigation';
 import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert"
-import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 
 interface Blog {
   id: string;
@@ -19,7 +24,6 @@ interface Blog {
   authorName: string;
   category: string;
   tags: string[];
-  status: 'draft' | 'published';
   views: number;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
@@ -37,10 +41,7 @@ export default function BlogsPage() {
     excerpt: '',
     content: '',
     category: 'News',
-    imageUrl: '',
-    status: 'draft' as const,
-    tags: [] as string[],
-    tagInput: ''
+    imageUrl: ''
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -108,6 +109,7 @@ export default function BlogsPage() {
         authorName: barangayAdminData?.name || currentUser.name || 'Barangay Admin',
         authorType: 'barangay_admin',
         imageUrl: formData.imageUrl || '',
+        tags: [],
         createdAt: editingBlog ? editingBlog.createdAt : serverTimestamp(),
         updatedAt: serverTimestamp(),
         views: editingBlog?.views || 0,
@@ -127,10 +129,7 @@ export default function BlogsPage() {
         excerpt: '',
         content: '',
         category: 'News',
-        imageUrl: '',
-        status: 'draft',
-        tags: [],
-        tagInput: ''
+        imageUrl: ''
       });
       setEditingBlog(null);
       fetchBlogs();
@@ -261,7 +260,29 @@ export default function BlogsPage() {
     
     try {
       setIsDeleting(true);
+      
+      // Get the blog data first to check for an associated image
+      const blogDoc = await getDoc(doc(db, 'blogs', blogToDelete.id));
+      const blogData = blogDoc.data();
+      
+      // Delete the blog document
       await deleteDoc(doc(db, 'blogs', blogToDelete.id));
+      
+      // If the blog has an image URL from Appwrite, delete the file
+      if (blogData?.imageUrl && blogData.imageUrl.includes('appwrite.io')) {
+        try {
+          // Extract the file ID from the URL
+          const fileId = blogData.imageUrl.split('/files/')[1]?.split('/view')[0];
+          if (fileId) {
+            await deleteFile(fileId);
+            console.log('Deleted image from storage:', fileId);
+          }
+        } catch (error) {
+          console.error('Error deleting blog image:', error);
+          // Continue with blog deletion even if image deletion fails
+        }
+      }
+      
       setBlogs(blogs.filter(blog => blog.id !== blogToDelete.id));
       setAlert({ type: 'success', message: 'Blog deleted successfully' });
     } catch (error) {
@@ -308,7 +329,8 @@ export default function BlogsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
+      {/* Alert - Bottom right with border accent */}
       {alert && (
         <div className="fixed bottom-6 right-6 z-50 max-w-md w-full">
           <div className={`bg-white rounded-lg border-l-4 ${
@@ -327,309 +349,272 @@ export default function BlogsPage() {
           </div>
         </div>
       )}
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Blog Posts</h1>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {showForm ? 'Cancel' : 'Add New Blog'}
-            </button>
+      
+      {/* Add animation keyframes */}
+      <style jsx global>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.3s ease-out forwards;
+        }
+      `}</style>
+      
+      <div className="container mx-auto px-4 py-8">
+    <div className="flex justify-between items-center mb-6">
+      <h1 className="text-2xl font-bold text-gray-800">Blog Posts</h1>
+      <button
+        onClick={() => setShowForm(true)}
+        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+      >
+        Create New Post
+      </button>
+    </div>
+
+    {showForm && (
+      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 className="text-xl font-semibold mb-4">Create New Blog Post</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+              Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
           </div>
           
-          {showForm && (
-            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-              <h2 className="text-xl font-semibold mb-4">Create New Blog Post</h2>
-              <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                    Title <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="excerpt" className="block text-sm font-medium text-gray-700 mb-1">
-                    Excerpt <span className="text-gray-500">(optional)</span>
-                  </label>
-                  <textarea
-                    id="excerpt"
-                    name="excerpt"
-                    value={formData.excerpt}
-                    onChange={handleInputChange}
-                    rows={3}
-                    maxLength={300}
-                    placeholder="A short summary or teaser for your blog post (max 300 characters)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    {formData.excerpt.length}/300 characters
-                  </p>
-                </div>
+          <div className="mb-4">
+            <label htmlFor="excerpt" className="block text-sm font-medium text-gray-700 mb-1">
+              Excerpt <span className="text-gray-500">(optional)</span>
+            </label>
+            <textarea
+              id="excerpt"
+              name="excerpt"
+              value={formData.excerpt}
+              onChange={handleInputChange}
+              rows={3}
+              maxLength={300}
+              placeholder="A short summary or teaser for your blog post (max 300 characters)"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {formData.excerpt.length}/300 characters
+            </p>
+          </div>
 
-                <div className="mb-4">
-                  <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
-                    Content <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    id="content"
-                    name="content"
-                    value={formData.content}
-                    onChange={handleInputChange}
-                    rows={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    required
+          <div className="mb-4">
+            <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
+              Content <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              id="content"
+              name="content"
+              value={formData.content}
+              onChange={handleInputChange}
+              rows={6}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="Tourism">Tourism</option>
+                <option value="Culture">Culture</option>
+                <option value="Events">Events</option>
+                <option value="News">News</option>
+                <option value="Guide">Guide</option>
+                <option value="Where to Stay">Where to Stay</option>
+                <option value="Where to Eat">Where to Eat</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Featured Image
+            </label>
+            <div className="mt-1 flex items-center">
+              <label className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Choose Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </label>
+              {formData.imageUrl && (
+                <div className="ml-4 relative">
+                  <img
+                    src={formData.imageUrl}
+                    alt="Preview"
+                    className="h-16 w-16 object-cover rounded-md"
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, imageUrl: '' }));
+                      setImageFile(null);
+                    }}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              )}
+              <p className="text-xs text-gray-500 ml-4">Recommended size: 1200x630px. Max file size: 5MB</p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={uploading || isSubmitting}
+              className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${uploading || isSubmitting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            >
+              {uploading || isSubmitting ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                'Save Blog Post'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    )}
+
+    {loading ? (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    ) : blogs.length === 0 ? (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+        <BookOpen size={48} className="mx-auto text-gray-300 mb-4" />
+        <h3 className="text-lg font-medium text-gray-600">No blog posts found</h3>
+        <p className="text-gray-500 mt-1">Get started by creating your first blog post.</p>
+        <button
+          onClick={() => setShowForm(true)}
+          className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          <Plus size={16} className="mr-2" />
+          Create First Post
+        </button>
+      </div>
+    ) : (
+      <div className="grid gap-5">
+        {blogs.map((blog) => (
+          <div
+            key={blog.id}
+            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+          >
+            <div className="md:flex">
+              {blog.imageUrl && (
+                <div className="md:flex-shrink-0 md:w-48 h-48 bg-gray-100 relative">
+                  <img
+                    src={blog.imageUrl}
+                    alt={blog.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    {blog.category}
+                  </div>
+                </div>
+              )}
+              <div className="p-6 flex-1">
+                <div className="flex justify-between items-start">
                   <div>
-                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-                      Category
-                    </label>
-                    <select
-                      id="category"
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="Tourism">Tourism</option>
-                      <option value="Culture">Culture</option>
-                      <option value="Events">Events</option>
-                      <option value="News">News</option>
-                      <option value="Guide">Guide</option>
-                      <option value="Where to Stay">Where to Stay</option>
-                      <option value="Where to Eat">Where to Eat</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                      Status
-                    </label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="draft">Draft</option>
-                      <option value="published">Published</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Featured Image
-                  </label>
-                  <div className="mt-1 flex items-center">
-                    <label className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                      Choose Image
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                      />
-                    </label>
-                    {formData.imageUrl && (
-                      <div className="ml-4 relative">
-                        <img
-                          src={formData.imageUrl}
-                          alt="Preview"
-                          className="h-16 w-16 object-cover rounded-md"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormData(prev => ({ ...prev, imageUrl: '' }));
-                            setImageFile(null);
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
-                        >
-
-                        </button>
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-500 ml-4">Recommended size: 1200x630px. Max file size: 5MB</p>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tags
-                  </label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {formData.tags.map((tag, index) => (
-                      <span 
-                        key={index}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                      >
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormData(prev => ({
-                              ...prev,
-                              tags: prev.tags.filter((_, i) => i !== index)
-                            }));
-                          }}
-                          className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500 focus:outline-none"
-                        >
-                          <span className="sr-only">Remove tag</span>
-                          <svg className="h-2 w-2" stroke="currentColor" fill="none" viewBox="0 0 8 8">
-                            <path strokeLinecap="round" strokeWidth="1.5" d="M1 1l6 6m0-6L1 7" />
-                          </svg>
-                        </button>
+                    <h2 className="text-xl font-bold text-gray-800">{blog.title}</h2>
+                    <div className="mt-1 flex items-center text-sm text-gray-500">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      <span>{formatDate(blog.updatedAt || blog.createdAt)}</span>
+                      <span className="mx-2">•</span>
+                      <span className="flex items-center">
+                        <Eye className="w-4 h-4 mr-1" />
+                        {blog.views || 0} views
                       </span>
-                    ))}
+                    </div>
                   </div>
-                  <div className="flex">
-                    <input
-                      type="text"
-                      value={formData.tagInput}
-                      onChange={(e) => setFormData(prev => ({ ...prev, tagInput: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ',') {
-                          e.preventDefault();
-                          const tag = formData.tagInput.trim();
-                          if (tag && !formData.tags.includes(tag)) {
-                            setFormData(prev => ({
-                              ...prev,
-                              tags: [...prev.tags, tag],
-                              tagInput: ''
-                            }));
-                          }
-                        }
-                      }}
-                      placeholder="Add tags (press enter or comma to add)"
-                      className="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    />
+                  <div className="flex gap-2">
                     <button
-                      type="button"
-                      onClick={() => {
-                        const tag = formData.tagInput.trim();
-                        if (tag && !formData.tags.includes(tag)) {
-                          setFormData(prev => ({
-                            ...prev,
-                            tags: [...prev.tags, tag],
-                            tagInput: ''
-                          }));
-                        }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.location.href = `/blogs?id=${blog.id}&edit=true`;
                       }}
-                      className="ml-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                      title="Edit"
                     >
-                      Add
+                      <Edit size={18} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBlogToDelete({ id: blog.id, title: blog.title });
+                      }}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                      title="Delete"
+                    >
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
+
+                <p className="mt-3 text-gray-600 line-clamp-3">
+                  {blog.content.replace(/<[^>]*>?/gm, '')}
+                </p>
                 
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={uploading || isSubmitting}
-                    className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${uploading || isSubmitting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                  >
-                    {uploading || isSubmitting ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Blog Post'
-                    )}
-                  </button>
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center text-sm">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {blog.category}
+                  </span>
                 </div>
-              </form>
+              </div>
             </div>
-          )}
-          {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {blogs.map((blog) => (
-                <div key={blog.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h2 className="text-xl font-semibold text-gray-800">{blog.title}</h2>
-                        <div className="flex items-center text-sm text-gray-500 mt-1">
-                          <span className="flex items-center">
-                            <Calendar className="w-4 h-4 mr-1" />
-                            {formatDate(blog.updatedAt || blog.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Open the blog in the same page with edit mode
-                            window.location.href = `/blogs?id=${blog.id}&edit=true`;
-                          }}
-                          className="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-50 rounded-full"
-                          title="Edit blog post"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setBlogToDelete({ id: blog.id, title: blog.title });
-                          }}
-                          disabled={isDeleting}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="mt-3 text-gray-600">{blog.content.substring(0, 200)}{blog.content.length > 200 ? '...' : ''}</p>
-                    <div className="mt-4">
-                      <span className="text-sm text-gray-500">
-                        {blog.views || 0} views • {blog.category}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {blogs.length === 0 && !loading && (
-                <div className="text-center py-12 bg-white rounded-lg shadow">
-                  <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900">No blog posts yet</h3>
-                  <p className="mt-1 text-gray-500">There are no blog posts to display.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+          </div>
+        ))}
       </div>
+    )}
+      </div>
+      
       <ConfirmationDialog
         isOpen={!!blogToDelete}
         onClose={() => setBlogToDelete(null)}

@@ -21,10 +21,9 @@ interface Blog {
   authorName: string;
   authorBio?: string;
   category: string;
-  tags: string[];
-  status: 'draft' | 'published';
   views: number;
   imageUrl?: string;
+  _tempImage?: File;
   createdAt: any;
   updatedAt: any;
 }
@@ -150,86 +149,16 @@ export default function Blogs() {
     }
   }, [blogs]);
   
-  // Sample blog data for 'Where to Eat' and 'Where to Stay' categories
-  const sampleBlogs: Blog[] = [
-    {
-      id: 'sample-eat-1',
-      title: 'Local Delicacies in Kapangan',
-      content: 'Discover the best local dishes in Kapangan...',
-      excerpt: 'A guide to the most delicious local dishes in Kapangan',
-      category: 'Where to Eat',
-      tags: ['food', 'local cuisine', 'restaurants'],
-      status: 'published',
-      views: 0,
-      barangay: 'Kapangan',
-      author: 'system',
-      authorName: 'Kapangan Wonders',
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
-    },
-    {
-      id: 'sample-stay-1',
-      title: 'Best Places to Stay in Kapangan',
-      content: 'Find the perfect accommodation for your stay in Kapangan...',
-      excerpt: 'Top accommodations and homestays in Kapangan',
-      category: 'Where to Stay',
-      tags: ['accommodation', 'hotels', 'homestays'],
-      status: 'published',
-      views: 0,
-      barangay: 'Kapangan',
-      author: 'system',
-      authorName: 'Kapangan Wonders',
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
-    }
-  ];
+ 
 
-  // Function to ensure all sample blogs for 'Where to Eat' and 'Where to Stay' are imported into Firestore if not present
-  const initializeSampleBlogs = async () => {
-    try {
-      const blogsRef = collection(db, 'blogs');
-      const querySnapshot = await getDocs(blogsRef);
-      const existingTitles = new Set(querySnapshot.docs.map(doc => doc.data().title));
-      // Only add sample blogs that do not exist by title
-      const missingSamples = sampleBlogs.filter(
-        (blog) => (blog.category === 'Where to Eat' || blog.category === 'Where to Stay') && !existingTitles.has(blog.title)
-      );
-      if (missingSamples.length > 0) {
-        const batch = [];
-        for (const blog of missingSamples) {
-          // Use addDoc to let Firestore generate a unique ID
-          batch.push(addDoc(blogsRef, {
-            ...blog,
-            id: '', // Will be updated after creation
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
-          }));
-        }
-        // Wait for all docs to be added, then update their 'id' field to match Firestore's generated ID
-        const addedDocs = await Promise.all(batch);
-        const updateBatch = [];
-        for (let i = 0; i < addedDocs.length; i++) {
-          const docRef = addedDocs[i];
-          updateBatch.push(updateDoc(docRef, { id: docRef.id }));
-        }
-        await Promise.all(updateBatch);
-        console.log('Sample "Where to Eat" and "Where to Stay" blogs added successfully');
-        fetchBlogs(); // Refresh the blogs list
-      }
-    } catch (error) {
-      console.error('Error initializing sample blogs:', error);
-    }
-  };
-
-  // Load blogs and initialize sample blogs on component mount
+  // Load blogs on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        await initializeSampleBlogs();
         await fetchBlogs();
       } catch (error) {
-        console.error('Error initializing data:', error);
+        console.error('Error loading blog data:', error);
         toast.error('Failed to load blog data');
       } finally {
         setLoading(false);
@@ -239,31 +168,14 @@ export default function Blogs() {
     loadData();
   }, []);
 
-  // Merge sample blogs with fetched blogs (avoid duplicates by id)
-  const getAllBlogs = () => {
-    // If a blog with the same id exists in db, skip the sample
-    const dbIds = new Set(blogs.map((b) => b.id));
-    return [
-      ...blogs,
-      ...sampleBlogs.filter((sample) => !dbIds.has(sample.id))
-    ];
-  };
-
   useEffect(() => {
     // Filter blogs based on category
-    let result = getAllBlogs();
+    let result = [...blogs];
     if (selectedCategory !== 'All') {
       result = result.filter(blog => blog.category === selectedCategory);
     }
-    // Sort so that sample blogs for 'Where to Eat' and 'Where to Stay' appear at the top
-    if (selectedCategory === 'Where to Eat' || selectedCategory === 'Where to Stay') {
-      result = [
-        ...result.filter(b => b.id.startsWith('sample-')),
-        ...result.filter(b => !b.id.startsWith('sample-'))
-      ];
-    }
     setFilteredBlogs(result);
-  }, [blogs, selectedCategory, isBarangayAdmin]);
+  }, [blogs, selectedCategory]);
 
   const fetchBlogs = async () => {
     try {
@@ -286,8 +198,6 @@ export default function Blogs() {
           content: data.content || '',
           excerpt: data.excerpt || '',
           category: data.category || 'General',
-          tags: Array.isArray(data.tags) ? data.tags : [],
-          status: data.status || 'draft',
           views: data.views || 0,
           barangay: data.barangay || 'Kapangan',
           author: data.author || 'system',
@@ -312,32 +222,26 @@ export default function Blogs() {
   };
 
   const handleUpdateBlog = async (blogId: string) => {
-    if (!isBarangayAdmin) return;
+    if (!isBarangayAdmin || !selectedBlog) return;
     
     try {
       const blogRef = doc(db, 'blogs', blogId);
-      await updateDoc(blogRef, {
-        title: selectedBlog?.title,
-        content: selectedBlog?.content,
-        excerpt: selectedBlog?.excerpt,
-        category: selectedBlog?.category,
-        tags: selectedBlog?.tags,
-        status: selectedBlog?.status,
-        imageUrl: selectedBlog?.imageUrl,
+      const updateData = {
+        title: selectedBlog.title,
+        content: selectedBlog.content,
+        excerpt: selectedBlog.excerpt,
+        category: selectedBlog.category,
+        imageUrl: selectedBlog.imageUrl,
         updatedAt: Timestamp.now()
-      });
+      };
+      
+      await updateDoc(blogRef, updateData);
+      
       // Update selectedBlog locally so detail view reflects edits immediately
       setSelectedBlog(prev => prev ? ({
         ...prev,
-        title: selectedBlog?.title,
-        content: selectedBlog?.content,
-        excerpt: selectedBlog?.excerpt,
-        category: selectedBlog?.category,
-        tags: selectedBlog?.tags,
-        status: selectedBlog?.status,
-        imageUrl: selectedBlog?.imageUrl,
-        updatedAt: Timestamp.now()
-      } as Blog) : prev);
+        ...updateData
+      }) : prev);
 
       setEditingBlog(null);
       fetchBlogs();
@@ -391,7 +295,7 @@ export default function Blogs() {
         }
 
         // Update with the permanent URL
-        const updateWithPermanentImage = {
+        const updateWithPermanentImage: Blog = {
           ...selectedBlog,
           imageUrl: fileUrl,
           _tempImage: undefined
@@ -564,15 +468,6 @@ export default function Blogs() {
                       <span className="bg-light-green/20 text-primary-green text-xs font-medium px-3 py-1 rounded-full">
                         {post.category}
                       </span>
-                      {isBarangayAdmin && (
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          post.status === 'published' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {post.status}
-                        </span>
-                      )}
                     </div>
                     
                     <h2 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2">
@@ -583,20 +478,7 @@ export default function Blogs() {
                       {post.excerpt}
                     </p>
                     
-                    {/* Tags */}
-                    {post.tags && post.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {post.tags.slice(0, 3).map((tag, index) => (
-                          <span 
-                            key={index} 
-                            className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    
+                                  
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                       <div className="flex items-center gap-2 text-sm text-gray-500">
                         <span>Barangay {post.barangay}</span>
@@ -848,39 +730,6 @@ export default function Blogs() {
                   </div>
                 </div>
                 
-                {/* Tags */}
-                {editingBlog === selectedBlog?.id ? (
-                  <div className="mt-6">
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Tags (comma separated)</h3>
-                    <input
-                      type="text"
-                      value={selectedBlog?.tags?.join(', ') || ''}
-                      onChange={(e) => {
-                        if (selectedBlog) {
-                          setSelectedBlog({
-                            ...selectedBlog,
-                            tags: e.target.value.split(',').map(tag => tag.trim())
-                          });
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="travel, adventure, kapangan"
-                    />
-                  </div>
-                ) : (
-                  selectedBlog?.tags && selectedBlog?.tags.length > 0 && (
-                    <div className="mt-6">
-                      <h3 className="text-sm font-medium text-gray-500 mb-2">Tags</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedBlog?.tags.map((tag, index) => (
-                          <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                )}
               </div>
               
               {/* Right Side - Content */}
