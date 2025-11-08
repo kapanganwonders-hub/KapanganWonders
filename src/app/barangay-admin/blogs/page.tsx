@@ -33,9 +33,13 @@ export default function BlogsPage() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
+    excerpt: '',
     content: '',
     category: 'News',
-    imageUrl: ''
+    imageUrl: '',
+    status: 'draft' as const,
+    tags: [] as string[],
+    tagInput: ''
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -74,10 +78,18 @@ export default function BlogsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !barangayAdminData) return;
+    if (!currentUser || !barangayAdminData) {
+      toast.error('You must be logged in to create a blog post');
+      return;
+    }
     
     if (!formData.imageUrl) {
       toast.error('Please upload a featured image');
+      return;
+    }
+    
+    if (!formData.title.trim() || !formData.content.trim()) {
+      toast.error('Please fill in all required fields');
       return;
     }
     
@@ -85,28 +97,39 @@ export default function BlogsPage() {
 
     try {
       const blogData = {
-        title: formData.title,
-        content: formData.content,
+        title: formData.title.trim(),
+        excerpt: formData.excerpt.trim(),
+        content: formData.content.trim(),
         category: formData.category,
         imageUrl: formData.imageUrl,
         author: currentUser.uid,
         authorName: currentUser.displayName || 'Anonymous',
         barangay: barangayAdminData.barangayName,
+        status: formData.status,
+        tags: formData.tags.filter(tag => tag.trim() !== ''), // Remove any empty tags
         views: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
       
+      console.log('Creating blog post with data:', blogData);
+      
       // Save to Firestore
       const blogsRef = collection(db, 'blogs');
-      await addDoc(blogsRef, blogData);
+      const docRef = await addDoc(blogsRef, blogData);
+      
+      console.log('Blog post created with ID:', docRef.id);
       
       // Reset form and hide it
       setFormData({
         title: '',
+        excerpt: '',
         content: '',
         category: 'News',
-        imageUrl: ''
+        imageUrl: '',
+        status: 'draft',
+        tags: [],
+        tagInput: ''
       });
       setShowForm(false);
       
@@ -124,10 +147,17 @@ export default function BlogsPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      // Handle different input types
+      const newValue = e.target.type === 'checkbox' 
+        ? (e.target as HTMLInputElement).checked 
+        : value;
+      
+      return {
+        ...prev,
+        [name]: newValue
+      };
+    });
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,44 +342,23 @@ export default function BlogsPage() {
                   />
                 </div>
                 
-                
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Featured Image
+                  <label htmlFor="excerpt" className="block text-sm font-medium text-gray-700 mb-1">
+                    Excerpt <span className="text-gray-500">(optional)</span>
                   </label>
-                  <div className="mt-1 flex items-center">
-                    <label className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                      Choose Image
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                      />
-                    </label>
-                    {formData.imageUrl && (
-                      <div className="ml-4 relative">
-                        <img
-                          src={formData.imageUrl}
-                          alt="Preview"
-                          className="h-16 w-16 object-cover rounded-md"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormData(prev => ({ ...prev, imageUrl: '' }));
-                            setImageFile(null);
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
-                        >
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">Recommended size: 1200x630px. Max file size: 5MB</p>
+                  <textarea
+                    id="excerpt"
+                    name="excerpt"
+                    value={formData.excerpt}
+                    onChange={handleInputChange}
+                    rows={3}
+                    maxLength={300}
+                    placeholder="A short summary or teaser for your blog post (max 300 characters)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {formData.excerpt.length}/300 characters
+                  </p>
                 </div>
 
                 <div className="mb-4">
@@ -387,6 +396,128 @@ export default function BlogsPage() {
                       <option value="Where to Stay">Where to Stay</option>
                       <option value="Where to Eat">Where to Eat</option>
                     </select>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      id="status"
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="published">Published</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Featured Image
+                  </label>
+                  <div className="mt-1 flex items-center">
+                    <label className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                      Choose Image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </label>
+                    {formData.imageUrl && (
+                      <div className="ml-4 relative">
+                        <img
+                          src={formData.imageUrl}
+                          alt="Preview"
+                          className="h-16 w-16 object-cover rounded-md"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, imageUrl: '' }));
+                            setImageFile(null);
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                        >
+
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 ml-4">Recommended size: 1200x630px. Max file size: 5MB</p>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tags
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {formData.tags.map((tag, index) => (
+                      <span 
+                        key={index}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              tags: prev.tags.filter((_, i) => i !== index)
+                            }));
+                          }}
+                          className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500 focus:outline-none"
+                        >
+                          <span className="sr-only">Remove tag</span>
+                          <svg className="h-2 w-2" stroke="currentColor" fill="none" viewBox="0 0 8 8">
+                            <path strokeLinecap="round" strokeWidth="1.5" d="M1 1l6 6m0-6L1 7" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex">
+                    <input
+                      type="text"
+                      value={formData.tagInput}
+                      onChange={(e) => setFormData(prev => ({ ...prev, tagInput: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ',') {
+                          e.preventDefault();
+                          const tag = formData.tagInput.trim();
+                          if (tag && !formData.tags.includes(tag)) {
+                            setFormData(prev => ({
+                              ...prev,
+                              tags: [...prev.tags, tag],
+                              tagInput: ''
+                            }));
+                          }
+                        }
+                      }}
+                      placeholder="Add tags (press enter or comma to add)"
+                      className="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tag = formData.tagInput.trim();
+                        if (tag && !formData.tags.includes(tag)) {
+                          setFormData(prev => ({
+                            ...prev,
+                            tags: [...prev.tags, tag],
+                            tagInput: ''
+                          }));
+                        }
+                      }}
+                      className="ml-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Add
+                    </button>
                   </div>
                 </div>
                 
