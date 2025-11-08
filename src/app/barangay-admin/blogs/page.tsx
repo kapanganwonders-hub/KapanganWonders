@@ -7,7 +7,8 @@ import { collection, query, where, getDocs, deleteDoc, doc, Timestamp, orderBy, 
 import { client, storage, uploadFile } from '@/lib/appwrite';
 import { BookOpen, Trash2, Calendar, Eye, Edit, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-hot-toast';
+import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert"
+import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 
 interface Blog {
   id: string;
@@ -43,12 +44,25 @@ export default function BlogsPage() {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [blogToDelete, setBlogToDelete] = useState<{id: string, title: string} | null>(null);
+  const [alert, setAlert] = useState<{type: 'success' | 'destructive' | 'info' | 'warning', message: string} | null>(null);
 
   useEffect(() => {
-    if (barangayAdminData?.barangayName) {
+    if (currentUser) {
       fetchBlogs();
     }
-  }, [barangayAdminData]);
+    
+    // Auto-hide alert after 5 seconds
+    if (alert) {
+      const timer = setTimeout(() => {
+        setAlert(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentUser, alert]);
 
   const fetchBlogs = async (): Promise<void> => {
     try {
@@ -70,7 +84,7 @@ export default function BlogsPage() {
       setBlogs(blogsData);
     } catch (error) {
       console.error('Error fetching blogs:', error);
-      toast.error('Failed to load blogs. Please try again.');
+      setAlert({ type: 'destructive', message: 'Failed to load blogs. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -78,49 +92,36 @@ export default function BlogsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !barangayAdminData) {
-      toast.error('You must be logged in to create a blog post');
-      return;
-    }
     
-    if (!formData.imageUrl) {
-      toast.error('Please upload a featured image');
-      return;
-    }
+    if (!currentUser) return;
     
-    if (!formData.title.trim() || !formData.content.trim()) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    
-    setUploading(true);
-
     try {
+      setIsSubmitting(true);
+      
       const blogData = {
-        title: formData.title.trim(),
-        excerpt: formData.excerpt.trim(),
-        content: formData.content.trim(),
+        title: formData.title,
+        excerpt: formData.excerpt,
+        content: formData.content,
         category: formData.category,
-        imageUrl: formData.imageUrl,
-        author: currentUser.uid,
-        authorName: currentUser.displayName || 'Anonymous',
-        barangay: barangayAdminData.barangayName,
-        status: formData.status,
-        tags: formData.tags.filter(tag => tag.trim() !== ''), // Remove any empty tags
-        views: 0,
-        createdAt: serverTimestamp(),
+        barangay: barangayAdminData?.barangayName || currentUser.barangay || '',
+        author: barangayAdminData?.id || currentUser.uid,
+        authorName: barangayAdminData?.name || currentUser.name || 'Barangay Admin',
+        authorType: 'barangay_admin',
+        imageUrl: formData.imageUrl || '',
+        createdAt: editingBlog ? editingBlog.createdAt : serverTimestamp(),
         updatedAt: serverTimestamp(),
+        views: editingBlog?.views || 0,
       };
       
-      console.log('Creating blog post with data:', blogData);
+      if (editingBlog) {
+        await updateDoc(doc(db, 'blogs', editingBlog.id), blogData);
+        setAlert({ type: 'success', message: 'Blog updated successfully' });
+      } else {
+        await addDoc(collection(db, 'blogs'), blogData);
+        setAlert({ type: 'success', message: 'Blog created successfully' });
+      }
       
-      // Save to Firestore
-      const blogsRef = collection(db, 'blogs');
-      const docRef = await addDoc(blogsRef, blogData);
-      
-      console.log('Blog post created with ID:', docRef.id);
-      
-      // Reset form and hide it
+      setShowForm(false);
       setFormData({
         title: '',
         excerpt: '',
@@ -131,17 +132,13 @@ export default function BlogsPage() {
         tags: [],
         tagInput: ''
       });
-      setShowForm(false);
-      
-      // Refresh the blogs list
-      await fetchBlogs();
-      
-      toast.success('Blog post created successfully!');
+      setEditingBlog(null);
+      fetchBlogs();
     } catch (error) {
-      console.error('Error creating blog:', error);
-      toast.error('Failed to save blog post. Please try again.');
+      console.error('Error saving blog:', error);
+      setAlert({ type: 'destructive', message: 'Failed to save blog' });
     } finally {
-      setUploading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -174,7 +171,7 @@ export default function BlogsPage() {
     if (!validTypes.includes(file.type)) {
       const errorMsg = `Invalid file type: ${file.type}. Allowed types: ${validTypes.join(', ')}`;
       console.error(errorMsg);
-      toast.error('Please upload a valid image file (JPEG, PNG, WebP, or GIF)');
+      setAlert({ type: 'destructive', message: 'Please upload a valid image file (JPEG, PNG, WebP, or GIF)' });
       return;
     }
     
@@ -183,7 +180,7 @@ export default function BlogsPage() {
     if (file.size > maxSize) {
       const errorMsg = `File too large: ${(file.size / (1024 * 1024)).toFixed(2)}MB. Max size: 5MB`;
       console.error(errorMsg);
-      toast.error('Image size should be less than 5MB');
+      setAlert({ type: 'destructive', message: 'Image size should be less than 5MB' });
       return;
     }
     
@@ -235,7 +232,7 @@ export default function BlogsPage() {
         imageUrl: fileData.url
       }));
       
-      toast.success('Image uploaded successfully');
+      setAlert({ type: 'success', message: 'Image uploaded successfully' });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload image';
       console.error('Upload error details:', {
@@ -251,7 +248,7 @@ export default function BlogsPage() {
         timestamp: new Date().toISOString()
       });
       
-      toast.error(`Upload failed: ${errorMessage}`);
+      setAlert({ type: 'destructive', message: `Upload failed: ${errorMessage}` });
     } finally {
       setUploading(false);
       // Reset file input to allow re-uploading the same file if it fails
@@ -259,18 +256,20 @@ export default function BlogsPage() {
     }
   };
 
-  const handleDeleteBlog = async (blogId: string): Promise<void> => {
-    if (!window.confirm('Are you sure you want to delete this blog post?')) {
-      return;
-    }
+  const handleDeleteBlog = async () => {
+    if (!currentUser || !blogToDelete) return;
     
     try {
-      await deleteDoc(doc(db, 'blogs', blogId));
-      await fetchBlogs();
-      toast.success('Blog post deleted successfully');
+      setIsDeleting(true);
+      await deleteDoc(doc(db, 'blogs', blogToDelete.id));
+      setBlogs(blogs.filter(blog => blog.id !== blogToDelete.id));
+      setAlert({ type: 'success', message: 'Blog deleted successfully' });
     } catch (error) {
       console.error('Error deleting blog:', error);
-      toast.error('Failed to delete blog post');
+      setAlert({ type: 'destructive', message: 'Failed to delete blog' });
+    } finally {
+      setIsDeleting(false);
+      setBlogToDelete(null);
     }
   };
 
@@ -310,6 +309,24 @@ export default function BlogsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {alert && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-md w-full">
+          <div className={`bg-white rounded-lg border-l-4 ${
+            alert.type === 'success' ? 'border-green-500' : 
+            alert.type === 'destructive' ? 'border-red-500' :
+            alert.type === 'warning' ? 'border-yellow-500' : 'border-blue-500'
+          } shadow-lg`}>
+            <Alert variant={alert.type} withIcon className="bg-white">
+              <AlertTitle className="font-medium">
+                {alert.type === 'success' ? 'Success!' : 
+                 alert.type === 'destructive' ? 'Error' : 
+                 alert.type.charAt(0).toUpperCase() + alert.type.slice(1)}
+              </AlertTitle>
+              <AlertDescription>{alert.message}</AlertDescription>
+            </Alert>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <div className="flex justify-between items-center mb-6">
@@ -531,10 +548,10 @@ export default function BlogsPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={uploading}
-                    className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${uploading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                    disabled={uploading || isSubmitting}
+                    className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${uploading || isSubmitting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                   >
-                    {uploading ? (
+                    {uploading || isSubmitting ? (
                       <>
                         <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -584,10 +601,10 @@ export default function BlogsPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteBlog(blog.id);
+                            setBlogToDelete({ id: blog.id, title: blog.title });
                           }}
-                          className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-full"
-                          title="Delete blog post"
+                          disabled={isDeleting}
+                          className="text-red-500 hover:text-red-700"
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
@@ -613,6 +630,15 @@ export default function BlogsPage() {
           )}
         </div>
       </div>
+      <ConfirmationDialog
+        isOpen={!!blogToDelete}
+        onClose={() => setBlogToDelete(null)}
+        onConfirm={handleDeleteBlog}
+        title="Delete Blog"
+        message={`Are you sure you want to delete the blog "${blogToDelete?.title}"? This action cannot be undone.`}
+        confirmText="Delete Blog"
+        cancelText="Cancel"
+      />
     </div>
   );
 }
