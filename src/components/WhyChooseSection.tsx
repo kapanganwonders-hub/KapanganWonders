@@ -16,7 +16,7 @@ interface Feature {
 const defaultFeatures: Feature[] = [
   {
     id: 1,
-    title: "Natural Wonders",
+    title: "Natural    Wonders",
     description:
       "Discover breathtaking landscapes, mountains, and natural attractions that showcase the beauty of Kapangan.",
     icon: "🏔️",
@@ -180,20 +180,48 @@ const WhyChooseSection = () => {
 
   if (isLoading) {
     return (
-      <section className="py-16 bg-gray-50 text-center">
-        <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-blue-500 rounded-full mx-auto mb-3"></div>
-        <p className="text-gray-600">Loading content...</p>
+      <section className="py-20 relative min-h-[600px] flex items-center justify-center">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/assets/Kapangan.jpg"
+            alt="Loading Background"
+            className="w-full h-full object-cover opacity-20"
+          />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+        </div>
+        
+        <div className="relative z-10 text-center">
+          <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-white rounded-full mx-auto mb-3"></div>
+          <p className="text-white/80">Loading content...</p>
+        </div>
       </section>
     );
   }
 
-  /** 🔹 Render section */
   return (
-    <section className="py-16 bg-white">
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="relative inline-flex items-center">
+    <section className="relative py-20 min-h-[600px] flex items-center justify-center overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src="/assets/Kapangan.jpg"
+          alt="Kapangan Background"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"></div>
+      </div>
+
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 z-0 opacity-10">
+        <div className="absolute top-10 left-10 w-64 h-64 bg-green-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
+        <div className="absolute bottom-10 right-10 w-64 h-64 bg-blue-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slower"></div>
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
+        {/* Header Section */}
+        <div className="text-center mb-16">
+          {/* Title */}
+          <div className="relative inline-flex items-center justify-center mb-6">
             {editingField?.type === "sectionTitle" ? (
               <input
                 type="text"
@@ -202,23 +230,25 @@ const WhyChooseSection = () => {
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
                 autoFocus
-                className="text-3xl font-bold text-gray-900 mb-4 bg-transparent border-b border-gray-300 outline-none text-center w-full max-w-xl mx-auto"
+                className="text-4xl md:text-5xl font-bold text-white bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-8 py-6 outline-none text-center w-full max-w-2xl mx-auto placeholder-white/60 font-serif"
+                placeholder="Enter section title..."
               />
             ) : (
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              <h2 className="text-4xl md:text-5xl font-bold text-white font-serif">
                 {sectionTitle}
               </h2>
             )}
             {isAdmin && (
               <button
                 onClick={() => startEditing({ type: "sectionTitle" })}
-                className="ml-2 text-gray-400 hover:text-blue-600"
+                className="ml-4 text-white/60 hover:text-white transition-all duration-300 bg-white/10 hover:bg-white/20 p-3 rounded-full backdrop-blur-sm border border-white/20 hover:border-white/40"
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil className="h-5 w-5" />
               </button>
             )}
           </div>
 
+          {/* Description */}
           <div className="relative max-w-3xl mx-auto">
             {editingField?.type === "sectionDescription" ? (
               <textarea
@@ -227,33 +257,48 @@ const WhyChooseSection = () => {
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
                 autoFocus
-                className="text-xl text-gray-600 w-full bg-transparent border-b border-gray-300 outline-none text-center resize-none h-16"
+                className="text-xl text-white/90 w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-6 py-4 outline-none text-center resize-none h-24 placeholder-white/60 font-sans"
+                placeholder="Enter section description..."
               />
             ) : (
-              <p className="text-xl text-gray-600">{sectionDescription}</p>
+              <p className="text-xl text-white/90 leading-relaxed font-sans">
+                {sectionDescription}
+              </p>
             )}
             {isAdmin && (
               <button
                 onClick={() => startEditing({ type: "sectionDescription" })}
-                className="absolute -right-6 top-0 text-gray-400 hover:text-blue-600"
+                className="absolute -right-12 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white transition-all duration-300 bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-sm border border-white/20 hover:border-white/40"
               >
                 <Pencil className="h-4 w-4" />
               </button>
             )}
           </div>
+
+          {/* Decorative Line */}
+          <div className="w-32 h-1 bg-gradient-to-r from-white/50 to-white mx-auto mt-8 rounded-full"></div>
         </div>
 
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {/* Features Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature) => (
             <div
               key={feature.id}
-              className="group relative text-center p-6 bg-gray-50 rounded-lg hover:shadow-md transition-shadow"
+              className="group relative text-center p-8 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 hover:border-white/40 transition-all duration-500 transform hover:-translate-y-3 hover:scale-105 hover:bg-white/15"
             >
-              <div className="text-4xl mb-4">{feature.icon}</div>
+              {/* Background Glow Effect */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-green-400/10 to-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
+              
+              {/* Floating Border Effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-green-400/20 to-blue-400/20 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-20"></div>
+
+              {/* Feature Icon */}
+              <div className="text-5xl mb-6 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                {feature.icon}
+              </div>
 
               {/* Title */}
-              <div className="relative inline-flex items-center mb-2">
+              <div className="relative inline-flex items-center justify-center mb-4 min-h-[3rem]">
                 {editingField?.type === "feature" &&
                 editingField.id === feature.id &&
                 editingField.field === "title" ? (
@@ -264,10 +309,11 @@ const WhyChooseSection = () => {
                     onBlur={handleSave}
                     onKeyDown={handleKeyDown}
                     autoFocus
-                    className="text-xl font-semibold text-gray-900 bg-transparent border-b border-gray-300 outline-none text-center w-full"
+                    className="text-xl font-semibold text-white bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2 outline-none text-center w-full placeholder-white/60"
+                    placeholder="Enter feature title..."
                   />
                 ) : (
-                  <h3 className="text-xl font-semibold text-gray-900">
+                  <h3 className="text-xl font-semibold text-white">
                     {feature.title}
                   </h3>
                 )}
@@ -280,7 +326,7 @@ const WhyChooseSection = () => {
                         field: "title",
                       })
                     }
-                    className="ml-1 text-gray-400 hover:text-blue-600 transition opacity-0 group-hover:opacity-100"
+                    className="ml-2 text-white/60 hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-sm border border-white/20 hover:border-white/40"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -288,7 +334,7 @@ const WhyChooseSection = () => {
               </div>
 
               {/* Description */}
-              <div className="relative">
+              <div className="relative min-h-[6rem]">
                 {editingField?.type === "feature" &&
                 editingField.id === feature.id &&
                 editingField.field === "description" ? (
@@ -298,10 +344,13 @@ const WhyChooseSection = () => {
                     onBlur={handleSave}
                     onKeyDown={handleKeyDown}
                     autoFocus
-                    className="text-gray-600 w-full bg-transparent border-b border-gray-300 outline-none text-center resize-none h-16"
+                    className="text-white/80 w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 outline-none text-center resize-none h-24 placeholder-white/60 font-sans"
+                    placeholder="Enter feature description..."
                   />
                 ) : (
-                  <p className="text-gray-600">{feature.description}</p>
+                  <p className="text-white/80 leading-relaxed font-sans">
+                    {feature.description}
+                  </p>
                 )}
                 {isAdmin && (
                   <button
@@ -312,16 +361,37 @@ const WhyChooseSection = () => {
                         field: "description",
                       })
                     }
-                    className="absolute -right-4 top-0 text-gray-400 hover:text-blue-600 transition opacity-0 group-hover:opacity-100"
+                    className="absolute -right-8 top-0 text-white/60 hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-sm border border-white/20 hover:border-white/40"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                 )}
               </div>
+
+              {/* Hover Indicator */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-white/30 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:w-16"></div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Custom Animations */}
+      <style jsx>{`
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.1; }
+          50% { opacity: 0.2; }
+        }
+        @keyframes pulse-slower {
+          0%, 100% { opacity: 0.05; }
+          50% { opacity: 0.15; }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 8s ease-in-out infinite;
+        }
+        .animate-pulse-slower {
+          animation: pulse-slower 12s ease-in-out infinite;
+        }
+      `}</style>
     </section>
   );
 };
