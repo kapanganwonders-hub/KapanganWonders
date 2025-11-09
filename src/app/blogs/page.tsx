@@ -31,7 +31,7 @@ interface Blog {
 export default function Blogs() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentUser, isBarangayAdmin, barangayAdminData } = useAuth();
+  const { currentUser, isBarangayAdmin, barangayAdminData, isPrivateSpotAdmin, privateSpotAdminData } = useAuth();
   
   // Check for edit mode in URL
   const editBlogId = searchParams?.get('edit');
@@ -63,22 +63,40 @@ export default function Blogs() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Check if the current user is a barangay admin from the same barangay as the blog
+  // Check if the current user is authorized to edit the blog
   const isAuthor = (blog: Blog) => {
-    // Get barangay name from either barangayAdminData.barangay or barangayAdminData.data.barangayName
-    const adminBarangay = barangayAdminData?.barangayName || barangayAdminData?.data?.barangayName;
-    const isFromSameBarangay = adminBarangay === blog.barangay;
+    // For barangay admins: check if they're from the same barangay
+    if (isBarangayAdmin) {
+      const adminBarangay = barangayAdminData?.barangayName || barangayAdminData?.data?.barangayName;
+      const isFromSameBarangay = adminBarangay === blog.barangay;
+      
+      console.log('Barangay Admin isAuthor check:', {
+        blogId: blog.id,
+        currentUserUid: currentUser?.uid,
+        adminBarangay,
+        blogBarangay: blog.barangay,
+        isFromSameBarangay
+      });
+      
+      return isFromSameBarangay;
+    }
     
-    console.log('isAuthor check:', {
-      blogId: blog.id,
-      currentUserUid: currentUser?.uid,
-      barangayAdminData: barangayAdminData, // Log the full barangayAdminData
-      adminBarangay,
-      blogBarangay: blog.barangay,
-      isFromSameBarangay
-    });
+    // For private spot owners: check if they're the author of the blog
+    if (isPrivateSpotAdmin && privateSpotAdminData) {
+      const isAuthor = blog.author === (privateSpotAdminData.id || privateSpotAdminData.uid);
+      
+      console.log('Private Spot Owner isAuthor check:', {
+        blogId: blog.id,
+        currentUserUid: currentUser?.uid,
+        blogAuthor: blog.author,
+        privateSpotAdminId: privateSpotAdminData.id || privateSpotAdminData.uid,
+        isAuthor
+      });
+      
+      return isAuthor;
+    }
     
-    return isFromSameBarangay && isBarangayAdmin;
+    return false;
   };
 
   // Function to open blog in modal
@@ -222,7 +240,7 @@ export default function Blogs() {
   };
 
   const handleUpdateBlog = async (blogId: string) => {
-    if (!isBarangayAdmin || !selectedBlog) return;
+    if ((!isBarangayAdmin && !isPrivateSpotAdmin) || !selectedBlog) return;
     
     try {
       const blogRef = doc(db, 'blogs', blogId);
@@ -381,7 +399,7 @@ export default function Blogs() {
   };
 
   const startEdit = (blog: Blog) => {
-    if (!isBarangayAdmin) return false;
+    if (!isBarangayAdmin && !isPrivateSpotAdmin) return false;
     setEditingBlog(blog.id);
     
     // Ensure the blog modal is open
@@ -481,7 +499,7 @@ export default function Blogs() {
                                   
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                       <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span>Barangay {post.barangay}</span>
+                        <span>{post.authorName || `Barangay ${post.barangay}`}</span>
                         <span>•</span>
                         <span>
                           {post.createdAt?.toDate 
@@ -569,7 +587,7 @@ export default function Blogs() {
                     {searchParams.get('from') === 'dashboard' || editingBlog === selectedBlog?.id ? 'Back to Dashboard' : 'Back to Blogs'}
                   </button>
                   
-                  {isBarangayAdmin && isAuthor(selectedBlog) && editingBlog === selectedBlog?.id && (
+                  {(isBarangayAdmin || isPrivateSpotAdmin) && isAuthor(selectedBlog) && editingBlog === selectedBlog?.id && (
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleUpdateBlog(selectedBlog.id)}
