@@ -1,332 +1,207 @@
+
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useAuth } from "@/contexts/AuthContext";
-import { Pencil, Settings } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
-import { db, doc, getDoc, setDoc } from "@/lib/firebase";
-import useEmblaCarousel from 'embla-carousel-react';
-import type { EmblaCarouselType } from 'embla-carousel';
-import CarouselManagementModal from '@/components/CarouselManagementModal';
-import { storage } from '@/lib/appwrite';
-import { ID } from 'appwrite';
-
-interface CarouselItem {
-  id: string;
-  image: string;
-  fileId?: string;
-}
-
-
-
+import { useState, useEffect } from "react";
+import AdvisorySection from './AdvisorySection';
 
 export default function HeroSection() {
-  const { isAdmin } = useAuth?.() || {};
-  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
-  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
-  const [title, setTitle] = useState("Loading...");
-  const [description, setDescription] = useState("");
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
-
-  // ✅ Load hero section data from Firestore
-  useEffect(() => {
-    const fetchHeroData = async () => {
-      try {
-        const docRef = doc(db, "heroSection", "main");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setTitle(data.title || "Welcome to Kapangan Wonders");
-          setDescription(
-            data.description ||
-              "Discover the breathtaking beauty and rich culture of Kapangan, home to stunning landscapes like the Amburayan Bridge and more."
-          );
-        } else if (isAdmin) { // Only create default if admin is logged in
-          // If no doc found, create default
-          await setDoc(docRef, {
-            title: "Welcome to Kapangan Wonders",
-            description:
-              "Discover the breathtaking beauty and rich culture of Kapangan, home to stunning landscapes like the Amburayan Bridge and more.",
-          });
-        }
-      } catch (error) {
-        console.error("Error loading hero data:", error);
-      }
-    };
-
-    fetchHeroData();
-  }, [isAdmin]);
-
-  // ✅ Save updated title
-  const handleSaveTitle = async (newTitle: string) => {
-    try {
-      setTitle(newTitle);
-      setIsEditingTitle(false);
-      await setDoc(doc(db, "heroSection", "main"), {
-        title: newTitle,
-        description,
-      });
-    } catch (error) {
-      console.error("Error saving title:", error);
+  const [title, setTitle] = useState("Explore Dream Destination");
+  const [description, setDescription] = useState("Discover the breathtaking beauty and rich culture of Kapangan, home to stunning landscapes like the Amburayan Bridge and more. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed diam nonummy nibh euismod tincidunt ut labore et dolore magna aliquam erat volutpat.");
+  
+  const carouselItems = [
+    {
+      id: '1',
+      image: '/assets/hero-1.jpg',
+      title: 'Amburayan Bridge'
+    },
+    {
+      id: '2', 
+      image: '/assets/hero-2.jpg',
+      title: 'Nature Scenery'
+    },
+    {
+      id: '3',
+      image:'/assets/hero-3.jpg',
+      title: 'Forest Path'
+    },
+    {
+      id: '4',
+      image:'/assets/Mt. Dakiwagan (Balakbak).jpg',
+      title: 'Forest Path'
+    },
+    {
+      id: '5',
+      image:'/assets/Kapangan.jpg',
+      title: 'Forest Path'
+    },
+    {
+      id: '6',
+      image:'/assets/Municipalhall.jpg',
+      title: 'Forest Path'
     }
-  };
+  ];
 
-  // ✅ Save updated description
-  const handleSaveDescription = async (newDescription: string) => {
-    try {
-      setDescription(newDescription);
-      setIsEditingDescription(false);
-      await setDoc(doc(db, "heroSection", "main"), {
-        title,
-        description: newDescription,
-      });
-    } catch (error) {
-      console.error("Error saving description:", error);
+  const socialMediaLinks = [
+    {
+      name: 'Facebook',
+      url: 'https://facebook.com/kapanganwonders',
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+        </svg>
+      ),
+      color: 'hover:bg-blue-500/20'
+    },
+    {
+      name: 'Tiktok',
+      url: 'https://tiktok.com/@kapanganwonders',
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+        </svg>
+      ),
+      color: 'hover:bg-black/20'
+    },
+    {
+      name: 'Twitter',
+      url: 'https://twitter.com/kapanganwonders',
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+        </svg>
+      ),
+      color: 'hover:bg-blue-400/20'
     }
-  };
+ 
+  ];
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    loop: true,
-    align: 'start',
-    skipSnaps: false,
-    dragFree: false,
-    containScroll: 'trimSnaps',
-    duration: 15, // Slower autoplay
-    startIndex: 0,
-    inViewThreshold: 0.7
-  });
+  const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Track the current slide index
+  // Auto-play
   useEffect(() => {
-    if (!emblaApi) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % carouselItems.length);
+    }, 5000);
 
-    const onSelect = () => {
-      setSelectedIndex(emblaApi.selectedScrollSnap());
-    };
-
-    emblaApi.on('select', onSelect);
-    return () => {
-      emblaApi.off('select', onSelect);
-    };
-  }, [emblaApi]);
-
-  // Load carousel items from Firestore
-  useEffect(() => {
-    const loadCarouselItems = async () => {
-      try {
-        const docRef = doc(db, 'carousel', 'items');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().items) {
-          setCarouselItems(docSnap.data().items);
-        }
-      } catch (error) {
-        console.error('Error loading carousel items:', error);
-      }
-    };
-
-    loadCarouselItems();
-  }, []);
-
-  const saveCarouselItems = async (items: CarouselItem[]) => {
-    try {
-      await setDoc(doc(db, 'carousel', 'items'), { items });
-      setCarouselItems(items);
-      return items;
-    } catch (error) {
-      console.error('Error saving carousel items:', error);
-      throw error;
-    }
-  };
-
-  const scrollPrev = useCallback(() => {
-    if (emblaApi) emblaApi.scrollPrev();
-  }, [emblaApi]);
-
-  const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext();
-  }, [emblaApi]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-
-    const autoplay = () => {
-      if (emblaApi.canScrollNext()) {
-        emblaApi.scrollNext();
-      } else {
-        emblaApi.scrollTo(0);
-      }
-    };
-
-    const interval = setInterval(autoplay, 5000); 
     return () => clearInterval(interval);
-  }, [emblaApi]);
+  }, [carouselItems.length]);
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % carouselItems.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + carouselItems.length) % carouselItems.length);
+  };
 
   return (
-    <div className="relative min-h-screen overflow-hidden border-b-8 border-green-100">
-      {/* Background that syncs with carousel */}
-      <div className="absolute inset-0 -z-10">
-        {carouselItems.length > 0 ? (
-          carouselItems.map((item, index) => (
-            <div 
-              key={`bg-${item.id}`}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                index === selectedIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
-              }`}
-            >
-              <div 
-                className="absolute inset-0 w-full h-full"
-                style={{
-                  backgroundImage: `url(${item.image})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                  filter: 'blur(12px) brightness(0.8)',
-                  transform: 'scale(1.1)'
-                }}
-              />
-              <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
-            </div>
-          ))
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100"></div>
-        )}
+    <div className="relative min-h-screen overflow-hidden bg-gray-900">
+      {/* SBACKGROUND CAROUSEL */}
+      <div className="absolute inset-0 z-0">
+        {carouselItems.map((item, index) => (
+          <div
+            key={item.id}
+            className={`absolute inset-0 transition-opacity duration-1000 ${
+              index === currentSlide ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <img
+              src={item.image}
+              alt={item.title}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/40"></div>
+          </div>
+        ))}
       </div>
       
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -right-20 -top-20 w-64 h-64 bg-green-100 rounded-full opacity-20"></div>
-        <div className="absolute -left-40 top-1/3 w-80 h-80 bg-green-200 rounded-full opacity-10"></div>
-        <div className="absolute right-1/4 bottom-0 w-40 h-40 bg-green-300 rounded-full opacity-10"></div>
-      </div>
-      
-      <div className="relative w-full max-w-7xl mx-auto px-4 py-16 md:py-24 flex flex-col md:flex-row items-center">
-        <div className="relative w-full md:w-5/12 pr-0 md:pr-12 mb-12 md:mb-0 bg-white/90 backdrop-blur-sm p-8 rounded-2xl border-2 border-green-100 shadow-lg">
-          <div className="relative group mb-6">
-            {isEditingTitle ? (
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => handleSaveTitle(title)}
-                onKeyDown={(e) => e.key === "Enter" && handleSaveTitle(title)}
-                className="text-4xl md:text-5xl font-bold text-green-900 mb-6 bg-transparent border-b-2 border-green-200 outline-none w-full focus:border-green-500 transition-colors duration-300"
-                autoFocus
-              />
-            ) : (
-              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-700 to-green-500 bg-clip-text text-transparent mb-6">
+
+      {/* Main Content */}
+      <div className="relative z-10 max-w-7xl mx-auto px-6 py-12 mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          
+          {/* Left Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Hero Text  */}
+            <div className="text-white">
+              <h1 className="text-6xl md:text-7xl font-bold mb-8 leading-tight font-serif">
                 {title}
               </h1>
-            )}
-            {isAdmin && !isEditingTitle && (
-              <button
-                className="absolute -right-10 top-0 p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
-                onClick={() => setIsEditingTitle(true)}
-              >
-                <Pencil className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-
-          <div className="relative group mb-8">
-            {isEditingDescription ? (
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={() => handleSaveDescription(description)}
-                onKeyDown={(e) => e.key === "Enter" && handleSaveDescription(description)}
-                className="text-lg text-gray-700 mb-8 w-full bg-transparent border-b-2 border-green-100 outline-none resize-none h-24 focus:border-green-500 transition-colors duration-300"
-                autoFocus
-              />
-            ) : (
-              <p className="text-lg text-gray-700 mb-8 leading-relaxed">
+              <p className="text-xl text-white/90 mb-10 leading-relaxed font-sans max-w-3xl">
                 {description}
               </p>
-            )}
-            {isAdmin && !isEditingDescription && (
-              <button
-                className="absolute -right-10 top-0 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                onClick={() => setIsEditingDescription(true)}
+              
+              {/* Explore Button */}
+              <Link
+                href="/tourist-spots"
+                className="inline-block bg-white text-green-600 hover:bg-green-50 px-10 py-5 rounded-full font-semibold text-xl transition-all duration-300 transform hover:scale-105 font-sans shadow-2xl mb-8"
               >
-                <Pencil className="w-4 h-4" />
-              </button>
-            )}
+                Explore More Destinations
+              </Link>
+
+              {/* Social Media Links */}
+              <div className="flex items-center gap-4">
+                Follow us:
+                <div className="flex items-center gap-3">
+                  {socialMediaLinks.map((social) => (
+                    <a
+                      key={social.name}
+                      href={social.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`
+                        w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm
+                        border border-white/20 flex items-center justify-center
+                        text-xl transition-all duration-300 transform hover:scale-110
+                        hover:bg-white/20 ${social.color}
+                        group relative
+                      `}
+                      aria-label={`Follow us on ${social.name}`}
+                    >
+                      <span className="transition-transform duration-300 group-hover:scale-110">
+                        {social.icon}
+                      </span>
+                      
+                      {/* Tooltip */}
+                      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 
+                        bg-black/80 text-white text-xs px-2 py-1 rounded 
+                        opacity-0 group-hover:opacity-100 transition-opacity duration-300
+                        pointer-events-none whitespace-nowrap">
+                        {social.name}
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>    
           </div>
 
-          <Link
-            href="/tourist-spots"
-            className="inline-block bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-green-200 border-2 border-white"
-          >
-            Explore More Destinations
-          </Link>
-        </div>
-
-        <div className="w-full md:w-7/12 relative group z-10">
-          {isAdmin && (
-            <button
-              onClick={() => setIsManageModalOpen(true)}
-              className="absolute top-4 right-4 z-10 p-2 bg-white/80 hover:bg-white text-gray-700 rounded-full shadow-md hover:shadow-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
-              title="Manage carousel"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-          )}
-          <div className="relative overflow-hidden rounded-2xl shadow-2xl border-4 border-white bg-white/20 backdrop-blur-sm">
-            <div className="embla__viewport" ref={emblaRef}>
-              <div className="embla__container">
-                {carouselItems.length > 0 ? (
-                  carouselItems.map((item, index) => (
-                    <div key={item.id} className="embla__slide">
-                      <div className="embla__slide__inner">
-                        <Image
-                          src={item.image}
-                          alt="Carousel slide"
-                          width={800}
-                          height={600}
-                          className={`w-full h-auto aspect-video object-cover transition-opacity duration-500 ${index === selectedIndex ? 'opacity-100' : 'opacity-0 absolute'}`}
-                          priority
-                        />
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="w-full h-80 md:h-96 bg-gradient-to-br from-green-50 to-white rounded-2xl flex items-center justify-center text-gray-400 border-2 border-dashed border-green-200 p-8 text-center">
-                    No images available. Add some images to the carousel.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button 
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-green-700 p-3 rounded-full shadow-lg z-10 transition-all duration-300 hover:scale-110 border-2 border-green-100"
-              onClick={scrollPrev}
-              aria-label="Previous slide"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <button 
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-green-700 p-3 rounded-full shadow-lg z-10 transition-all duration-300 hover:scale-110 border-2 border-green-100"
-              onClick={scrollNext}
-              aria-label="Next slide"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+          {/* Right Content - Advisories */}
+          <div className="lg:col-span-1">
+            <AdvisorySection />
           </div>
         </div>
       </div>
 
-      <CarouselManagementModal
-        isOpen={isManageModalOpen}
-        onClose={() => setIsManageModalOpen(false)}
-        items={carouselItems}
-        onItemsUpdate={saveCarouselItems}
-        bucketId="69062d080010accbfb9e"
-      />
+      {/* Carousel Controls */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex items-center gap-4">
+ 
+        
+        <div className="flex items-center gap-2">
+          {carouselItems.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentSlide(index)}
+              className={`w-3 h-3 rounded-full transition-all ${
+                index === currentSlide ? 'bg-white scale-125' : 'bg-white/50'
+              }`}
+            />
+          ))}
+        </div>
+
+
+      </div>
     </div>
   );
 }
