@@ -23,7 +23,6 @@ import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 interface TouristSpot {
   id: string;
   name: string;
-  description: string;
   detailedDescription?: string;
   category: string;
   barangay: string;
@@ -55,7 +54,6 @@ export default function TouristSpotsPage() {
 
   interface FormData {
     name: string;
-    description: string;
     detailedDescription: string;
     category: string;
     barangay: string;
@@ -77,7 +75,6 @@ export default function TouristSpotsPage() {
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
-    description: '',
     detailedDescription: '',
     category: 'Natural',
     barangay: '',
@@ -217,7 +214,6 @@ export default function TouristSpotsPage() {
       setShowAddForm(false);
       setFormData({
         name: '',
-        description: '',
         detailedDescription: '',
         category: 'Natural',
         barangay: formData.barangay, // Preserve the barangay
@@ -260,7 +256,6 @@ export default function TouristSpotsPage() {
       // Prepare update data
       const updateData: Partial<TouristSpot> = {
         name: formData.name,
-        description: formData.description,
         category: formData.category,
         address: formData.address,
         contact: formData.contact,
@@ -306,7 +301,6 @@ export default function TouristSpotsPage() {
       setShowAddForm(false);
      setFormData({
   name: '',
-  description: '',
   detailedDescription: '',
   category: 'Natural',
   barangay: formData.barangay, // Preserve the current barangay
@@ -491,23 +485,6 @@ export default function TouristSpotsPage() {
                   }
                   required
                   className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Short Description *
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  required
-                  rows={2}
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="A brief description of the tourist spot..."
                 />
               </div>
 
@@ -773,8 +750,6 @@ export default function TouristSpotsPage() {
                         </button>
                       </div>
                     </div>
-
-                    <p className="mt-3 text-gray-600">{spot.description}</p>
                     
                     {spot.address && (
                       <div className="mt-3 flex items-center text-sm text-gray-500">
