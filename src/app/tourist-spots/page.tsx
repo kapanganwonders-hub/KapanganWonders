@@ -60,7 +60,7 @@ interface TouristSpot {
 }
 
 export default function TouristSpots() {
-  const { isBarangayAdmin, barangayAdminData, user } = useAuth();
+  const { isBarangayAdmin, barangayAdminData, user, isPrivateSpotAdmin } = useAuth();
   const [closureAnnouncements, setClosureAnnouncements] = useState<Announcement[]>([]);
   const [selectedBarangay, setSelectedBarangay] = useState<string>('all');
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
@@ -390,13 +390,20 @@ export default function TouristSpots() {
       const adminDoc = await getDoc(doc(db, 'admins', user.uid));
       const isUserAdmin = adminDoc.exists() && adminDoc.data()?.email === user.email;
       
-      // If not admin, check if user is barangay admin for this spot
+      // If not admin, check if user is barangay admin or private spot admin for this spot
       if (!isUserAdmin && !isNewSpot) {
+        // Check if user is barangay admin
         const barangayAdminDoc = await getDoc(doc(db, 'barangayAdmins', user.uid));
         const isBarangayAdmin = barangayAdminDoc.exists() && 
                               barangayAdminDoc.data()?.barangay === currentSpotData.barangay;
         
-        if (!isBarangayAdmin) {
+        // Check if user is private spot admin and owns this spot
+        const privateSpotAdminDoc = await getDoc(doc(db, 'privateSpotOwners', user.uid));
+        const isPrivateSpotAdmin = privateSpotAdminDoc.exists() && 
+                                 privateSpotAdminDoc.data()?.uid === 
+                                 (currentSpotData as any).businessId; // Type assertion to handle optional field
+        
+        if (!isBarangayAdmin && !isPrivateSpotAdmin) {
           throw new Error('You do not have permission to update this spot');
         }
       }
@@ -668,8 +675,15 @@ export default function TouristSpots() {
 
   const closeDetails = () => {
     if (isEditing) {
-      // If in edit mode, navigate to dashboard
-      router.push('/barangay-admin');
+      // If in edit mode, navigate to the appropriate dashboard
+      if (isPrivateSpotAdmin) {
+        router.push('/private-spot-admin');
+      } else if (isBarangayAdmin) {
+        router.push('/barangay-admin');
+      } else {
+        // Default fallback
+        router.push('/');
+      }
     } else {
       // Otherwise, just close the details view
       setSelectedSpot(null);
@@ -779,7 +793,7 @@ export default function TouristSpots() {
                     <h1 className="text-3xl font-bold text-primary-green">{selectedSpot.name}</h1>
                   )}
                   
-                  {isBarangayAdmin && barangayAdminData?.barangay === selectedSpot.barangay && isEditing && (
+                  {(isBarangayAdmin && barangayAdminData?.barangay === selectedSpot.barangay || isPrivateSpotAdmin) && isEditing && (
                     <div className="flex gap-2">
                       <button
                         onClick={handleSave}
