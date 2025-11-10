@@ -97,7 +97,14 @@ export default function TouristSpotsPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
-    if (privateSpotAdminData) fetchSpots();
+    if (privateSpotAdminData) {
+      fetchSpots();
+      // Auto-fill the spot name with private spot admin's name
+      setFormData(prev => ({
+        ...prev,
+        name: privateSpotAdminData.privateSpotName || ''
+      }));
+    }
   }, [privateSpotAdminData]);
 
   const fetchSpots = async () => {
@@ -221,8 +228,15 @@ export default function TouristSpotsPage() {
       const imageUrl = `https://cloud.appwrite.io/v1/storage/buckets/69062d080010accbfb9e/files/${uploadedFile.$id}/view?project=6905f83f00038caa24fb`;
       console.log('handleAddSpot: Image uploaded successfully:', imageUrl);
 
+      // Use private spot admin's name as the spot name
+      const spotName = privateSpotAdminData.privateSpotName || 
+                      privateSpotAdminData.businessName || 
+                      privateSpotAdminData.displayName || 
+                      'Private Spot';
+
       const spotData = {
         ...formData,
+        name: spotName,
         barangay: barangayName,
         location: formData.address,
         image: imageUrl,
@@ -241,7 +255,7 @@ export default function TouristSpotsPage() {
       console.log('handleAddSpot: Spot created with ID:', docRef.id);
       setShowAddForm(false);
       setFormData({
-        name: '',
+        ...formData,
         detailedDescription: '',
         category: 'Natural',
         barangay: formData.barangay, // Preserve the barangay
@@ -502,21 +516,21 @@ export default function TouristSpotsPage() {
             </button>
             <h2 className="text-xl font-bold mb-4">Add New Tourist Spot</h2>
             <form onSubmit={handleAddSpot} className="space-y-4">
-              {/* Name */}
               <div>
-                <label className="block text-sm font-medium mb-1">Name *</label>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                  Spot Name
+                </label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  required
-                  className="w-full border rounded-lg px-3 py-2"
+                  id="name"
+                  value={privateSpotAdminData?.privateSpotName || privateSpotAdminData?.businessName || privateSpotAdminData?.displayName || 'Private Spot'}
+                  readOnly
+                  disabled
+                  className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 />
+                <p className="mt-1 text-xs text-gray-500">This will be automatically set to your business/spot name</p>
               </div>
 
-             
               {/* Category */}
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -742,15 +756,6 @@ export default function TouristSpotsPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h2 className="text-xl font-bold text-gray-800">{spot.name}</h2>
-                        <div className="mt-1 flex items-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            spot.status === 'active' 
-                              ? 'bg-green-100 text-green-800 border border-green-200' 
-                              : 'bg-gray-100 text-gray-800 border border-gray-200'
-                          }`}>
-                            {spot.status}
-                          </span>
-                        </div>
                       </div>
                       <div className="flex gap-2">
                         <button

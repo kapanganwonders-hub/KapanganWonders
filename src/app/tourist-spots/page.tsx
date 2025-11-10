@@ -26,14 +26,19 @@ interface AlertState {
   message: string;
 }
 
+interface FeeItem {
+  label: string;
+  amount: number;
+}
+
 interface EntranceFees {
-  adults: { label: string; amount: number };
-  seniors: { label: string; amount: number };
-  pwd: { label: string; amount: number };
-  kids: { label: string; amount: number };
-  children: { label: string; amount: number };
-  environmental: { label: string; amount: number };
-  tourGuide?: { label: string; amount: number }; // Optional
+  adults: FeeItem;
+  seniors: FeeItem;
+  pwd: FeeItem;
+  kids: FeeItem;
+  children: FeeItem;
+  environmental: FeeItem;
+  tourGuide?: FeeItem; // Optional
 }
 
 interface TouristSpot {
@@ -60,7 +65,7 @@ interface TouristSpot {
 }
 
 export default function TouristSpots() {
-  const { isBarangayAdmin, barangayAdminData, user, isPrivateSpotAdmin } = useAuth();
+  const { isBarangayAdmin, barangayAdminData, user, isPrivateSpotAdmin, privateSpotAdminData } = useAuth();
   const [closureAnnouncements, setClosureAnnouncements] = useState<Announcement[]>([]);
   const [selectedBarangay, setSelectedBarangay] = useState<string>('all');
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
@@ -71,6 +76,122 @@ export default function TouristSpots() {
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRemoveImage = () => {
+    if (!editedSpot) return;
+    
+    setEditedSpot({
+      ...editedSpot,
+      image: '',
+      _tempImage: undefined
+    });
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSave = async () => {
+    if (!editedSpot) return;
+    
+    try {
+      setLoading(true);
+      const db = getFirestore();
+      const spotRef = doc(db, 'touristSpots', editedSpot.id);
+      
+      // Create update data object
+      const updateData: Partial<TouristSpot> = {
+        name: editedSpot.name,
+        description: editedSpot.description,
+        location: editedSpot.location,
+        barangay: editedSpot.barangay,
+        category: editedSpot.category,
+        contact: editedSpot.contact || '',
+        googleMapsLink: editedSpot.googleMapsLink || '',
+        detailedDescription: editedSpot.detailedDescription || '',
+        updatedAt: new Date().toISOString()
+      };
+
+      // Handle image upload if there's a new image
+      if (editedSpot._tempImage) {
+        try {
+          const fileData = await uploadFile(editedSpot._tempImage, `tourist-spots/${editedSpot.id}`);
+updateData.image = fileData.url;  // Use the url property instead of the whole object
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          toast.error('Failed to upload image. Please try again.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Update the document in Firestore
+      await updateDoc(spotRef, updateData);
+      
+      // Update the local state
+      const updatedSpot = { ...editedSpot, ...updateData };
+      setSelectedSpot(updatedSpot);
+      setEditedSpot(updatedSpot);
+      
+      // Update the spots array
+      setSpots(prevSpots => 
+        prevSpots.map(spot => 
+          spot.id === updatedSpot.id ? updatedSpot : spot
+        )
+      );
+      
+      toast.success('Tourist spot updated successfully');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating tourist spot:', error);
+      toast.error('Failed to update tourist spot. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedSpot(null);
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check if file is an image
+    if (!file.type.startsWith('image/')) {
+      setAlertState({
+        variant: 'destructive',
+        message: 'Please upload an image file.'
+      });
+      return;
+    }
+
+    // Check file size (e.g., 5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setAlertState({
+        variant: 'destructive',
+        message: 'Image size should be less than 5MB.'
+      });
+      return;
+    }
+
+    // Create a temporary URL for the image preview
+    const imageUrl = URL.createObjectURL(file);
+    
+    // Update the editedSpot with the new image file and URL
+    if (editedSpot) {
+      setEditedSpot({
+        ...editedSpot,
+        image: imageUrl,
+        _tempImage: file
+      });
+    }
+  };
 
   // Initialize spots state
   const [spots, setSpots] = useState<TouristSpot[]>([]);
@@ -335,287 +456,31 @@ export default function TouristSpots() {
     }
   };
 
-  useEffect(() => {
-    if (selectedBarangay !== 'all') {
-      scrollToSection(selectedBarangay);
-    }
-  }, [selectedBarangay]);
-
-  const openDetails = (spot: TouristSpot) => {
-    setSelectedSpot(spot);
-    setEditedSpot({...spot});
-    setShowDetails(true);
-    setIsEditing(false);
-  };
-
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
-
-  const handleSave = async () => {
-    if (!editedSpot) return;
-    
-    try {
-      setLoading(true);
-      
-      // Check if user is authenticated
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) {
-        toast.error('You must be logged in to update a spot');
-        return;
-      }
-
-      const db = getFirestore();
-      
-      // Ensure we have a valid ID (for new spots, this would be handled differently)
-      if (!editedSpot.id) {
-        throw new Error('Invalid spot ID');
-      }
-      
-      const spotRef = doc(db, 'touristSpots', String(editedSpot.id));
-      
-      // Get current spot data to verify permissions
-      const spotDoc = await getDoc(spotRef);
-      
-      // For new spots, spotDoc.exists() will be false
-      const isNewSpot = !spotDoc.exists();
-      
-      let currentSpotData = {} as TouristSpot;
-      if (!isNewSpot) {
-        currentSpotData = spotDoc.data() as TouristSpot;
-      }
-      
-      // Check if user is admin
-      const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-      const isUserAdmin = adminDoc.exists() && adminDoc.data()?.email === user.email;
-      
-      // If not admin, check if user is barangay admin or private spot admin for this spot
-      if (!isUserAdmin && !isNewSpot) {
-        // Check if user is barangay admin
-        const barangayAdminDoc = await getDoc(doc(db, 'barangayAdmins', user.uid));
-        const isBarangayAdmin = barangayAdminDoc.exists() && 
-                              barangayAdminDoc.data()?.barangay === currentSpotData.barangay;
-        
-        // Check if user is private spot admin and owns this spot
-        const privateSpotAdminDoc = await getDoc(doc(db, 'privateSpotOwners', user.uid));
-        const isPrivateSpotAdmin = privateSpotAdminDoc.exists() && 
-                                 privateSpotAdminDoc.data()?.uid === 
-                                 (currentSpotData as any).businessId; // Type assertion to handle optional field
-        
-        if (!isBarangayAdmin && !isPrivateSpotAdmin) {
-          throw new Error('You do not have permission to update this spot');
-        }
-      }
-      
-      // Create update data
-      const updateData: Partial<TouristSpot> = {
-        name: editedSpot.name || '',
-        description: editedSpot.description || '',
-        location: editedSpot.location || '',
-        barangay: editedSpot.barangay || '',
-        category: editedSpot.category || 'other',
-        contact: editedSpot.contact || '',
-        entranceFee: editedSpot.entranceFee || '',
-        entranceFees: editedSpot.entranceFees || {
-          adults: { label: 'Adults (18–59 years)', amount: 0 },
-          seniors: { label: 'Seniors (60+ years)', amount: 0 },
-          pwd: { label: 'Persons with Disability (PWD)', amount: 0 },
-          kids: { label: 'Kids (11–17 years)', amount: 0 },
-          children: { label: 'Children (below 6 years)', amount: 0 },
-          environmental: { label: 'Environmental Fee', amount: 0 },
-          tourGuide: { label: 'Tour Guide Fee (optional)', amount: 0 }
-        },
-        detailedDescription: editedSpot.detailedDescription || '',
-        googleMapsLink: editedSpot.googleMapsLink || '',
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Handle image separately if it was changed
-      if (editedSpot.image !== selectedSpot?.image) {
-        updateData.image = editedSpot.image || '';
-      } else if (editedSpot.image) {
-        updateData.image = editedSpot.image;
-      }
-      
-      // Update or create the document in Firestore
-      if (isNewSpot) {
-        // For new spots, we need to use setDoc with merge
-        await setDoc(spotRef, {
-          ...updateData,
-          createdAt: new Date().toISOString(),
-          createdBy: user.uid
-        }, { merge: true });
-      } else {
-        // For existing spots, use updateDoc
-        await updateDoc(spotRef, updateData);
-      }
-      
-      // Get the updated document
-      const updatedDoc = await getDoc(spotRef);
-      const updatedSpot = {
-        id: updatedDoc.id,
-        ...updatedDoc.data()
-      } as TouristSpot;
-      
-      // Update local state
-      const updatedSpots = isNewSpot 
-        ? [...spots, updatedSpot]
-        : spots.map(spot => spot.id === updatedSpot.id ? updatedSpot : spot);
-      
-      setSelectedSpot(updatedSpot);
-      setEditedSpot(updatedSpot);
-      setSpots(updatedSpots);
-      
-      toast.success(`Tourist spot ${isNewSpot ? 'created' : 'updated'} successfully!`);
-      setIsEditing(false);
-    } catch (error: any) {
-      console.error('Error saving document: ', error);
-      toast.error(error.message || 'Failed to save tourist spot. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    if (selectedSpot) {
-      setEditedSpot({...selectedSpot});
-    }
-    setIsEditing(false);
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !editedSpot) return;
-    
-    const file = e.target.files[0];
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file');
-      return;
-    }
-
-    try {
-      setIsUploading(true);
-      
-      // Create a temporary URL for immediate preview
-      const tempUrl = URL.createObjectURL(file);
-      
-      // Update both editedSpot and selectedSpot with the temporary URL
-      const updateWithTempImage = {
-        ...editedSpot,
-        image: tempUrl,
-        _tempImage: file
-      };
-      
-      setEditedSpot(updateWithTempImage);
-      setSelectedSpot(updateWithTempImage);
-      
-      try {
-        // Upload the file in the background
-        const result = await uploadFile(file);
-        const fileUrl = result.url;
-        
-        // If there was a previous image, delete it (but only if it's not the same as the new one)
-        const oldImage = editedSpot.image;
-        if (oldImage && typeof oldImage === 'string' && oldImage.includes('appwrite.io') && oldImage !== fileUrl) {
-          try {
-            const fileId = oldImage.split('/files/')[1]?.split('/view')[0];
-            if (fileId) {
-              await deleteFile(fileId);
-            }
-          } catch (error) {
-            console.error('Error deleting old image:', error);
-            // Continue even if deletion fails
-          }
-        }
-
-        // Update with the permanent URL
-        const updateWithPermanentImage = {
-          ...editedSpot,
-          image: fileUrl,
-          _tempImage: undefined
-        };
-        
-        setEditedSpot(updateWithPermanentImage);
-        setSelectedSpot(updateWithPermanentImage);
-        
-        toast.success('Image uploaded successfully');
-      } catch (error) {
-        console.error('Error uploading file:', error);
-        toast.error('Failed to upload image');
-        // Revert to previous state on error
-        setEditedSpot(prev => ({
-          ...prev!,
-          image: selectedSpot?.image || '',
-          _tempImage: undefined
-        }));
-      }
-    } catch (error) {
-      console.error('Error handling file change:', error);
-      toast.error('An error occurred while processing the image');
-    } finally {
-      setIsUploading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleRemoveImage = async () => {
-    if (!editedSpot || !editedSpot.image) return;
-    
-    const oldImageUrl = editedSpot.image;
-    
-    try {
-      setIsUploading(true);
-      
-      // Update UI immediately
-      setEditedSpot(prev => ({
-        ...prev!,
-        image: '',
-        _tempImage: undefined
-      }));
-      
-      // Delete the old image in the background
-      if (oldImageUrl.includes('appwrite.io')) {
-        try {
-          const fileId = oldImageUrl.split('/files/')[1]?.split('/view')[0];
-          if (fileId) {
-            await deleteFile(fileId);
-          }
-        } catch (error) {
-          console.error('Error deleting image from storage:', error);
-          // Don't show error to user as the UI is already updated
-        }
-      }
-      
-      toast.success('Image removed successfully');
-    } catch (error) {
-      console.error('Error removing image:', error);
-      // Revert the change if something goes wrong
-      setEditedSpot(prev => ({
-        ...prev!,
-        image: oldImageUrl
-      }));
-      toast.error('Failed to remove image');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
+  // Handle input changes for the form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (!editedSpot) return;
     
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     
-    // Handle nested entranceFees updates
+    // Create a deep copy of the edited spot with default entranceFees if not present
+    const updatedSpot: TouristSpot = { 
+      ...editedSpot,
+      entranceFees: editedSpot.entranceFees ? { ...editedSpot.entranceFees } : {
+        adults: { label: 'Adults (18–59 years)', amount: 0 },
+        seniors: { label: 'Seniors (60+ years)', amount: 0 },
+        pwd: { label: 'Persons with Disability (PWD)', amount: 0 },
+        kids: { label: 'Kids (11–17 years)', amount: 0 },
+        children: { label: 'Children (below 6 years)', amount: 0 },
+        environmental: { label: 'Environmental Fee', amount: 0 },
+        tourGuide: { label: 'Tour Guide Fee (optional)', amount: 0 }
+      }
+    };
+    
+    // Handle entrance fees fields
     if (name.startsWith('entranceFees.')) {
       const [_, feeType, field] = name.split('.');
       
-      // Create a deep copy of the current state to avoid direct mutations
-      const updatedSpot = { ...editedSpot };
-      
-      // Initialize entranceFees if it doesn't exist
+      // Ensure entranceFees is properly typed
       if (!updatedSpot.entranceFees) {
         updatedSpot.entranceFees = {
           adults: { label: 'Adults (18–59 years)', amount: 0 },
@@ -628,47 +493,33 @@ export default function TouristSpots() {
         };
       }
       
-      // Handle amount field specifically
+      const feeKey = feeType as keyof EntranceFees;
+      const currentFee = updatedSpot.entranceFees[feeKey] || { label: '', amount: 0 };
+      
       if (field === 'amount') {
-        // If the value is empty string, set it to 0
         const amountValue = value === '' ? 0 : parseFloat(value);
-        
-        // Update the specific fee type
         updatedSpot.entranceFees = {
           ...updatedSpot.entranceFees,
-          [feeType]: {
-            ...(updatedSpot.entranceFees[feeType as keyof EntranceFees] || {
-              label: feeType === 'adults' ? 'Adults (18–59 years)' : 
-                     feeType === 'seniors' ? 'Seniors (60+ years)' :
-                     feeType === 'pwd' ? 'Persons with Disability (PWD)' :
-                     feeType === 'kids' ? 'Kids (11–17 years)' :
-                     feeType === 'children' ? 'Children (below 6 years)' :
-                     feeType === 'environmental' ? 'Environmental Fee' : 'Tour Guide Fee (optional)'
-            }),
+          [feeKey]: {
+            ...currentFee,
             amount: isNaN(amountValue) ? 0 : amountValue
           }
         };
       } else {
-        // Handle label field
         updatedSpot.entranceFees = {
           ...updatedSpot.entranceFees,
-          [feeType]: {
-            ...(updatedSpot.entranceFees[feeType as keyof EntranceFees] || {
-              amount: 0,
-              label: ''
-            }),
+          [feeKey]: {
+            ...currentFee,
             [field]: value
           }
         };
       }
-      
-      setEditedSpot(updatedSpot);
     } else {
-      setEditedSpot({
-        ...editedSpot,
-        [name]: value
-      });
+      // Handle regular fields
+      (updatedSpot as any)[name] = value;
     }
+    
+    setEditedSpot(updatedSpot);
   };
 
   const router = useRouter();
@@ -782,13 +633,23 @@ export default function TouristSpots() {
               <div className="bg-light-green rounded-lg p-6">
                 <div className="flex justify-between items-start">
                   {isEditing ? (
-                    <input
-                      type="text"
-                      name="name"
-                      value={editedSpot.name}
-                      onChange={handleInputChange}
-                      className="text-3xl font-bold text-primary-green bg-egg-white border border-border-green rounded px-3 py-1 w-full"
-                    />
+                    <div className="w-full">
+                      <input
+                        type="text"
+                        name="name"
+                        value={isPrivateSpotAdmin ? (privateSpotAdminData?.privateSpotName || editedSpot.name) : editedSpot.name}
+                        onChange={handleInputChange}
+                        className={`text-3xl font-bold text-primary-green bg-egg-white border border-border-green rounded px-3 py-1 w-full ${
+                          isPrivateSpotAdmin ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
+                        readOnly={isPrivateSpotAdmin}
+                      />
+                      {isPrivateSpotAdmin && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          The name is set to your private spot name and cannot be changed
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <h1 className="text-3xl font-bold text-primary-green">{selectedSpot.name}</h1>
                   )}
@@ -831,7 +692,7 @@ export default function TouristSpots() {
                         <option value="Gardens & Farms">Gardens & Farms</option>
                         <option value="Adventure & Recreation">Adventure & Recreation</option>
                         <option value="Infrastructure">Infrastructure</option>
-                        <option value="Infrastructure">Camping</option>
+                        <option value="Camping">Camping</option>
                       </select>
                     ) : (
                       <span className="bg-accent-green text-egg-white px-3 py-1 rounded-full text-sm font-medium">
@@ -1165,7 +1026,9 @@ export default function TouristSpots() {
                             if (spot.closed) {
                               toast.error('This spot is temporarily closed' + (spot.closedReason ? `: ${spot.closedReason}` : ''));
                             } else {
-                              openDetails(spot);
+                              setSelectedSpot(spot);
+                              setEditedSpot(spot);
+                              setShowDetails(true);
                             }
                           }}
                           disabled={spot.closed}
