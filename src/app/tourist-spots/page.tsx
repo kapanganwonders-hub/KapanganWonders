@@ -21,6 +21,21 @@ interface Announcement {
   createdAt: any;
 }
 
+interface AlertState {
+  variant: 'default' | 'destructive' | 'success';
+  message: string;
+}
+
+interface EntranceFees {
+  adults: { label: string; amount: number };
+  seniors: { label: string; amount: number };
+  pwd: { label: string; amount: number };
+  kids: { label: string; amount: number };
+  children: { label: string; amount: number };
+  environmental: { label: string; amount: number };
+  tourGuide?: { label: string; amount: number }; // Optional
+}
+
 interface TouristSpot {
   id: string;
   numericId?: string | number; // For flexible ID matching
@@ -31,7 +46,8 @@ interface TouristSpot {
   barangay: string;
   category: string;
   contact?: string;
-  entranceFee?: string;
+  entranceFee?: string; // Keeping for backward compatibility
+  entranceFees?: EntranceFees;
   googleMapsLink?: string;
   detailedDescription?: string;
   status?: 'active' | 'inactive';
@@ -58,6 +74,17 @@ export default function TouristSpots() {
 
   // Initialize spots state
   const [spots, setSpots] = useState<TouristSpot[]>([]);
+  const [alertState, setAlertState] = useState<AlertState | null>(null);
+
+  // Auto-clear alert after 5 seconds
+  useEffect(() => {
+    if (alertState) {
+      const timer = setTimeout(() => {
+        setAlertState(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [alertState]);
 
   // Handle URL parameters for direct edit
   useEffect(() => {
@@ -69,13 +96,34 @@ export default function TouristSpots() {
     
     if (!spotId) return;
     
-    // Try to find the spot with type-safe comparison
-    const spot = spots.find(s => {
-      const spotIdStr = String(s.id);
-      return spotIdStr === spotId || spotIdStr === String(parseInt(spotId as string));
-    });
+    // Enhanced spot finding logic
+    let spot: TouristSpot | undefined;
+    
+    // First try exact match
+    spot = spots.find(s => String(s.id) === spotId);
+    
+    // If not found, try numeric comparison
+    if (!spot && !isNaN(Number(spotId))) {
+      spot = spots.find(s => 
+        String(s.id) === String(Number(spotId)) || 
+        (s.numericId && String(s.numericId) === String(Number(spotId)))
+      );
+    }
+    
+    // If still not found, try case-insensitive comparison of string IDs
     if (!spot) {
-      console.error('Spot not found:', spotId);
+      spot = spots.find(s => 
+        String(s.id).toLowerCase() === spotId.toLowerCase()
+      );
+    }
+    
+    if (!spot) {
+      console.error('Spot not found:', spotId, 'Available spots:', spots.map(s => ({ id: s.id, numericId: s.numericId })));
+      // Show error message to the user
+      setAlertState({
+        variant: 'destructive',
+        message: `Tourist spot with ID ${spotId} not found. It may have been moved or deleted.`
+      });
       return;
     }
     
@@ -362,6 +410,15 @@ export default function TouristSpots() {
         category: editedSpot.category || 'other',
         contact: editedSpot.contact || '',
         entranceFee: editedSpot.entranceFee || '',
+        entranceFees: editedSpot.entranceFees || {
+          adults: { label: 'Adults (18–59 years)', amount: 0 },
+          seniors: { label: 'Seniors (60+ years)', amount: 0 },
+          pwd: { label: 'Persons with Disability (PWD)', amount: 0 },
+          kids: { label: 'Kids (11–17 years)', amount: 0 },
+          children: { label: 'Children (below 6 years)', amount: 0 },
+          environmental: { label: 'Environmental Fee', amount: 0 },
+          tourGuide: { label: 'Tour Guide Fee (optional)', amount: 0 }
+        },
         detailedDescription: editedSpot.detailedDescription || '',
         googleMapsLink: editedSpot.googleMapsLink || '',
         updatedAt: new Date().toISOString()
@@ -542,11 +599,69 @@ export default function TouristSpots() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (!editedSpot) return;
     
-    const { name, value } = e.target;
-    setEditedSpot({
-      ...editedSpot,
-      [name]: value
-    });
+    const { name, value, type } = e.target;
+    
+    // Handle nested entranceFees updates
+    if (name.startsWith('entranceFees.')) {
+      const [_, feeType, field] = name.split('.');
+      
+      // Create a deep copy of the current state to avoid direct mutations
+      const updatedSpot = { ...editedSpot };
+      
+      // Initialize entranceFees if it doesn't exist
+      if (!updatedSpot.entranceFees) {
+        updatedSpot.entranceFees = {
+          adults: { label: 'Adults (18–59 years)', amount: 0 },
+          seniors: { label: 'Seniors (60+ years)', amount: 0 },
+          pwd: { label: 'Persons with Disability (PWD)', amount: 0 },
+          kids: { label: 'Kids (11–17 years)', amount: 0 },
+          children: { label: 'Children (below 6 years)', amount: 0 },
+          environmental: { label: 'Environmental Fee', amount: 0 },
+          tourGuide: { label: 'Tour Guide Fee (optional)', amount: 0 }
+        };
+      }
+      
+      // Handle amount field specifically
+      if (field === 'amount') {
+        // If the value is empty string, set it to 0
+        const amountValue = value === '' ? 0 : parseFloat(value);
+        
+        // Update the specific fee type
+        updatedSpot.entranceFees = {
+          ...updatedSpot.entranceFees,
+          [feeType]: {
+            ...(updatedSpot.entranceFees[feeType as keyof EntranceFees] || {
+              label: feeType === 'adults' ? 'Adults (18–59 years)' : 
+                     feeType === 'seniors' ? 'Seniors (60+ years)' :
+                     feeType === 'pwd' ? 'Persons with Disability (PWD)' :
+                     feeType === 'kids' ? 'Kids (11–17 years)' :
+                     feeType === 'children' ? 'Children (below 6 years)' :
+                     feeType === 'environmental' ? 'Environmental Fee' : 'Tour Guide Fee (optional)'
+            }),
+            amount: isNaN(amountValue) ? 0 : amountValue
+          }
+        };
+      } else {
+        // Handle label field
+        updatedSpot.entranceFees = {
+          ...updatedSpot.entranceFees,
+          [feeType]: {
+            ...(updatedSpot.entranceFees[feeType as keyof EntranceFees] || {
+              amount: 0,
+              label: ''
+            }),
+            [field]: value
+          }
+        };
+      }
+      
+      setEditedSpot(updatedSpot);
+    } else {
+      setEditedSpot({
+        ...editedSpot,
+        [name]: value
+      });
+    }
   };
 
   const router = useRouter();
@@ -751,22 +866,68 @@ export default function TouristSpots() {
                     )}
                   </div>
 
-                  {/* Entrance Fee */}
-                  <div>
-                    <h3 className="font-semibold text-primary-green mb-1">Entrance Fee</h3>
+                  {/* Entrance Fees Section Moved Here */}
+                  <div className="mt-4">
+                    <h3 className="font-semibold text-primary-green mb-2">Entrance Fees</h3>
                     {isEditing ? (
-                      <input
-                        type="text"
-                        name="entranceFee"
-                        value={editedSpot.entranceFee || ''}
-                        onChange={handleInputChange}
-                        placeholder="e.g., Free or ₱100 per person"
-                        className="w-full p-2 border border-border-green rounded text-primary-green"
-                      />
-                    ) : selectedSpot.entranceFee ? (
-                      <p className="text-primary-green/70 font-medium">{selectedSpot.entranceFee}</p>
+                      <div className="space-y-3">
+                        {['adults', 'seniors', 'pwd', 'kids', 'children', 'environmental', 'tourGuide'].map((feeType) => (
+                          <div key={feeType} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+                            <label className="text-primary-green font-medium">
+                              {feeType.charAt(0).toUpperCase() + feeType.slice(1)}:
+                            </label>
+                            <input
+                              type="number"
+                              name={`entranceFees.${feeType}.amount`}
+                              value={{
+                                'adults': editedSpot.entranceFees?.adults.amount,
+                                'seniors': editedSpot.entranceFees?.seniors.amount,
+                                'pwd': editedSpot.entranceFees?.pwd.amount,
+                                'kids': editedSpot.entranceFees?.kids.amount,
+                                'children': editedSpot.entranceFees?.children.amount,
+                                'environmental': editedSpot.entranceFees?.environmental.amount,
+                                'tourGuide': editedSpot.entranceFees?.tourGuide?.amount
+                              }[feeType] || ''}
+                              placeholder="0"
+                              onChange={handleInputChange}
+                              min="0"
+                              className="p-2 border border-border-green rounded text-primary-green w-full"
+                            />
+                            <input
+                              type="text"
+                              name={`entranceFees.${feeType}.label`}
+                              value={{
+                                'adults': editedSpot.entranceFees?.adults.label || 'Adults (18–59 years)',
+                                'seniors': editedSpot.entranceFees?.seniors.label || 'Seniors (60+ years)',
+                                'pwd': editedSpot.entranceFees?.pwd.label || 'Persons with Disability (PWD)',
+                                'kids': editedSpot.entranceFees?.kids.label || 'Kids (11–17 years)',
+                                'children': editedSpot.entranceFees?.children.label || 'Children (below 6 years)',
+                                'environmental': editedSpot.entranceFees?.environmental.label || 'Environmental Fee',
+                                'tourGuide': editedSpot.entranceFees?.tourGuide?.label || 'Tour Guide Fee (optional)'
+                              }[feeType]}
+                              onChange={handleInputChange}
+                              className="p-2 border border-border-green rounded text-primary-green w-full"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <p className="text-primary-green/70 italic">No entrance fee information available</p>
+                      <div className="space-y-2">
+                        {selectedSpot.entranceFees ? (
+                          Object.entries(selectedSpot.entranceFees).map(([feeType, fee]) => (
+                            fee && (
+                              <div key={feeType} className="flex justify-between">
+                                <span className="text-primary-green/70">{fee.label || feeType}:</span>
+                                <span className="font-medium">
+                                  {fee.amount > 0 ? `₱${fee.amount.toFixed(2)}` : 'Free'}
+                                </span>
+                              </div>
+                            )
+                          ))
+                        ) : (
+                          <p className="text-primary-green/70 italic">No entrance fee information available</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -872,6 +1033,25 @@ export default function TouristSpots() {
           </p>
         </div>
       </div>
+
+      {/* Alert Message */}
+      {alertState && (
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 ${alertState.variant === 'destructive' ? 'bg-red-100' : 'bg-green-100'} rounded-md mb-4`}>
+          <div className="flex items-center justify-between">
+            <p className={`text-sm ${alertState.variant === 'destructive' ? 'text-red-800' : 'text-green-800'}`}>
+              {alertState.message}
+            </p>
+            <button
+              onClick={() => setAlertState(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
@@ -1051,7 +1231,6 @@ export default function TouristSpots() {
     </div>
   );
 }
-function setSpots(updatedSpots: TouristSpot[]) {
-  throw new Error('Function not implemented.');
-}
+// This function is already defined as a state setter in the component
+// and doesn't need to be redefined here
 
