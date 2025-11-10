@@ -102,7 +102,6 @@ export default function UsersManagement() {
     }
 
     try {
-      // @ts-ignore
       const result = await createUserByAdmin(
         newUser.email,
         newUser.password,
@@ -136,31 +135,38 @@ export default function UsersManagement() {
   /* =========================
      🔹 Toggle User Status (Firestore)
   ========================= */
-  const toggleUserStatus = async (userId: string, currentStatus: string) => {
-    const newIsActive = currentStatus !== 'Active'; // toggle true/false
+  const toggleUserStatus = async (user: any) => {
+    const newIsActive = user.status !== 'Active';
     const newStatus = newIsActive ? 'Active' : 'Inactive';
 
-    try {
-      // ✅ Update both fields in Firestore
-      await updateDoc(doc(db, 'users', userId), {
-        isActive: newIsActive,
-        status: newStatus,
-      });
+    let collectionName = 'users'; // default
 
-      // ✅ Update local UI
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === userId
-            ? {
-                ...user,
-                isActive: newIsActive,
-                status: newStatus,
-              }
-            : user
+    if (user.role === 'Barangay Admin') {
+      collectionName = 'barangayAdmins';
+    } else if (user.role === 'Private Spot Owner') {
+      collectionName = 'privateSpotOwners';
+    }
+
+    try {
+      const updates: any = { status: newStatus };
+
+      // Only tourists have "isActive"
+      if (collectionName === 'users') {
+        updates.isActive = newIsActive;
+      }
+
+      await updateDoc(doc(db, collectionName, String(user.id)), updates);
+
+      // Update local state
+      setUsers(prev =>
+        prev.map(u =>
+          u.id === user.id
+            ? { ...u, status: newStatus, isActive: newIsActive }
+            : u
         )
       );
     } catch (err) {
-      console.error('Error updating user status:', err);
+      console.error('Error updating status:', err);
       alert('Failed to update user status.');
     }
   };
@@ -233,15 +239,103 @@ export default function UsersManagement() {
           </button>
         </div>
 
-        {/* Add User Form */}
-        {showAddForm && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-semibold mb-4">Create New Account</h2>
-            {/* Form Fields */}
-            {/* (same as before, no changes needed here) */}
-            {/* ... */}
-          </div>
-        )}
+      {/* Add User Form */}
+{showAddForm && (
+  <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+    <h2 className="text-lg font-semibold mb-4">Create New Account</h2>
+
+    {/* Name */}
+    <div className="mb-3">
+      <label className="block text-sm font-medium text-gray-700">Name</label>
+      <input
+        type="text"
+        value={newUser.name}
+        onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+        className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+        placeholder="Enter full name"
+      />
+    </div>
+
+    {/* Email */}
+    <div className="mb-3">
+      <label className="block text-sm font-medium text-gray-700">Email</label>
+      <input
+        type="email"
+        value={newUser.email}
+        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+        className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+        placeholder="Enter email"
+      />
+    </div>
+
+    {/* Password */}
+    <div className="mb-3">
+      <label className="block text-sm font-medium text-gray-700">Password</label>
+      <input
+        type="password"
+        value={newUser.password}
+        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+        className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+        placeholder="Enter password"
+      />
+    </div>
+
+    {/* Role */}
+    <div className="mb-3">
+      <label className="block text-sm font-medium text-gray-700">Role</label>
+      <select
+        value={newUser.role}
+        onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+        className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+      >
+        <option value="Tourist">Tourist</option>
+        <option value="Barangay Admin">Barangay Admin</option>
+        <option value="Private Spot Owner">Private Spot Owner</option>
+      </select>
+    </div>
+
+    {/* Barangay - only for admins or private spot owners */}
+    {(newUser.role === 'Barangay Admin' || newUser.role === 'Private Spot Owner') && (
+      <div className="mb-3">
+        <label className="block text-sm font-medium text-gray-700">Barangay</label>
+        <input
+          type="text"
+          value={newUser.barangay}
+          onChange={(e) => setNewUser({ ...newUser, barangay: e.target.value })}
+          className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Enter barangay"
+        />
+      </div>
+    )}
+
+    {/* Private Spot Name - only for private spot owners */}
+    {newUser.role === 'Private Spot Owner' && (
+      <div className="mb-3">
+        <label className="block text-sm font-medium text-gray-700">Private Spot Name</label>
+        <input
+          type="text"
+          value={newUser.privateSpotName}
+          onChange={(e) =>
+            setNewUser({ ...newUser, privateSpotName: e.target.value })
+          }
+          className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Enter private spot name"
+        />
+      </div>
+    )}
+
+    {/* Submit Button */}
+    <div className="flex justify-end mt-4">
+      <button
+        onClick={handleCreateUser}
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+      >
+        Create User
+      </button>
+    </div>
+  </div>
+)}
+
 
         {/* Table */}
         <div className="bg-white rounded-xl shadow-sm p-6">
@@ -336,12 +430,7 @@ export default function UsersManagement() {
                       <td className="px-6 py-4 text-right text-sm">
                         <div className="flex justify-end space-x-2">
                           <button
-                            onClick={() =>
-                              toggleUserStatus(
-                                user.id,
-                                user.status === 'Active' ? 'Active' : 'Inactive'
-                              )
-                            }
+                            onClick={() => toggleUserStatus(user)}
                             className={`${
                               user.status === 'Active'
                                 ? 'text-yellow-600 hover:text-yellow-900'

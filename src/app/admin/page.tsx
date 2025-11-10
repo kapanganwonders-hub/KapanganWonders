@@ -20,10 +20,11 @@ import {
 export default function AdminDashboard() {
   const [visitLogs, setVisitLogs] = useState<any[]>([]);
   const [activeUsers, setActiveUsers] = useState(0);
+  const [inactiveUsers, setInactiveUsers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
-  // 🎯 Fetch visit logs + active users
+  // 🎯 Fetch visit logs + user stats
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -33,15 +34,37 @@ export default function AdminDashboard() {
 
         const barangayAdminsSnapshot = await getDocs(collection(db, 'barangayAdmins'));
         const privateOwnersSnapshot = await getDocs(collection(db, 'privateSpotOwners'));
+        const usersSnapshot = await getDocs(collection(db, 'users'));
 
-        const barangayAdmins = barangayAdminsSnapshot.docs
+        // 🟢 Active
+        const barangayAdminsActive = barangayAdminsSnapshot.docs
           .map((doc) => doc.data())
-          .filter((user: any) => user.status === 'Active');
-        const privateOwners = privateOwnersSnapshot.docs
-          .map((doc) => doc.data())
-          .filter((user: any) => user.status === 'Active');
+          .filter((user: any) => user.status === 'Active' || user.isActive === true);
 
-        setActiveUsers(barangayAdmins.length + privateOwners.length);
+        const privateOwnersActive = privateOwnersSnapshot.docs
+          .map((doc) => doc.data())
+          .filter((user: any) => user.status === 'Active' || user.isActive === true);
+
+        const usersActive = usersSnapshot.docs
+          .map((doc) => doc.data())
+          .filter((user: any) => user.status === 'Active' || user.isActive === true);
+
+        // 🔴 Inactive
+        const barangayAdminsInactive = barangayAdminsSnapshot.docs
+          .map((doc) => doc.data())
+          .filter((user: any) => user.status === 'Inactive' || user.isActive === false);
+
+        const privateOwnersInactive = privateOwnersSnapshot.docs
+          .map((doc) => doc.data())
+          .filter((user: any) => user.status === 'Inactive' || user.isActive === false);
+
+        const usersInactive = usersSnapshot.docs
+          .map((doc) => doc.data())
+          .filter((user: any) => user.status === 'Inactive' || user.isActive === false);
+
+        // ✅ Set counts
+        setActiveUsers(barangayAdminsActive.length + privateOwnersActive.length + usersActive.length);
+        setInactiveUsers(barangayAdminsInactive.length + privateOwnersInactive.length + usersInactive.length);
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -72,18 +95,16 @@ export default function AdminDashboard() {
     }
   }, [filter, visitLogs]);
 
-  // ✅ Elegant shimmer skeleton loader
+  // ✅ Loading skeleton
   if (loading) {
     return (
       <div className="p-6 space-y-6 animate-pulse">
         <div className="h-8 bg-gray-300 rounded w-1/3 mx-auto" />
-        <div className="grid md:grid-cols-3 gap-4 mt-8">
-          {[1, 2, 3].map((i) => (
+        <div className="grid md:grid-cols-4 gap-4 mt-8">
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-24 bg-gray-200 rounded-xl" />
           ))}
         </div>
-        <div className="h-64 bg-gray-200 rounded-xl mt-6" />
-        <div className="h-64 bg-gray-200 rounded-xl" />
       </div>
     );
   }
@@ -124,7 +145,7 @@ export default function AdminDashboard() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-green-700">📈 Tourism Dashboard</h1>
+        <h1 className="text-3xl font-bold text-green-700">📊 Tourism Dashboard</h1>
 
         {/* Filter buttons */}
         <div className="flex gap-2">
@@ -145,7 +166,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-gray-500">Total Visitors This {filter}</p>
@@ -166,9 +187,16 @@ export default function AdminDashboard() {
             <p className="text-3xl font-bold text-green-600">{activeUsers}</p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-gray-500">Inactive Accounts</p>
+            <p className="text-3xl font-bold text-red-500">{inactiveUsers}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Monthly Visitors Chart */}
+      {/* Visitors by Month */}
       <Card>
         <CardContent className="p-4">
           <h2 className="text-xl font-semibold mb-3">Visitors by Month</h2>
@@ -183,7 +211,7 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* Visitor Type Pie Chart */}
+      {/* Visitor Type Distribution */}
       <Card>
         <CardContent className="p-4">
           <h2 className="text-xl font-semibold mb-3">Visitor Type Distribution</h2>
