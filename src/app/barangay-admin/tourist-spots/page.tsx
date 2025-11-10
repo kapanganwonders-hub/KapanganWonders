@@ -56,23 +56,45 @@ export default function TouristSpotsPage() {
   interface FormData {
     name: string;
     description: string;
+    detailedDescription: string;
     category: string;
+    barangay: string;
     address: string;
+    location: string;
     contact: string;
     entranceFee: string;
     googleMapsLink: string;
-    detailedDescription: string;
+    entranceFees: {
+      adults: { amount: number };
+      children: { amount: number };
+      environmental: { amount: number };
+      kids: { amount: number };
+      pwd: { amount: number };
+      seniors: { amount: number };
+      tourGuide: { amount: number };
+    };
   }
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
+    detailedDescription: '',
     category: 'Natural',
+    barangay: '',
     address: '',
+    location: '',
     contact: '',
     entranceFee: '',
     googleMapsLink: '',
-    detailedDescription: ''
+    entranceFees: {
+      adults: { amount: 55 },
+      children: { amount: 0 },
+      environmental: { amount: 120 },
+      kids: { amount: 35 },
+      pwd: { amount: 45 },
+      seniors: { amount: 45 },
+      tourGuide: { amount: 400 }
+    }
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -196,12 +218,23 @@ export default function TouristSpotsPage() {
       setFormData({
         name: '',
         description: '',
-        category: '',
+        detailedDescription: '',
+        category: 'Natural',
+        barangay: formData.barangay, // Preserve the barangay
         address: '',
+        location: formData.location || '', // Preserve location if exists
         contact: '',
         entranceFee: '',
         googleMapsLink: '',
-        detailedDescription: ''
+        entranceFees: {
+          adults: { amount: 55 },
+          children: { amount: 0 },
+          environmental: { amount: 120 },
+          kids: { amount: 35 },
+          pwd: { amount: 45 },
+          seniors: { amount: 45 },
+          tourGuide: { amount: 400 }
+        }
       });
       setAlertState({ variant: 'success', message: 'Tourist spot added successfully' });
       fetchSpots();
@@ -271,17 +304,19 @@ export default function TouristSpotsPage() {
       setImageFile(null);
       setImagePreview(null);
       setShowAddForm(false);
-      setFormData({
-        name: '',
-        description: '',
-        category: 'Natural',
-        address: '',
-        contact: '',
-        entranceFee: '',
-        googleMapsLink: '',
-        detailedDescription: ''
-      });
-      
+     setFormData({
+  name: '',
+  description: '',
+  detailedDescription: '',
+  category: 'Natural',
+  barangay: formData.barangay, // Preserve the current barangay
+  address: '',
+  location: formData.location || '', // Preserve location if exists
+  contact: '',
+  entranceFee: '',
+  googleMapsLink: '',
+  entranceFees: formData.entranceFees // Preserve the entrance fees structure
+});
       setAlertState({ 
         variant: 'success', 
         message: 'Tourist spot updated successfully' 
@@ -488,11 +523,17 @@ export default function TouristSpotsPage() {
                   }
                   className="w-full border rounded-lg px-3 py-2"
                 >
-                  <option value="Natural">Natural</option>
-                  <option value="Cultural">Cultural</option>
-                  <option value="Historical">Historical</option>
-                  <option value="Adventure">Adventure</option>
-                  <option value="Religious">Religious</option>
+                 <option value="Agricultural Heritage">Agricultural Heritage</option>
+                        <option value="Natural Attractions">Natural Attractions</option>
+                        <option value="Waterfalls">Waterfalls</option>
+                        <option value="Caves">Caves</option>
+                        <option value="Mountains & Hiking">Mountains & Hiking</option>
+                        <option value="Cultural Heritage">Cultural Heritage</option>
+                        <option value="Viewing Areas">Viewing Areas</option>
+                        <option value="Gardens & Farms">Gardens & Farms</option>
+                        <option value="Adventure & Recreation">Adventure & Recreation</option>
+                        <option value="Infrastructure">Infrastructure</option>
+                        <option value="Infrastructure">Camping</option>
                 </select>
               </div>
 
@@ -527,22 +568,42 @@ export default function TouristSpotsPage() {
                 />
               </div>
 
-              {/* Entrance Fee */}
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Entrance Fee
-                </label>
-                <input
-                  type="text"
-                  value={formData.entranceFee}
-                  onChange={(e) =>
-                    setFormData({ ...formData, entranceFee: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="e.g., Free or PHP 100.00"
-                />
+              {/* Entrance Fees */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Entrance Fees</h3>
+                {Object.entries(formData.entranceFees).map(([feeType, fee]) => (
+                  <div key={feeType} className="grid grid-cols-1 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {feeType.charAt(0).toUpperCase() + feeType.slice(1)} (₱)
+                      </label>
+                      <input
+                        type="number"
+                        value={fee.amount === 0 ? '' : fee.amount}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Convert to number, but keep as integer if no decimal
+                          const numValue = value === '' ? 0 : (value.includes('.') ? parseFloat(value) : parseInt(value) || 0);
+                          setFormData({
+                            ...formData,
+                            entranceFees: {
+                              ...formData.entranceFees,
+                              [feeType]: {
+                                ...fee,
+                                amount: numValue
+                              }
+                            }
+                          });
+                        }}
+                        min="0"
+                        step="1"
+                        className="w-full border rounded-lg px-3 py-2"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
-
               {/* Google Maps Link */}
               <div>
                 <label className="block text-sm font-medium mb-1">

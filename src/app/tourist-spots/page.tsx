@@ -817,6 +817,7 @@ export default function TouristSpots() {
                         <option value="Gardens & Farms">Gardens & Farms</option>
                         <option value="Adventure & Recreation">Adventure & Recreation</option>
                         <option value="Infrastructure">Infrastructure</option>
+                        <option value="Infrastructure">Camping</option>
                       </select>
                     ) : (
                       <span className="bg-accent-green text-egg-white px-3 py-1 rounded-full text-sm font-medium">
@@ -873,9 +874,17 @@ export default function TouristSpots() {
                       <div className="space-y-3">
                         {['adults', 'seniors', 'pwd', 'kids', 'children', 'environmental', 'tourGuide'].map((feeType) => (
                           <div key={feeType} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                            <label className="text-primary-green font-medium">
-                              {feeType.charAt(0).toUpperCase() + feeType.slice(1)}:
-                            </label>
+                            <div className="p-2 border border-border-green rounded text-primary-green w-full bg-gray-50">
+                              {{
+                                'adults': 'Adults (18–59 years)',
+                                'seniors': 'Seniors (60+ years)',
+                                'pwd': 'Persons with Disability (PWD)',
+                                'kids': 'Kids (11–17 years)',
+                                'children': 'Children (below 6 years)',
+                                'environmental': 'Environmental Fee',
+                                'tourGuide': 'Tour Guide Fee (optional)'
+                              }[feeType]}
+                            </div>
                             <input
                               type="number"
                               name={`entranceFees.${feeType}.amount`}
@@ -894,7 +903,7 @@ export default function TouristSpots() {
                               className="p-2 border border-border-green rounded text-primary-green w-full"
                             />
                             <input
-                              type="text"
+                              type="hidden"
                               name={`entranceFees.${feeType}.label`}
                               value={{
                                 'adults': editedSpot.entranceFees?.adults.label || 'Adults (18–59 years)',
@@ -905,8 +914,6 @@ export default function TouristSpots() {
                                 'environmental': editedSpot.entranceFees?.environmental.label || 'Environmental Fee',
                                 'tourGuide': editedSpot.entranceFees?.tourGuide?.label || 'Tour Guide Fee (optional)'
                               }[feeType]}
-                              onChange={handleInputChange}
-                              className="p-2 border border-border-green rounded text-primary-green w-full"
                             />
                           </div>
                         ))}
