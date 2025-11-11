@@ -273,7 +273,7 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
   }, [spots]);
 
   // Fetch closure announcements
-  const fetchClosureAnnouncements = async () => {
+  const fetchClosureAnnouncements = async (): Promise<Announcement[]> => {
     try {
       const db = getFirestore();
       const now = new Date().toISOString();
@@ -285,25 +285,21 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
         'Closure - Road Access',
         'Closure - Other'
       ];
-      
+
+      // Try to fetch categories from API with error handling
       try {
-        // Try to fetch categories from API
         const categoriesResponse = await fetch('/api/announcements/categories');
-        
-        // Check if response is JSON
-        const contentType = categoriesResponse.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const categories = await categoriesResponse.json();
-          
-          // Filter for closure categories (case-insensitive)
-          if (Array.isArray(categories)) {
-            const dynamicClosureCats = categories.filter((cat: string) => 
-              cat && typeof cat === 'string' && cat.toLowerCase().includes('closure')
-            );
-            
-            // Use dynamic categories if any found, otherwise keep defaults
-            if (dynamicClosureCats.length > 0) {
-              closureCategories = dynamicClosureCats;
+        if (categoriesResponse.ok) {
+          const contentType = categoriesResponse.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const categories = await categoriesResponse.json();
+            if (Array.isArray(categories)) {
+              const dynamicClosureCats = categories.filter((cat: string) => 
+                cat && typeof cat === 'string' && cat.toLowerCase().includes('closure')
+              );
+              if (dynamicClosureCats.length > 0) {
+                closureCategories = dynamicClosureCats;
+              }
             }
           }
         }
@@ -313,51 +309,88 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
       
       console.log('Using closure categories:', closureCategories);
       
-      // Fetch all announcements that are in any closure category
-      const q = query(
-        collection(db, 'announcements'),
-        where('category', 'in', closureCategories)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      // Process announcements
-      const announcements = querySnapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            title: data.title || '',
-            content: data.content || '',
-            category: data.category || '',
-            touristSpotId: data.touristSpotId,
-            touristSpotName: data.touristSpotName,
-            privateSpotName: data.privateSpotName,
-            businessId: data.businessId,
-            businessName: data.businessName,
-            expiryDate: data.expiryDate,
-            createdAt: data.createdAt,
-            closedAt: data.closedAt || new Date().toISOString()
-          } as Announcement;
-        })
-        .filter(announcement => {
-          // Check if announcement is not expired
-          const isNotExpired = !announcement.expiryDate || 
-            announcement.expiryDate >= now;
-            
-          if (!isNotExpired) {
-            console.log(`Skipping expired announcement: ${announcement.id}`);
+      try {
+        // Fetch all announcements that are in any closure category
+        // Using a try-catch block to handle potential permission errors
+        let querySnapshot;
+        try {
+          const q = query(
+            collection(db, 'announcements'),
+            where('category', 'in', closureCategories)
+          );
+          querySnapshot = await getDocs(q);
+        } catch (queryError) {
+          console.error('Error querying announcements:', queryError);
+          // If there's a permission error, try with a more permissive query
+          try {
+            // Try with a simpler query that only checks for one category
+            const q = query(
+              collection(db, 'announcements'),
+              where('category', '==', 'Closure - Maintenance')
+            );
+            querySnapshot = await getDocs(q);
+          } catch (fallbackError) {
+            console.error('Fallback query failed:', fallbackError);
+            return [];
           }
-            
-          return isNotExpired;
-        });
+        }
         
-      console.log('Fetched active closure announcements:', announcements.length);
-      
-      setClosureAnnouncements(announcements);
-      return announcements;
+        if (!querySnapshot) return [];
+        
+        // Process announcements
+        const announcements = querySnapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              title: data.title || 'Announcement',
+              content: data.content || 'This spot is temporarily closed.',
+              category: data.category || 'Closure - Maintenance',
+              touristSpotId: data.touristSpotId || data.spotId || '',
+              touristSpotName: data.touristSpotName || data.spotName || 'Unknown Spot',
+              privateSpotName: data.privateSpotName || '',
+              businessId: data.businessId || '',
+              businessName: data.businessName || '',
+              expiryDate: data.expiryDate || data.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Default to 7 days from now
+              createdAt: data.createdAt || new Date().toISOString(),
+              closedAt: data.closedAt || new Date().toISOString()
+            } as Announcement;
+          })
+          .filter(announcement => {
+            // Check if announcement is not expired
+            const isNotExpired = !announcement.expiryDate || 
+              new Date(announcement.expiryDate) >= new Date(now);
+              
+            if (!isNotExpired) {
+              console.log(`Skipping expired announcement: ${announcement.id}`);
+            }
+            
+            return isNotExpired;
+          });
+        
+        console.log('Fetched announcements:', announcements);
+        return announcements;
+      } catch (firestoreError) {
+        console.error('Error in fetchClosureAnnouncements:', firestoreError);
+        // Return a default closure announcement if there's an error
+        return [{
+          id: 'default-closure',
+          title: 'Temporary Closure',
+          content: 'This spot is temporarily closed. Please check back later.',
+          category: 'Closure - Maintenance',
+          touristSpotId: '',
+          touristSpotName: '',
+          privateSpotName: '',
+          businessId: '',
+          businessName: '',
+          expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          createdAt: new Date().toISOString(),
+          closedAt: new Date().toISOString()
+        }];
+      }
     } catch (error) {
-      console.error('Error fetching closure announcements:', error);
+      console.error('Unexpected error in fetchClosureAnnouncements:', error);
+      // Return an empty array to prevent breaking the UI
       return [];
     }
   };
@@ -494,42 +527,52 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
         setLoading(true);
         const db = getFirestore();
         
-        console.log('Fetching spots and announcements...');
+        console.log('Fetching spots...');
         
-        // Fetch spots and announcements in parallel
-        const [announcements, spotsSnapshot] = await Promise.all([
-          fetchClosureAnnouncements(),
-          getDocs(query(collection(db, 'touristSpots')))
-        ]);
-        
-        console.log('Raw spots from Firestore:', spotsSnapshot.docs.map(doc => doc.data()));
-        
-        const spotsData = spotsSnapshot.docs.map(doc => {
-          const data = doc.data();
-          const docId = doc.id;
-          // Try to get numeric ID from data or parse the document ID
-          const numericId = data.id || (!isNaN(Number(docId)) ? Number(docId) : docId);
+        try {
+          // Fetch spots first
+          const spotsSnapshot = await getDocs(collection(db, 'touristSpots'));
           
-          console.log(`Spot ID: ${docId}, Type: ${typeof docId}, Numeric ID: ${numericId} (${typeof numericId})`);
+          // Then try to fetch announcements
+          let announcements: Announcement[] = [];
+          try {
+            announcements = await fetchClosureAnnouncements();
+            console.log('Fetched closure announcements:', announcements);
+          } catch (announcementError) {
+            console.warn('Could not load closure announcements, continuing without them', announcementError);
+          }
           
-          return {
-            ...data,
-            id: docId,  // Keep original ID as string
-            numericId,  // Add numeric ID for flexible matching
-          } as TouristSpot;
-        });
-        
-        console.log('Fetched spots:', spotsData);
-        
-        // Process spots with closure information
-        const processedSpots = processSpotsWithClosures(spotsData, announcements);
-        
-        console.log('Processed spots with closures:', processedSpots);
-        setSpots(processedSpots);
-        setError(null);
+          console.log('Raw spots from Firestore:', spotsSnapshot.docs.map(doc => doc.data()));
+          
+          const spotsData = spotsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            const docId = doc.id;
+            const numericId = data.id || (!isNaN(Number(docId)) ? Number(docId) : docId);
+            
+            console.log(`Spot ID: ${docId}, Type: ${typeof docId}, Numeric ID: ${numericId} (${typeof numericId})`);
+            
+            return {
+              ...data,
+              id: docId,  // Keep original ID as string
+              numericId,  // Add numeric ID for flexible matching
+            } as TouristSpot;
+          });
+          
+          console.log('Fetched spots:', spotsData);
+          
+          // Process spots with any announcements we could fetch
+          const processedSpots = processSpotsWithClosures(spotsData, announcements);
+          
+          console.log('Processed spots with closures:', processedSpots);
+          setSpots(processedSpots);
+          setError(null);
+        } catch (firestoreError) {
+          console.error('Error fetching spots from Firestore:', firestoreError);
+          setError('Failed to load tourist spots. Please try again later.');
+        }
       } catch (err) {
-        console.error('Error fetching spots:', err);
-        setError('Failed to load tourist spots. Please try again later.');
+        console.error('Unexpected error in fetchSpots:', err);
+        setError('An unexpected error occurred. Please try again later.');
       } finally {
         setLoading(false);
       }

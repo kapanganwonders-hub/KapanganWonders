@@ -3,6 +3,28 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+
+const BARANGAYS = [
+  'Balakbak',
+  'Boklaoan',
+  'Cayapes',
+  'Cuba',
+  'Datakan',
+  'Gadang',
+  'Gaswiling',
+  'Labueg',
+  'Sagubo',
+  'Taba-ao',
+  'Paykek',
+  'Central',
+  'Pongayan',
+  'Pudong',
+  'Beleng-Belis',
+];
+
+const capitalizeFirstLetter = (str: string) => {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
 import {
   fetchAllUsers,
   createUserByAdmin,
@@ -28,6 +50,7 @@ export default function UsersManagement() {
   const [users, setUsers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showBarangayDropdown, setShowBarangayDropdown] = useState(true);
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
@@ -297,14 +320,46 @@ export default function UsersManagement() {
     {/* Barangay - only for admins or private spot owners */}
     {(newUser.role === 'Barangay Admin' || newUser.role === 'Private Spot Owner') && (
       <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700">Barangay</label>
-        <input
-          type="text"
-          value={newUser.barangay}
-          onChange={(e) => setNewUser({ ...newUser, barangay: e.target.value })}
-          className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Enter barangay"
-        />
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <label className="block text-sm font-medium text-gray-700">Barangay</label>
+            <button
+              type="button"
+              onClick={() => setShowBarangayDropdown(!showBarangayDropdown)}
+              className="text-xs text-blue-600 hover:text-blue-800"
+            >
+              {showBarangayDropdown ? 'Type custom' : 'Select from list'}
+            </button>
+          </div>
+          
+          {showBarangayDropdown ? (
+            <select
+              value={newUser.barangay}
+              onChange={(e) => setNewUser({ ...newUser, barangay: e.target.value })}
+              className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select a barangay</option>
+              {BARANGAYS.map((barangay) => (
+                <option key={barangay} value={barangay}>
+                  {barangay}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={newUser.barangay}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Capitalize first letter and keep the rest as is
+                const capitalized = value ? capitalizeFirstLetter(value) : '';
+                setNewUser({ ...newUser, barangay: capitalized });
+              }}
+              className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter barangay name"
+            />
+          )}
+        </div>
       </div>
     )}
 
