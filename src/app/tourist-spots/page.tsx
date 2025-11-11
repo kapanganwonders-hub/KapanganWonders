@@ -17,8 +17,13 @@ interface Announcement {
   category: string;
   touristSpotId?: string;
   touristSpotName?: string;
+  privateSpotName?: string;
   expiryDate?: string;
   createdAt: any;
+  businessId?: string;
+  businessName?: string;
+  closedAt?: any;
+  closureAnnouncementId?: string;
 }
 
 interface AlertState {
@@ -59,6 +64,10 @@ interface TouristSpot {
   closed?: boolean;
   closedReason?: string;
   closedUntil?: string;
+  closedAt?: any;
+  businessId?: string;
+  businessName?: string;
+  closureAnnouncementId?: string;
   createdAt?: any;
   updatedAt?: any;
   _tempImage?: File; // Temporary file object for upload preview
@@ -269,11 +278,50 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
       const db = getFirestore();
       const now = new Date().toISOString();
       
-      // Fetch all announcements (we'll filter in memory)
-      const q = query(collection(db, 'announcements'));
+      // Default closure categories as fallback
+      let closureCategories = [
+        'Closure - Maintenance',
+        'Closure - Weather Conditions',
+        'Closure - Road Access',
+        'Closure - Other'
+      ];
+      
+      try {
+        // Try to fetch categories from API
+        const categoriesResponse = await fetch('/api/announcements/categories');
+        
+        // Check if response is JSON
+        const contentType = categoriesResponse.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const categories = await categoriesResponse.json();
+          
+          // Filter for closure categories (case-insensitive)
+          if (Array.isArray(categories)) {
+            const dynamicClosureCats = categories.filter((cat: string) => 
+              cat && typeof cat === 'string' && cat.toLowerCase().includes('closure')
+            );
+            
+            // Use dynamic categories if any found, otherwise keep defaults
+            if (dynamicClosureCats.length > 0) {
+              closureCategories = dynamicClosureCats;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch announcement categories, using defaults:', error);
+      }
+      
+      console.log('Using closure categories:', closureCategories);
+      
+      // Fetch all announcements that are in any closure category
+      const q = query(
+        collection(db, 'announcements'),
+        where('category', 'in', closureCategories)
+      );
+      
       const querySnapshot = await getDocs(q);
       
-      // Filter announcements in memory
+      // Process announcements
       const announcements = querySnapshot.docs
         .map(doc => {
           const data = doc.data();
@@ -284,22 +332,27 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
             category: data.category || '',
             touristSpotId: data.touristSpotId,
             touristSpotName: data.touristSpotName,
+            privateSpotName: data.privateSpotName,
+            businessId: data.businessId,
+            businessName: data.businessName,
             expiryDate: data.expiryDate,
-            createdAt: data.createdAt
+            createdAt: data.createdAt,
+            closedAt: data.closedAt || new Date().toISOString()
           } as Announcement;
         })
         .filter(announcement => {
-          const isClosure = [
-            'Closure - Maintenance', 
-            'Closure - Weather Conditions', 
-            'Closure - Road Access'
-          ].includes(announcement.category);
-          
+          // Check if announcement is not expired
           const isNotExpired = !announcement.expiryDate || 
             announcement.expiryDate >= now;
             
-          return isClosure && isNotExpired;
+          if (!isNotExpired) {
+            console.log(`Skipping expired announcement: ${announcement.id}`);
+          }
+            
+          return isNotExpired;
         });
+        
+      console.log('Fetched active closure announcements:', announcements.length);
       
       setClosureAnnouncements(announcements);
       return announcements;
@@ -315,65 +368,123 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
     console.log('Announcements:', announcements);
     
     const spotMap = new Map<string, Announcement>();
+    const businessClosureMap = new Map<string, Announcement>();
+    const now = new Date().toISOString();
     
-    // Create a map of spot IDs to their closure announcements
+    // Process announcements
     announcements.forEach(announcement => {
-      if (announcement.touristSpotId) {
+      console.log('Processing announcement:', announcement);
+      
+      // Handle spot-based closures
+      if (announcement.touristSpotId && announcement.touristSpotId !== 'default') {
         const announcementSpotId = announcement.touristSpotId;
-        console.log(`Found closure announcement for spot ${announcementSpotId} (${typeof announcementSpotId}):`, announcement);
+        console.log(`Found spot-based closure announcement for ${announcementSpotId}`);
         
-        // Store under both string and number keys to handle type mismatches
-        spotMap.set(announcementSpotId.toString(), announcement);
+        // Store under multiple possible keys to handle different ID formats
+        const keys = new Set<string>([
+          announcementSpotId.toString(),
+          announcementSpotId.toString().toLowerCase(),
+          announcementSpotId.toString().trim()
+        ]);
         
         // If the ID can be parsed as a number, also store it as a number
         const numericId = parseInt(announcementSpotId);
         if (!isNaN(numericId)) {
-          spotMap.set(numericId.toString(), announcement);
+          keys.add(numericId.toString());
         }
-      } else {
-        console.log('Announcement missing touristSpotId:', announcement);
+        
+        // Store the announcement under all possible keys
+        keys.forEach(key => {
+          const existingAnnouncement = spotMap.get(key);
+          const existingDate = existingAnnouncement?.createdAt?.toDate?.() || 0;
+          const newDate = announcement.createdAt?.toDate?.() || 0;
+          
+          if (!existingAnnouncement || newDate > existingDate) {
+            console.log(`Storing spot announcement under key: ${key}`);
+            spotMap.set(key, announcement);
+          }
+        });
+      } 
+      // Handle business-based closures (for private spots)
+      if (announcement.businessId) {
+        console.log(`Found business-based closure announcement for business ${announcement.businessId}`);
+        const businessKey = announcement.businessId;
+        const existingAnnouncement = businessClosureMap.get(businessKey);
+        const existingDate = existingAnnouncement?.createdAt?.toDate?.() || 0;
+        const newDate = announcement.createdAt?.toDate?.() || 0;
+        
+        if (!existingAnnouncement || newDate > existingDate) {
+          console.log(`Storing business announcement for business ID: ${businessKey}`);
+          businessClosureMap.set(businessKey, announcement);
+        }
       }
     });
     
     console.log('Spot map:', Array.from(spotMap.entries()));
+    console.log('Business closure map:', Array.from(businessClosureMap.entries()));
     
     // Update spots with closure information
-    const processedSpots = spots.map(spot => {
-      // Try multiple ID lookups to handle different formats
+    return spots.map(spot => {
+      // Check for direct spot-based closure
       const possibleIds = [
         spot.id,
         spot.numericId?.toString(),
         spot.id?.toString(),
-        // If ID is a number, try it as a number too
-        ...(spot.id && !isNaN(Number(spot.id)) ? [Number(spot.id).toString()] : [])
+        spot.id?.toString().toLowerCase()
       ].filter(Boolean) as string[];
       
-      // Find the first matching announcement
-      const closureAnnouncement = possibleIds
+      const spotClosureAnnouncement = possibleIds
         .map(id => spotMap.get(id))
         .find(Boolean);
       
-      console.log(`Processing spot ID: ${spot.id} (${typeof spot.id}), numericId: ${spot.numericId}, closureAnnouncement:`, closureAnnouncement);
+      // Check for business-based closure
+      const businessClosureAnnouncement = spot.businessId 
+        ? businessClosureMap.get(spot.businessId)
+        : null;
+      
+      // Use the most recent closure announcement (spot-based takes precedence over business-based)
+      const closureAnnouncement = spotClosureAnnouncement || businessClosureAnnouncement;
       
       if (closureAnnouncement) {
-        console.log(`Marking spot ${spot.id} (${typeof spot.id}) as closed. Reason: ${closureAnnouncement.content}`);
-        return {
+        const closedSpot = {
           ...spot,
           closed: true,
           closedReason: closureAnnouncement.content || 'This spot is temporarily closed',
-          closedUntil: closureAnnouncement.expiryDate
+          closedUntil: closureAnnouncement.expiryDate,
+          businessId: spot.businessId || closureAnnouncement.businessId,
+          businessName: spot.businessName || closureAnnouncement.businessName || closureAnnouncement.privateSpotName,
+          closedAt: spot.closedAt || closureAnnouncement.closedAt || now,
+          closureAnnouncementId: spot.closureAnnouncementId || closureAnnouncement.id,
+          status: spot.status === 'active' ? 'inactive' : spot.status
+        };
+        
+        console.log(`Marked spot as closed:`, {
+          spotId: spot.id,
+          spotName: spot.name,
+          businessId: closedSpot.businessId,
+          businessName: closedSpot.businessName,
+          reason: closedSpot.closedReason,
+          closedUntil: closedSpot.closedUntil
+        });
+        
+        return closedSpot;
+      }
+      
+      // If no closure announcement exists, ensure the spot is marked as open
+      // but preserve any other status if it was set manually
+      if (spot.closed) {
+        console.log(`Marking spot ${spot.id} as open (no active closure announcements)`);
+        return {
+          ...spot,
+          closed: false,
+          // Only update status to 'active' if it was previously 'inactive' due to a closure
+          status: spot.status === 'inactive' && spot.closureAnnouncementId ? 'active' : spot.status,
+          closureAnnouncementId: undefined
         };
       }
       
-      // Ensure closed is explicitly set to false if no closure announcement exists
-      return {
-        ...spot,
-        closed: false
-      };
+      return spot;
     });
-    
-    console.log('Processed spots:', processedSpots);
-    return processedSpots;
   };
 
   // Fetch all tourist spots
@@ -994,10 +1105,20 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
                               unoptimized={spot.image.includes('appwrite.io')}
                             />
                             {spot.closed && (
-                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                                <div className="bg-red-500/90 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                  Temporarily Closed
+                              <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center p-4 text-center">
+                                <div className="bg-red-500/90 text-white px-4 py-2 rounded-lg max-w-xs">
+                                  <div className="font-medium text-sm">Temporarily Closed</div>
+                                  {spot.businessName && (
+                                    <div className="text-xs mt-1 bg-white/20 px-2 py-0.5 rounded-full inline-block">
+                                      {spot.businessName}
+                                    </div>
+                                  )}
                                 </div>
+                                {spot.closedReason && (
+                                  <div className="mt-2 text-white text-sm bg-black/40 px-3 py-1.5 rounded-lg max-w-md">
+                                    {spot.closedReason}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </>
@@ -1017,7 +1138,9 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
                         <p className={`text-sm ${spot.closed ? 'text-red-500' : 'text-accent-green'} font-medium mb-4`}>
                           {spot.location}
                           {spot.closed && spot.closedUntil && (
-                            <span className="block text-xs mt-1">Closed until: {new Date(spot.closedUntil).toLocaleDateString()}</span>
+                            <span className="block text-xs mt-1">
+                              Closed until: {new Date(spot.closedUntil).toLocaleDateString()}
+                            </span>
                           )}
                         </p>
                         <button

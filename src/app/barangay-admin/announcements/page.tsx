@@ -85,9 +85,18 @@ export default function AnnouncementsPage() {
 
   // Fetch announcements
   const fetchAnnouncements = async () => {
+    if (!currentUser?.uid) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+      const q = query(
+        collection(db, 'announcements'),
+        where('createdBy', '==', currentUser.uid),
+        orderBy('createdAt', 'desc')
+      );
       const querySnapshot = await getDocs(q);
       const announcementsData: Announcement[] = [];
 

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase/config';
 import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 import { 
-  collection, addDoc, getDocs, query, orderBy, where, doc, getDoc, deleteDoc, Timestamp, limit
+  collection, addDoc, getDocs, query, orderBy, where, doc, getDoc, deleteDoc, Timestamp, updateDoc
 } from 'firebase/firestore';
 import { Megaphone, MapPin, Trash2, Construction, CloudRain, Map, Search, Info, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
@@ -15,6 +15,11 @@ interface TouristSpot {
   id: string;
   name: string;
   barangay: string;
+  businessId?: string;
+  businessName?: string;
+  location?: string;
+  status?: string;
+  [key: string]: any; // Allow additional properties
 }
 
 interface Category {
@@ -29,18 +34,20 @@ interface Announcement {
   title: string;
   content: string;
   category: string;
-  barangay: string;
+  barangay?: string;
+  businessName?: string;
+  businessId?: string;
+  privateSpotName?: string;
   createdBy: string;
   createdAt: Timestamp;
   touristSpotId?: string;
   touristSpotName?: string;
   touristSpotImage?: string;
   imageUrl?: string;
-  authorName?: string;
 }
 
 export default function AnnouncementsPage() {
-  const { currentUser, barangayAdminData } = useAuth();
+  const { currentUser, privateSpotAdminData } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,6 +64,13 @@ export default function AnnouncementsPage() {
     touristSpotId: '',
     imageFile: null as File | null,
     imagePreview: ''
+  } as {
+    title: string;
+    content: string;
+    category: string;
+    touristSpotId: string;
+    imageFile: File | null;
+    imagePreview: string;
   });
 
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -66,7 +80,8 @@ export default function AnnouncementsPage() {
     { value: 'Closure - Maintenance', label: 'Closure - Maintenance', icon: <Construction className="w-4 h-4 mr-2" />, emoji: '🚧' },
     { value: 'Closure - Weather Conditions', label: 'Closure - Weather', icon: <CloudRain className="w-4 h-4 mr-2" />, emoji: '⚠️' },
     { value: 'Closure - Road Access', label: 'Closure - Road Access', icon: <AlertCircle className="w-4 h-4 mr-2" />, emoji: '🛣️' },
-    { value: 'Lost and Found', label: 'Lost and Found', icon: <Search className="w-4 h-4 mr-2" />, emoji: '🔍' }
+    { value: 'Lost and Found', label: 'Lost and Found', icon: <Search className="w-4 h-4 mr-2" />, emoji: '🔍' },
+    { value: 'New Tourist Spot Added', label: 'New Tourist Spot Added', icon: <Map className="w-4 h-4 mr-2" />, emoji: '🆕' }
   ];
 
   const getCategoryData = (categoryValue: string) => categories.find(cat => cat.value === categoryValue) || { value: categoryValue, label: categoryValue, icon: <Info className="w-4 h-4 mr-2" />, emoji: 'ℹ️' };
@@ -74,7 +89,7 @@ export default function AnnouncementsPage() {
   const isLostAndFound = formData.category === 'Lost and Found';
   const isClosureCategory = formData.category.includes('Closure');
   const isSpotUpdate = formData.category === 'Tourist Spot Updates';
-  const barangayName = barangayAdminData?.barangayName || barangayAdminData?.barangay || '';
+  const businessName = privateSpotAdminData?.privateSpotName || privateSpotAdminData?.businessName || privateSpotAdminData?.displayName || 'Your Business';
 
   // --- Auto-dismiss alert after 5 seconds ---
   useEffect(() => {
@@ -83,17 +98,19 @@ export default function AnnouncementsPage() {
     return () => clearTimeout(timer);
   }, [alert]);
 
-  // Fetch announcements for the current private spot admin
+  // Fetch announcements for the current admin only
   const fetchAnnouncements = async () => {
-    if (!currentUser) return;
+    if (!currentUser?.uid) return;
     
     setLoading(true);
     try {
+      // Only fetch announcements created by the current admin
       const q = query(
-        collection(db, 'announcements'),
+        collection(db, 'announcements'), 
         where('createdBy', '==', currentUser.uid),
         orderBy('createdAt', 'desc')
       );
+      
       const querySnapshot = await getDocs(q);
       const announcementsData: Announcement[] = [];
 
@@ -101,9 +118,7 @@ export default function AnnouncementsPage() {
         const data = docSnap.data() as Announcement;
         let touristSpotName = '';
         let touristSpotImage = '';
-        let authorName = '';
 
-        // Fetch tourist spot details if available
         if (data.touristSpotId) {
           try {
             const spotRef = doc(db, 'touristSpots', data.touristSpotId);
@@ -118,23 +133,10 @@ export default function AnnouncementsPage() {
           }
         }
 
-        // Get private spot admin name
-        try {
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            authorName = userData.privateSpotName || userData.name || 'Private Spot Admin';
-          }
-        } catch (err) {
-          console.error('Error fetching user details:', err);
-          authorName = 'Private Spot Admin';
-        }
-
         announcementsData.push({
           ...data,
           touristSpotName,
           touristSpotImage,
-          authorName,
           id: docSnap.id
         });
       }
@@ -147,32 +149,98 @@ export default function AnnouncementsPage() {
 
   useEffect(() => { fetchAnnouncements(); }, []);
 
-  // Fetch tourist spots for closure and update categories
+  // Fetch the private spot owner's tourist spot
   useEffect(() => {
-    const fetchSpots = async () => {
-      if (!barangayName) return setTouristSpots([]);
+    const fetchSpot = async () => {
+      console.log('Fetching tourist spot for private spot owner:', privateSpotAdminData);
+      
+      // Always set some default spot data using business info
+      const defaultSpot = {
+        id: privateSpotAdminData?.touristSpotId || 'default',
+        name: businessName,
+        barangay: privateSpotAdminData?.barangay || '',
+        businessId: privateSpotAdminData?.id || privateSpotAdminData?.uid || '',
+        businessName: businessName,
+        location: privateSpotAdminData?.location || '',
+        status: 'active'
+      };
+
+      if (!privateSpotAdminData?.touristSpotId) {
+        console.log('No touristSpotId found in privateSpotAdminData, using business info');
+        setTouristSpots([defaultSpot]);
+        setFormData(prev => ({
+          ...prev,
+          touristSpotId: 'default',
+          title: generateTitle(prev.category, prev.content, businessName)
+        }));
+        return;
+      }
+
       const category = formData.category;
       const isClosure = category.includes('Closure');
       const isUpdate = category === 'Tourist Spot Updates';
-      if (!isClosure && !isUpdate) return setTouristSpots([]);
+      
+      if (!isClosure && !isUpdate) {
+        setTouristSpots([]);
+        return;
+      }
 
       try {
         setLoadingSpots(true);
-        const q = query(collection(db, 'touristSpots'), where('barangay', '==', barangayName));
-        const querySnapshot = await getDocs(q);
-        const spots = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().name || 'Unnamed Spot',
-          barangay: doc.data().barangay,
-        }));
-        setTouristSpots(spots);
+        // Fetch the specific tourist spot for this private spot owner
+        const spotRef = doc(db, 'touristSpots', privateSpotAdminData.touristSpotId);
+        const spotSnap = await getDoc(spotRef);
+        
+        if (spotSnap.exists()) {
+          const spotData = spotSnap.data();
+          const spot = {
+            id: spotSnap.id,
+            name: spotData.name || 'Unnamed Spot',
+            barangay: spotData.barangay || '',
+            businessId: spotData.businessId || '',
+            businessName: spotData.businessName || '',
+            location: spotData.location || '',
+            status: spotData.status || 'active',
+            ...spotData // Include all other spot data
+          };
+          
+          setTouristSpots([spot]);
+          
+          // Auto-select the spot in the form
+          setFormData(prev => ({
+            ...prev,
+            touristSpotId: spot.id,
+            title: generateTitle(prev.category, prev.content, spot.name)
+          }));
+        } else {
+          console.log('Tourist spot not found in database');
+          setTouristSpots([{
+            id: privateSpotAdminData.touristSpotId,
+            name: businessName,
+            barangay: privateSpotAdminData.barangay || '',
+            businessId: privateSpotAdminData?.id || privateSpotAdminData?.uid || '',
+            businessName: businessName,
+            location: privateSpotAdminData?.location || '',
+            status: 'active'
+          }]);
+          setFormData(prev => ({
+            ...prev,
+            touristSpotId: privateSpotAdminData.touristSpotId,
+            title: generateTitle(prev.category, prev.content, businessName)
+          }));
+        }
       } catch (err) {
-        setAlert({ type: 'destructive', message: `Error fetching tourist spots: ${err instanceof Error ? err.message : String(err)}` });
-      } finally { setLoadingSpots(false); }
+        console.error('Error fetching tourist spot:', err);
+        setAlert({ type: 'destructive', message: `Error fetching tourist spot: ${err instanceof Error ? err.message : String(err)}` });
+        setTouristSpots([]);
+        setFormData(prev => ({ ...prev, touristSpotId: '' }));
+      } finally { 
+        setLoadingSpots(false); 
+      }
     };
 
-    fetchSpots();
-  }, [formData.category, barangayName]);
+    fetchSpot();
+  }, [formData.category, privateSpotAdminData?.touristSpotId]);
 
   // Expressive auto-generated title
   const generateTitle = (category: string, content: string, spotName?: string) => {
@@ -209,8 +277,14 @@ export default function AnnouncementsPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) return setAlert({ type: 'destructive', message: 'Please upload an image file' });
-    if (file.size > 5 * 1024 * 1024) return setAlert({ type: 'destructive', message: 'Image size should be less than 5MB' });
+    if (!file.type.startsWith('image/')) {
+      setAlert({ type: 'destructive', message: 'Please upload an image file' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAlert({ type: 'destructive', message: 'Image size should be less than 5MB' });
+      return;
+    }
     setFormData(prev => ({
       ...prev,
       imageFile: file,
@@ -229,33 +303,81 @@ export default function AnnouncementsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !barangayAdminData) return;
+    if (!currentUser || !privateSpotAdminData) return;
     setSaving(true);
     setAlert(null);
     try {
       let imageUrl = '';
       if (isLostAndFound && formData.imageFile) imageUrl = await uploadImage(formData.imageFile);
 
+      // Get the business ID and name from the private spot admin data
+      const businessId = privateSpotAdminData?.id || privateSpotAdminData?.uid || '';
+      const businessNameToUse = businessName;
+
       const announcementData: any = {
         title: formData.title,
         content: formData.content,
         category: formData.category,
-        barangay: barangayName,
+        businessName: businessNameToUse,
+        businessId: businessId,
+        privateSpotName: privateSpotAdminData?.privateSpotName,
         createdBy: currentUser.uid,
         createdAt: Timestamp.now(),
       };
 
-      if ((isClosureCategory || isSpotUpdate) && formData.touristSpotId) {
-        const spot = touristSpots.find(s => s.id === formData.touristSpotId);
-        if (spot) {
-          announcementData.touristSpotId = spot.id;
-          announcementData.touristSpotName = spot.name;
-        }
+      // For private spot admins, we'll always use their associated tourist spot
+      const spot = touristSpots[0]; // Private spot admins only have one spot
+      if (spot) {
+        announcementData.touristSpotId = spot.id;
+        announcementData.touristSpotName = spot.name;
+        announcementData.barangay = spot.barangay;
       }
 
       if (isLostAndFound && imageUrl) announcementData.imageUrl = imageUrl;
 
-      await addDoc(collection(db, 'announcements'), announcementData);
+      // Add the announcement
+      const announcementRef = await addDoc(collection(db, 'announcements'), announcementData);
+      
+      console.log('Announcement saved successfully with ID:', announcementRef.id);
+      
+      // If this is a closure announcement, update the tourist spot status
+      if (isClosureCategory && spot && spot.id !== 'default') {
+        try {
+          const spotRef = doc(db, 'touristSpots', spot.id);
+          await updateDoc(spotRef, {
+            status: 'inactive',
+            closed: true,
+            closedReason: formData.content,
+            closedAt: Timestamp.now(),
+            closedBy: currentUser.uid,
+            closureAnnouncementId: announcementRef.id,
+            businessId: businessId,
+            businessName: businessNameToUse,
+            lastUpdated: Timestamp.now()
+          });
+          
+          console.log('Tourist spot marked as closed');
+          setAlert({ 
+            type: 'success', 
+            message: isClosureCategory 
+              ? 'Spot has been temporarily closed. An announcement has been created.'
+              : 'Announcement has been created successfully.'
+          });
+        } catch (error) {
+          console.error('Error updating tourist spot status:', error);
+          // Don't fail the whole operation if the status update fails
+          setAlert({ 
+            type: 'warning', 
+            message: 'Announcement created, but there was an error updating the spot status. Please try updating it manually.' 
+          });
+        }
+      } else if (spot?.id === 'default') {
+        // If we're using the default spot, just show a success message
+        setAlert({ 
+          type: 'success', 
+          message: 'Announcement created. Note: Could not update spot status - no valid spot ID found.' 
+        });
+      }
 
       setFormData({ title: '', content: '', category: 'Tourist Spot Updates', touristSpotId: '', imageFile: null, imagePreview: '' });
       setShowForm(false);
@@ -279,27 +401,64 @@ export default function AnnouncementsPage() {
       setAnnouncements(prev => prev.filter(a => a.id !== announcementToDelete.id));
       setAlert({ type: 'success', message: 'Announcement deleted successfully!' });
 
-      // Auto-create "now open" announcement for closures
+      // Auto-create "now open" announcement for closures and update spot status
       if (announcementData.category.includes('Closure') && announcementData.touristSpotId) {
         const spotName = announcementData.touristSpotName || '';
-        const nowOpenAnnouncement = {
+        const businessId = privateSpotAdminData?.id || privateSpotAdminData?.uid || '';
+        const businessNameToUse = businessName;
+        
+        // Update the tourist spot status to open
+        try {
+          const spotRef = doc(db, 'touristSpots', announcementData.touristSpotId);
+          await updateDoc(spotRef, {
+            status: 'active',
+            closed: false,
+            closedReason: null,
+            closedAt: null,
+            closedBy: null,
+            closureAnnouncementId: null,
+            businessId: businessId,
+            businessName: businessNameToUse,
+            lastUpdated: Timestamp.now()
+          });
+          console.log('Tourist spot marked as open');
+        } catch (error) {
+          console.error('Error updating tourist spot status:', error);
+          // Continue with creating the announcement even if spot update fails
+        }
+
+        // Create the "now open" announcement
+        const nowOpenAnnouncement: Omit<Announcement, 'id'> = {
           title: `✅ ${spotName} is now open!`,
           content: `The previously closed tourist spot "${spotName}" is now open to visitors.`,
           category: 'Tourist Spot Updates',
           barangay: announcementData.barangay,
+          businessName: businessNameToUse,
+          businessId: businessId,
+          privateSpotName: privateSpotAdminData?.privateSpotName,
           createdBy: currentUser?.uid || '',
           createdAt: Timestamp.now(),
           touristSpotId: announcementData.touristSpotId,
           touristSpotName: spotName
         };
+        
         await addDoc(collection(db, 'announcements'), nowOpenAnnouncement);
         fetchAnnouncements();
+        
+        setAlert({ 
+          type: 'success', 
+          message: 'The spot has been marked as open and an announcement has been created.' 
+        });
       }
 
       setAnnouncementToDelete(null);
-    } catch (err) {
-      console.error('Error deleting announcement:', err);
-      setAlert({ type: 'destructive', message: 'Failed to delete announcement' });
+      fetchAnnouncements(); // Refresh the announcements list
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      setAlert({ 
+        type: 'destructive', 
+        message: `Failed to delete announcement: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      });
       setAnnouncementToDelete(null);
     }
   };
@@ -332,7 +491,7 @@ export default function AnnouncementsPage() {
 
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Announcements for {barangayName || 'Barangay'}</h1>
+          <h1 className="text-2xl font-bold">Announcements for {businessName}</h1>
           <button onClick={() => setShowForm(!showForm)} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
             {showForm ? 'Cancel' : 'Add Announcement'}
           </button>
@@ -350,11 +509,21 @@ export default function AnnouncementsPage() {
 
             {(isClosureCategory || isSpotUpdate) && (
               <div>
-                <label>Select Tourist Spot</label>
-                <select name="touristSpotId" value={formData.touristSpotId} onChange={handleInputChange} className="mt-1 block w-full border rounded-md p-2" required>
-                  <option value="">-- Select a Tourist Spot --</option>
-                  {touristSpots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                <label>Tourist Spot</label>
+                {loadingSpots ? (
+                  <div className="mt-1 p-2 bg-gray-100 rounded-md">Loading your tourist spot information...</div>
+                ) : (
+                  <div className="mt-1 p-4 bg-gray-50 border rounded-md space-y-2">
+                    <div className="font-medium text-lg">{businessName}</div>
+                    {touristSpots[0]?.name && (
+                      <div className="text-sm font-medium">Tourist Spot: {touristSpots[0].name}</div>
+                    )}
+                    {touristSpots[0]?.barangay && (
+                      <div className="text-sm text-gray-600">📍 {touristSpots[0].barangay}</div>
+                    )}
+                    <input type="hidden" name="touristSpotId" value={formData.touristSpotId} />
+                  </div>
+                )}
               </div>
             )}
 
@@ -392,29 +561,21 @@ export default function AnnouncementsPage() {
                 )}
                 <div className="flex-1">
                   <div className="flex justify-between items-start">
-                    <h2 className="font-bold text-xl">{a.title}</h2>
+                    <div className="flex justify-between items-start">
+            <h2 className="font-bold text-xl">{a.title}</h2>
+            {(a.businessName || a.privateSpotName || a.barangay) && (
+              <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                {a.privateSpotName || a.businessName || a.barangay}
+              </span>
+            )}
+          </div>
                     <button onClick={() => setAnnouncementToDelete({ id: a.id, title: a.title })} className="text-red-600 hover:text-red-800">
                       <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                   <p className="mt-2 text-gray-600">{a.content}</p>
-                  <div className="mt-2 flex flex-wrap gap-4">
-                    {a.touristSpotName && (
-                      <span className="text-sm text-gray-500 flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {a.touristSpotName}
-                      </span>
-                    )}
-                    {a.authorName && (
-                      <span className="text-sm text-gray-500 flex items-center gap-1">
-                        <span className="text-gray-400">•</span>
-                        <span>Posted by: {a.authorName}</span>
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-400 mt-1 block">
-                    {a.createdAt ? new Date(a.createdAt.seconds * 1000).toLocaleString() : 'Recently'}
-                  </span>
+                  {a.touristSpotName && <span className="text-sm text-gray-500 mt-1 flex items-center gap-1"><MapPin className="w-4 h-4" />{a.touristSpotName}</span>}
+                  <span className="text-xs text-gray-400 mt-2 block">{a.createdAt ? new Date(a.createdAt.seconds * 1000).toLocaleString() : 'Recently'}</span>
                 </div>
               </div>
             </div>
