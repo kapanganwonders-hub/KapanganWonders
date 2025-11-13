@@ -84,6 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <li><Link href="/admin" className={linkClass('/admin')}><LayoutDashboard size={18}/>Dashboard</Link></li>
                   <li><Link href="/admin/users" className={linkClass('/admin/users')}><Users size={18}/>Manage Users</Link></li>
                   <li><Link href="/admin/visits" className={linkClass('/admin/visits')}><Map size={18}/>Visits</Link></li>
+                  <li><Link href="/admin/announcements" className={linkClass('/admin/announcements')}><Bell size={18}/>Announcements</Link></li>
                 </ul>
               </div>
 
