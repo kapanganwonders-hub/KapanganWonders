@@ -5,14 +5,13 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Star } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 export default function PlacesVisitedPage() {
   const [user, setUser] = useState<any>(null);
   const [completedVisits, setCompletedVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🔄 Listen for real-time completed visits
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
       if (u) {
@@ -43,6 +42,10 @@ export default function PlacesVisitedPage() {
     return () => unsubscribeAuth();
   }, []);
 
+  const handleDelete = (id: string) => {
+    setCompletedVisits((prev) => prev.filter((visit) => visit.id !== id));
+  };
+
   if (loading)
     return (
       <div className="flex justify-center items-center min-h-screen text-gray-600">
@@ -52,12 +55,14 @@ export default function PlacesVisitedPage() {
 
   return (
     <motion.div
-      className="max-w-5xl mx-auto bg-white rounded-2xl shadow-md p-8"
+      className="max-w-6xl mx-auto bg-white rounded-2xl shadow-md p-8 mt-6"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.3 }}
     >
-      <h1 className="text-3xl font-bold text-gray-800 mb-4">Places Visited</h1>
+      <h1 className="text-3xl font-bold text-green-700 mb-6 text-center">
+        Places Visited
+      </h1>
 
       {completedVisits.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center py-16 text-gray-600">
@@ -72,40 +77,43 @@ export default function PlacesVisitedPage() {
           </p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
-          {completedVisits.map((visit) => (
-            <motion.div
-              key={visit.id}
-              className="border border-gray-200 rounded-xl shadow-sm p-5 hover:shadow-md transition bg-green-50"
-              whileHover={{ scale: 1.02 }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xl font-semibold text-green-800">
-                  {visit.fullName}
-                </h2>
-                <span className="bg-green-200 text-green-800 text-sm px-3 py-1 rounded-full font-medium">
-                  Completed
-                </span>
-              </div>
-
-              <div className="space-y-2 text-sm text-gray-700">
-                <p className="flex items-center gap-2">
-                  <MapPin className="text-green-600" size={16} />
-                  <strong>Barangays:</strong> {visit.barangays?.join(', ') || 'N/A'}
-                </p>
-                <p className="flex items-center gap-2">
-                  <MapPin className="text-blue-600" size={16} />
-                  <strong>Spots:</strong> {visit.spots?.join(', ') || 'N/A'}
-                </p>
-                <p className="flex items-center gap-2">
-                  <Calendar className="text-orange-500" size={16} />
-                  <strong>Date:</strong> {visit.date}
-                </p>
-              </div>
-
-            
-            </motion.div>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+            <thead className="bg-green-600 text-white text-sm uppercase tracking-wider">
+              <tr>
+                <th className="px-6 py-3 text-left">Name</th>
+                <th className="px-6 py-3 text-left">Barangays</th>
+                <th className="px-6 py-3 text-left">Spots</th>
+                <th className="px-6 py-3 text-left">Date</th>
+                <th className="px-6 py-3 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-700 divide-y divide-gray-100">
+              {completedVisits.map((visit, index) => (
+                <motion.tr
+                  key={visit.id}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="hover:bg-green-50 transition"
+                >
+                  <td className="px-6 py-4 font-medium">{visit.fullName}</td>
+                  <td className="px-6 py-4">{visit.barangays?.join(', ') || 'N/A'}</td>
+                  <td className="px-6 py-4">{visit.spots?.join(', ') || 'N/A'}</td>
+                  <td className="px-6 py-4">{visit.date}</td>
+                  <td className="px-6 py-4 text-center">
+                    <button
+                      onClick={() => handleDelete(visit.id)}
+                      className="text-red-500 hover:text-red-700 transition"
+                      title="Remove from list"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </motion.div>

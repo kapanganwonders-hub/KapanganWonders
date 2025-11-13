@@ -2,18 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { collection, getDoc, onSnapshot, query, doc } from 'firebase/firestore';
+import {
+  collection,
+  getDoc,
+  onSnapshot,
+  query,
+  doc,
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { Card, CardContent } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Users, User } from 'lucide-react';
+import { MapPin, Calendar, User, Users } from 'lucide-react';
 
 export default function PrivateReportsPage() {
   const [visits, setVisits] = useState<any[]>([]);
   const [spotName, setSpotName] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Fetch private owner's spot and visit logs
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) return setLoading(false);
@@ -29,12 +33,16 @@ export default function PrivateReportsPage() {
       const spot = privateSnap.data().spotName;
       setSpotName(spot);
 
-      const q = query(collection(db, 'visitLogs'));
-      const unsub = onSnapshot(q, (snapshot) => {
+      // Fetch only completed visits for this private spot
+      const unsub = onSnapshot(query(collection(db, 'visits')), (snapshot) => {
         const data = snapshot.docs
           .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((log: any) =>
-            log.spots?.map((s: string) => s.toLowerCase()).includes(spot.toLowerCase())
+          .filter(
+            (v: any) =>
+              v.status === 'Completed' &&
+              v.spots?.some(
+                (s: string) => s.toLowerCase() === spot.toLowerCase()
+              )
           );
         setVisits(data);
         setLoading(false);
@@ -53,56 +61,82 @@ export default function PrivateReportsPage() {
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <h1 className="text-3xl font-bold text-green-700">
-          {spotName} – Visit Reports
+          {spotName} – Completed Visits
         </h1>
       </div>
 
       {visits.length === 0 ? (
-        <p className="text-gray-500 text-center mt-10">No visit records found.</p>
+        <p className="text-gray-500 text-center mt-10">
+          No completed visits found for this private spot.
+        </p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <ul className="divide-y divide-gray-200 bg-white rounded-xl shadow">
           {visits
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .map((visit) => (
-              <motion.div
-                key={visit.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-xl shadow-md border border-green-100 hover:shadow-lg transition"
-              >
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h2 className="font-semibold text-green-700 text-lg">{visit.name}</h2>
-                        <p className="text-sm text-gray-600 flex items-center gap-1">
-                          <User size={14} /> {visit.email}
-                        </p>
-                      </div>
-                      <div className="text-xs text-gray-500 flex items-center gap-1">
-                        <Calendar size={12} /> {visit.date}
-                      </div>
-                    </div>
+            .sort(
+              (a, b) =>
+                new Date(b.completedAt?.toDate?.() || b.date).getTime() -
+                new Date(a.completedAt?.toDate?.() || a.date).getTime()
+            )
+            .map((visit) => {
+              const completedAt = visit.completedAt?.toDate
+                ? visit.completedAt.toDate()
+                : null;
 
-                    <p className="text-sm text-gray-700 flex items-center gap-1">
-                      <MapPin size={14} /> Spots: {visit.spots?.join(', ') || '—'}
-                    </p>
+              const formattedDate = completedAt
+                ? completedAt.toLocaleDateString('en-PH', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
+                : visit.date;
 
-                    <div className="mt-3 flex justify-between items-center">
-                      <p className="text-sm text-gray-500 flex items-center gap-1">
-                        <Users size={14} /> Visitors: {visit.numberOfVisitors || 0}
+              const formattedTime = completedAt
+                ? completedAt.toLocaleTimeString('en-PH', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '—';
+
+              return (
+                <motion.li
+                  key={visit.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-5 hover:bg-gray-50 transition"
+                >
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                    <div>
+                      <h2 className="font-semibold text-green-700 text-lg">
+                        {visit.fullName}
+                      </h2>
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <User size={14} /> {visit.email}
                       </p>
-                      <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">
-                        {visit.purpose || 'No purpose given'}
-                      </span>
+
+                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                        <MapPin size={14} /> Spots: {visit.spots?.join(', ') || '—'}
+                      </p>
+
+                      {visit.companions && visit.companions.length > 0 && (
+                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                          <Users size={14} /> Companions: {visit.companions.join(', ')}
+                        </p>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-        </div>
+
+                    <div className="mt-3 sm:mt-0 text-sm text-gray-500 flex flex-col items-end">
+                      <span className="flex items-center gap-1">
+                        <Calendar size={14} /> {formattedDate}
+                      </span>
+                      <span>{formattedTime}</span>
+                    </div>
+                  </div>
+                </motion.li>
+              );
+            })}
+        </ul>
       )}
     </div>
   );

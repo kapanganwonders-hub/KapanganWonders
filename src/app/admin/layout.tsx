@@ -84,7 +84,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <li><Link href="/admin" className={linkClass('/admin')}><LayoutDashboard size={18}/>Dashboard</Link></li>
                   <li><Link href="/admin/users" className={linkClass('/admin/users')}><Users size={18}/>Manage Users</Link></li>
                   <li><Link href="/admin/visits" className={linkClass('/admin/visits')}><Map size={18}/>Visits</Link></li>
-                  <li><Link href="/admin/tourist-spots" className={linkClass('/admin/tourist-spots')}><MapPin size={18}/>Tourist Spots</Link></li>
                 </ul>
               </div>
 
@@ -92,14 +91,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Reports</p>
                 <ul className="space-y-2">
                   <li><Link href="/admin/reports" className={linkClass('/admin/reports')}><FileText size={18}/>General Reports</Link></li>
-                  <li><Link href="/admin/barangay-reports" className={linkClass('/admin/barangay-reports')}><FileText size={18}/>Barangay Reports</Link></li>
                 </ul>
               </div>
 
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Account</p>
                 <ul className="space-y-2">
-                  <li><Link href="/admin/profile" className={linkClass('/admin/profile')}><User size={18}/>Profile</Link></li>
                   <li>
                     <button 
                       onClick={handleLogout}
