@@ -1,126 +1,161 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, query, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
+import {
+  collection,
+  getDoc,
+  onSnapshot,
+  query,
+  doc,
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { motion } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
+import { Calendar, MapPin, User, Users } from 'lucide-react';
 
-interface VisitLog {
-  id: string;
-  name: string;
-  email: string;
-  date: string;
-  barangays: string[];
-  spots: string[];
-  scannedBy: string;
-  month: string;
-  year: number;
-  numberOfVisitors: number;
-}
-
-export default function BarangayReportsListPage() {
-  const [logs, setLogs] = useState<VisitLog[]>([]);
-  const [barangay, setBarangay] = useState('');
+export default function ReportsPage() {
+  const [visits, setVisits] = useState<any[]>([]);
+  const [placeName, setPlaceName] = useState('');
+  const [role, setRole] = useState<'barangay' | 'private' | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      if (!user) return setLoading(false);
 
       const barangayRef = doc(db, 'barangayAdmins', user.uid);
+      const privateRef = doc(db, 'privateAdmins', user.uid);
       const barangaySnap = await getDoc(barangayRef);
+      const privateSnap = await getDoc(privateRef);
 
-      if (!barangaySnap.exists()) {
+      if (barangaySnap.exists()) {
+        const barangay = barangaySnap.data().barangay;
+        setPlaceName(barangay);
+        setRole('barangay');
+
+        const unsub = onSnapshot(query(collection(db, 'visits')), (snapshot) => {
+          const data = snapshot.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter(
+              (v: any) =>
+                v.status === 'Completed' &&
+                v.barangays?.some(
+                  (b: string) => b.toLowerCase() === barangay.toLowerCase()
+                )
+            );
+          setVisits(data);
+          setLoading(false);
+        });
+        return () => unsub();
+      } else if (privateSnap.exists()) {
+        const spot = privateSnap.data().spotName;
+        setPlaceName(spot);
+        setRole('private');
+
+        const unsub = onSnapshot(query(collection(db, 'visits')), (snapshot) => {
+          const data = snapshot.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter(
+              (v: any) =>
+                v.status === 'Completed' &&
+                v.spots?.some(
+                  (s: string) => s.toLowerCase() === spot.toLowerCase()
+                )
+            );
+          setVisits(data);
+          setLoading(false);
+        });
+        return () => unsub();
+      } else {
         setLoading(false);
-        return;
       }
-
-      const barangayName = barangaySnap.data().barangay;
-      setBarangay(barangayName);
-
-      const q = query(collection(db, 'visitLogs'));
-      const unsubLogs = onSnapshot(q, (snapshot) => {
-        const allLogs = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        })) as VisitLog[];
-
-        const filtered = allLogs.filter((log) =>
-          log.barangays?.map((b) => b.toLowerCase()).includes(barangayName.toLowerCase())
-        );
-
-        setLogs(filtered);
-        setLoading(false);
-      });
-
-      return () => unsubLogs();
     });
 
     return () => unsubAuth();
   }, []);
 
   if (loading) {
-    return <p className="text-center mt-10 text-gray-600">Loading report details...</p>;
-  }
-
-  if (logs.length === 0) {
-    return (
-      <p className="text-center mt-10 text-gray-600">
-        No visit records found for Barangay <strong>{barangay}</strong>.
-      </p>
-    );
+    return <p className="text-center mt-10 text-gray-600">Loading visit reports...</p>;
   }
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-green-700 mb-6">
-        Barangay {barangay} — Detailed Visit Reports
-      </h1>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h1 className="text-3xl font-bold text-green-700">
+          {placeName} – Completed Visits
+        </h1>
+      </div>
 
-      <Card className="p-4">
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-green-600 text-white">
-                <tr>
-                  <th className="px-4 py-2 text-left">Name</th>
-                  <th className="px-4 py-2 text-left">Email</th>
-                  <th className="px-4 py-2 text-left">Date</th>
-                  <th className="px-4 py-2 text-left">Spots</th>
-                  <th className="px-4 py-2 text-left">Visitors</th>
-                  <th className="px-4 py-2 text-left">Scanned By</th>
-                  <th className="px-4 py-2 text-left">Month</th>
-                  <th className="px-4 py-2 text-left">Year</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => (
-                  <motion.tr
-                    key={log.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border-b border-gray-100 hover:bg-green-50 transition"
-                  >
-                    <td className="px-4 py-2">{log.name}</td>
-                    <td className="px-4 py-2 text-gray-600">{log.email}</td>
-                    <td className="px-4 py-2">{log.date}</td>
-                    <td className="px-4 py-2">{log.spots?.join(', ') || '—'}</td>
-                    <td className="px-4 py-2 text-center">{log.numberOfVisitors}</td>
-                    <td className="px-4 py-2">{log.scannedBy}</td>
-                    <td className="px-4 py-2">{log.month}</td>
-                    <td className="px-4 py-2">{log.year}</td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {visits.length === 0 ? (
+        <p className="text-gray-500 text-center mt-10">
+          No completed visits found for this {role === 'barangay' ? 'barangay' : 'spot'}.
+        </p>
+      ) : (
+        <ul className="divide-y divide-gray-200 bg-white rounded-xl shadow">
+          {visits
+            .sort(
+              (a, b) =>
+                new Date(b.completedAt?.toDate?.() || b.date).getTime() -
+                new Date(a.completedAt?.toDate?.() || a.date).getTime()
+            )
+            .map((visit) => {
+              const completedAt = visit.completedAt?.toDate
+                ? visit.completedAt.toDate()
+                : null;
+              const formattedDate = completedAt
+                ? completedAt.toLocaleDateString('en-PH', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
+                : visit.date;
+              const formattedTime = completedAt
+                ? completedAt.toLocaleTimeString('en-PH', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '—';
+
+              return (
+                <motion.li
+                  key={visit.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-5 hover:bg-gray-50 transition"
+                >
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                    <div>
+                      <h2 className="font-semibold text-green-700 text-lg">
+                        {visit.fullName}
+                      </h2>
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <User size={14} /> {visit.email}
+                      </p>
+
+                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                        <MapPin size={14} /> Spots: {visit.spots?.join(', ') || '—'}
+                      </p>
+
+                      {visit.companions && visit.companions.length > 0 && (
+                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                          <Users size={14} /> Companions: {visit.companions.join(', ')}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 sm:mt-0 text-sm text-gray-500 flex flex-col items-end">
+                      <span className="flex items-center gap-1">
+                        <Calendar size={14} /> {formattedDate}
+                      </span>
+                      <span>{formattedTime}</span>
+                    </div>
+                  </div>
+                </motion.li>
+              );
+            })}
+        </ul>
+      )}
     </div>
   );
 }
