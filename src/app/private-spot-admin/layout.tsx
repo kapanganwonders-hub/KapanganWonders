@@ -160,12 +160,6 @@ export default function PrivateSpotAdminLayout({ children }: { children: React.R
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Account</p>
                 <ul className="space-y-2">
                   <li>
-                    <Link href="/private-spot-admin/profile" className={linkClass('/private-spot-admin/profile')}>
-                      <User size={18}/>
-                      Profile
-                    </Link>
-                  </li>
-                  <li>
                     <button 
                       onClick={handleLogout}
                       className="flex items-center gap-2 p-2 w-full text-left text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-md transition"
