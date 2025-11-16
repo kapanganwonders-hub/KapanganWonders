@@ -98,7 +98,7 @@ const generateFileName = (file: File) => {
 };
 
 // --- Function: Upload file to Appwrite Storage (safe version) ---
-const uploadFile = async (file: File, folder = 'touristSpots') => {
+const uploadFile = async (file: File, folder = 'touristSpots', p0: { onProgress: (progress: any) => void; }) => {
   try {
     if (!BUCKET_ID) throw new Error('Appwrite bucket ID is not configured.');
 

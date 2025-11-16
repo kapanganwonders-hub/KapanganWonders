@@ -83,13 +83,20 @@ export default function Blogs() {
     
     // For private spot owners: check if they're the author of the blog
     if (isPrivateSpotAdmin && privateSpotAdminData) {
-      const isAuthor = blog.author === (privateSpotAdminData.id || privateSpotAdminData.uid);
+      // Check multiple possible ID fields in privateSpotAdminData
+      const adminId = privateSpotAdminData.id || 
+                     privateSpotAdminData.uid || 
+                     privateSpotAdminData.userId ||
+                     currentUser?.uid;
+      
+      const isAuthor = blog.author === adminId;
       
       console.log('Private Spot Owner isAuthor check:', {
         blogId: blog.id,
         currentUserUid: currentUser?.uid,
         blogAuthor: blog.author,
-        privateSpotAdminId: privateSpotAdminData.id || privateSpotAdminData.uid,
+        privateSpotAdminData: privateSpotAdminData,
+        adminId,
         isAuthor
       });
       
@@ -297,7 +304,11 @@ export default function Blogs() {
       
       try {
         // Upload the file in the background
-        const result = await uploadFile(file, 'blogs');
+        const result = await uploadFile(file, 'blogs', {
+          onProgress: (progress) => {
+            console.log(`Upload progress: ${progress}%`);
+          }
+        });
         const fileUrl = result.url;
         
         // If there was a previous image, delete it (but only if it's not the same as the new one)
@@ -401,17 +412,25 @@ export default function Blogs() {
   };
 
   const startEdit = (blog: Blog) => {
-    if (!isBarangayAdmin && !isPrivateSpotAdmin) return false;
-    setEditingBlog(blog.id);
-    
-    // Ensure the blog modal is open
-    if (!showBlogModal) {
-      setSelectedBlog(blog);
-      setShowBlogModal(true);
-    }
-    
-    return true;
+  if (!isBarangayAdmin && !isPrivateSpotAdmin) return false;
+  
+  // Create a clean copy of the blog with ensured imageUrl
+  const blogWithImage = {
+    ...blog,
+    imageUrl: blog.imageUrl || '', // Ensure imageUrl is always defined
+    _tempImage: undefined // Reset any temporary image state
   };
+  
+  setSelectedBlog(blogWithImage);
+  setEditingBlog(blog.id);
+  
+  // Ensure the blog modal is open
+  if (!showBlogModal) {
+    setShowBlogModal(true);
+  }
+  
+  return true;
+};
 
   const cancelEdit = () => {
     setEditingBlog(null);
@@ -428,10 +447,10 @@ export default function Blogs() {
   return (
     <div className="min-h-screen bg-egg-white">
       {/* Hero Section */}
-      <div className="bg-primary-green text-egg-white py-16">
+      <div className="bg-gradient-to-b from-green-100 to-green-200 text-black py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Kapangan Blogs</h1>
-          <p className="text-xl text-egg-white/90 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-800 max-w-3xl mx-auto">
             Discover stories, news, and insights about the beautiful town of Kapangan
           </p>
           
@@ -444,8 +463,8 @@ export default function Blogs() {
                   onClick={() => setSelectedCategory(category)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
                     selectedCategory === category
-                      ? 'bg-egg-white text-primary-green'
-                      : 'bg-white/10 text-egg-white hover:bg-white/20'
+                      ? 'bg-primary-green text-egg-white'
+                      : 'bg-white/80 text-black hover:bg-white'
                   }`}
                 >
                   {category}
@@ -589,8 +608,7 @@ export default function Blogs() {
                     {searchParams.get('from') === 'dashboard' || editingBlog === selectedBlog?.id ? 'Back to Dashboard' : 'Back to Blogs'}
                   </button>
                   
-                 {(isBarangayAdmin || isPrivateSpotAdmin) &&
- isAuthor(selectedBlog) &&
+                 {((isBarangayAdmin && isAuthor(selectedBlog)) || isPrivateSpotAdmin) &&
  editingBlog === selectedBlog?.id && (
   <div className="flex gap-2">
     <button
@@ -831,49 +849,6 @@ export default function Blogs() {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="bg-primary-green text-egg-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-2xl font-bold text-light-green mb-4">Kapangan Wonder</h3>
-              <p className="text-light-green/80">
-                Discover the natural beauty and cultural richness of Kapangan, Benguet.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li><Link href="/tourist-spots" className="text-light-green/80 hover:text-egg-white">Tourist Spots</Link></li>
-                <li><Link href="/eat-and-stay" className="text-light-green/80 hover:text-egg-white">Eat & Stay</Link></li>
-                <li><Link href="/blogs" className="text-light-green/80 hover:text-egg-white">Blogs</Link></li>
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Support</h4>
-              <ul className="space-y-2">
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Help Center</Link></li>
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact Us</Link></li>
-                <li><Link href="/signin" className="text-light-green/80 hover:text-egg-white">Sign In</Link></li>
-                <li><Link href="/signup" className="text-light-green/80 hover:text-egg-white">Sign Up</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Follow Us</h4>
-              <div className="flex space-x-4">
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📘</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">🐦</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📷</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📺</a>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-border-green mt-8 pt-8 text-center text-light-green/80">
-            <p>&copy; 2024 Kapangan Wonder. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

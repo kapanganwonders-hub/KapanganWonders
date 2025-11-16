@@ -181,101 +181,84 @@ export default function BlogsPage() {
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0]) {
-      console.log('No file selected');
+    if (!e.target.files?.[0]) {
+      setAlert({ type: 'info', message: 'No file selected' });
       return;
     }
     
     const file = e.target.files[0];
-    console.log('Selected file:', file);
     
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    // File type validation
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
+    
     if (!validTypes.includes(file.type)) {
-      const errorMsg = `Invalid file type: ${file.type}. Allowed types: ${validTypes.join(', ')}`;
-      console.error(errorMsg);
-      setAlert({ type: 'destructive', message: 'Please upload a valid image file (JPEG, PNG, WebP, or GIF)' });
-      return;
-    }
-    
-    // Validate file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      const errorMsg = `File too large: ${(file.size / (1024 * 1024)).toFixed(2)}MB. Max size: 5MB`;
-      console.error(errorMsg);
-      setAlert({ type: 'destructive', message: 'Image size should be less than 5MB' });
+      setAlert({ 
+        type: 'destructive', 
+        message: 'Invalid file type. Please upload JPEG, PNG, WebP, GIF, or AVIF images.' 
+      });
       return;
     }
     
     setUploading(true);
     
     try {
-      // Verify Appwrite client is properly initialized
-      if (!client || !storage) {
-        console.error('Appwrite client not initialized:', { client, storage });
-        throw new Error('Appwrite client not properly initialized');
-      }
-      
-      console.log('Appwrite client config:', {
-        endpoint: client.config.endpoint,
-        project: client.config.project,
-        bucketId: '69062d080010accbfb9e' // Your bucket ID
-      });
-      
-      console.log('Starting file upload...', {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        bucketId: '69062d080010accbfb9e'
-      });
-      
-      // Upload to Appwrite Storage
-      const fileData = await uploadFile(file, 'blog-images');
-      
-      if (!fileData) {
-        throw new Error('No response received from uploadFile');
-      }
-      
-      console.log('Upload response:', fileData);
-      
-      if (!fileData.$id || !fileData.url) {
-        throw new Error('Incomplete response from uploadFile. Missing ID or URL.');
-      }
-      
-      console.log('File uploaded successfully:', {
-        fileId: fileData.$id,
-        url: fileData.url,
-        name: fileData.name,
-        size: fileData.size,
-        type: fileData.mimeType
-      });
-      
+      // Create a preview URL for immediate display
+      const previewUrl = URL.createObjectURL(file);
       setFormData(prev => ({
         ...prev,
-        imageUrl: fileData.url
+        imageUrl: previewUrl,
+        _tempFile: file // Store the file for later upload
       }));
       
-      setAlert({ type: 'success', message: 'Image uploaded successfully' });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to upload image';
-      console.error('Upload error details:', {
-        error,
-        message: errorMessage,
-        name: error instanceof Error ? error.name : 'UnknownError',
-        stack: error instanceof Error ? error.stack : undefined,
-        file: {
-          name: file.name,
-          size: file.size,
-          type: file.type
-        },
-        timestamp: new Date().toISOString()
-      });
+      // Upload in the background without blocking the UI
+      const uploadInBackground = async () => {
+        try {
+          const fileData = await uploadFile(file, 'blog-images', {
+            onProgress: (progress) => {
+              console.log(`Upload progress: ${progress}%`);
+            }
+          });
+          
+          if (!fileData?.url) throw new Error('Upload failed: No URL returned');
+          
+          // Update with the permanent URL
+          setFormData(prev => ({
+            ...prev,
+            imageUrl: fileData.url,
+            _tempFile: undefined
+          }));
+          
+          setAlert({ 
+            type: 'success', 
+            message: 'Image uploaded successfully' 
+          });
+        } catch (error) {
+          console.error('Background upload failed:', error);
+          setAlert({
+            type: 'destructive',
+            message: 'Failed to complete image upload. Please try again.'
+          });
+        } finally {
+          setUploading(false);
+        }
+      };
       
-      setAlert({ type: 'destructive', message: `Upload failed: ${errorMessage}` });
+      // Start the background upload
+      uploadInBackground();
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      setAlert({
+        type: 'destructive',
+        message: 'Failed to process image. Please try again.'
+      });
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: '',
+        _tempFile: undefined
+      }));
     } finally {
-      setUploading(false);
-      // Reset file input to allow re-uploading the same file if it fails
-      e.target.value = '';
+      // Don't set uploading to false here as we want to show loading until background upload completes
+      e.target.value = ''; // Reset file input
     }
   };
 
