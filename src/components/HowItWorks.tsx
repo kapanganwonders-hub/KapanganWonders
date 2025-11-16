@@ -185,11 +185,10 @@ const HowItWorks = () => {
     <section className="relative py-16 overflow-hidden">
       {/* Background Design */}
       <div className="absolute inset-0 z-0">   
-        <div className="absolute inset-0 bg-gradient-to-br from-green-100/80 to-blue-120/80"></div>
-        <div className="absolute top-10 right-10 w-64 h-64 bg-green-200/30 rounded-full mix-blend-multiply filter blur-1x0.5 animate-pulse"></div>
+        <div className="absolute inset-0 bg-white/80"></div>
         <div className="absolute bottom-10 left-10 w-80 h-80 bg-blue-200/30 rounded-full mix-blend-multiply filter blur-1x0.5 animate-pulse delay-1000"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-200/10 rounded-full mix-blend-multiply filter blur-1xl animate-pulse delay-1500"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(4, 111, 78, 0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(45, 195, 208, 0.02)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(0, 0, 0, 0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(0, 0, 0, 0.01)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">

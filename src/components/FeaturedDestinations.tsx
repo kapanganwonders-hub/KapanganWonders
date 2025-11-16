@@ -1,61 +1,243 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, collection, onSnapshot } from 'firebase/firestore';
+import { PencilSquareIcon } from '@heroicons/react/24/outline';
+import FeaturedSpotsModal from './admin/FeaturedSpotsModal';
 
-const destinations = [
+interface Destination {
+  id: string;
+  name: string;
+  location: string;
+  image: string;
+  description?: string;
+}
+
+const defaultDestinations: Destination[] = [
   {
-    id: 1,
+    id: '1',
     name: 'Amburayan River',
     location: 'Taba-ao',
     image: '/assets/Amburayan River (Taba-ao).jpg',
+    description: 'Experience the breathtaking beauty of Amburayan River in Taba-ao. A must-visit destination for nature lovers.'
   },
   {
-    id: 2,
+    id: '2',
     name: 'Ampongot Rice Terraces',
     location: 'Sagubo',
     image: '/assets/Ampongot Rice Terraces (Sagubo).jpg',
+    description: 'Marvel at the stunning Ampongot Rice Terraces in Sagubo. A testament to the rich agricultural heritage of Kapangan.'
   },
   {
-    id: 3,
+    id: '3',
     name: 'Amburayan Bridge',
     location: 'Cuba',
     image: '/assets/Amburayan Bridge (Cuba).jpg',
+    description: 'Visit the iconic Amburayan Bridge in Cuba, a perfect spot for photography and enjoying scenic views.'
   },
 ];
 
 const FeaturedDestinations = () => {
+  const { currentUser, isAdmin } = useAuth();
+  const [destinations, setDestinations] = useState<Destination[]>(defaultDestinations);
+  const [title, setTitle] = useState('Featured Destinations');
+  const [description, setDescription] = useState('Discover the most beautiful and popular tourist spots in Kapangan');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Reset edit states when admin logs out
+  useEffect(() => {
+    if (!isAdmin) {
+      setIsEditingTitle(false);
+      setIsEditingDescription(false);
+      setIsModalOpen(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    const fetchFeaturedData = async () => {
+      try {
+        const docRef = doc(db, 'featured', 'destinations');
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data) {
+              if (Array.isArray(data.spots) && data.spots.length > 0) {
+                setDestinations(data.spots);
+              }
+              if (data.title) setTitle(data.title);
+              if (data.description) setDescription(data.description);
+            }
+          }
+          setLoading(false);
+        });
+
+        return () => unsubscribe();
+      } catch (error) {
+        console.error('Error fetching featured data:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedData();
+  }, []);
+
+  const saveTitle = async () => {
+    if (!isAdmin) {
+      console.error('Only admins can edit the title');
+      setIsEditingTitle(false);
+      return;
+    }
+    
+    try {
+      const docRef = doc(db, 'featured', 'destinations');
+      await setDoc(docRef, {
+        title,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.uid || 'admin'
+      }, { merge: true });
+      setIsEditingTitle(false);
+    } catch (error) {
+      console.error('Error saving title:', error);
+    }
+  };
+
+  const saveDescription = async () => {
+    if (!isAdmin) {
+      console.error('Only admins can edit the description');
+      setIsEditingDescription(false);
+      return;
+    }
+    
+    try {
+      const docRef = doc(db, 'featured', 'destinations');
+      await setDoc(docRef, {
+        description,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.uid || 'admin'
+      }, { merge: true });
+      setIsEditingDescription(false);
+    } catch (error) {
+      console.error('Error saving description:', error);
+    }
+  };
+
+  const handleSaveFeaturedSpots = async (selectedSpots: any[]) => {
+    try {
+      const docRef = doc(db, 'featured', 'destinations');
+      await setDoc(docRef, {
+        spots: selectedSpots.map(spot => ({
+          id: spot.id,
+          name: spot.name,
+          location: spot.location || '',
+          image: spot.imageUrl || spot.image || '/empty-travel.svg',
+          description: spot.description || `Experience the beauty of ${spot.name} in ${spot.location || 'Kapangan'}.`
+        })),
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.uid || 'admin'
+      });
+    } catch (error) {
+      console.error('Error saving featured spots:', error);
+      throw error;
+    }
+  };
+
   return (
     <section className="py-12 relative overflow-hidden">
+      <FeaturedSpotsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveFeaturedSpots}
+        currentFeatured={destinations.map(d => d.id)}
+      />
       {/* Background Design */}
       <div className="absolute inset-0 z-0">
         {/* Subtle Background Pattern */}
         <div className="absolute inset-0 bg-gradient-to-br from-green-50/30 to-blue-50/30"></div>
         
         {/* Animated Background Elements */}
-<div className="absolute top-0 left-0 w-72 h-72 bg-green-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
-<div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slower"></div>
-<div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-medium"></div>
+        <div className="absolute top-0 left-0 w-72 h-72 bg-green-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
+        <div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slower"></div>
+        <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-medium"></div>
         
         {/* Grid Pattern Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
+        {isAdmin && (
+          <div className="flex justify-end mb-6">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+            >
+              <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
+              Manage Featured Spots
+            </button>
+          </div>
+        )}
+        <div className="text-center mb-12 relative group">
           <div className="inline-block relative">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 relative z-10 font-serif">
-              <span className="relative inline-block">
-                Featured Destinations
-                <span className="absolute bottom-1 left-0 w-full h-2 bg-green-100 -z-10 transform translate-y-1 rounded-full"></span>
-              </span>
-            </h2>
+            {!isEditingTitle ? (
+              <div className="relative group">
+                <h2 className="text-4xl font-bold text-gray-900 mb-4 relative z-10 font-serif">
+                  <span 
+                    className={`relative inline-block ${isAdmin ? 'cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2' : ''}`}
+                    onClick={isAdmin ? () => setIsEditingTitle(true) : undefined}
+                  >
+                    {title}
+                    <span className="absolute bottom-1 left-0 w-full h-2 bg-green-100 -z-10 transform translate-y-1 rounded-full"></span>
+                    {isAdmin && (
+                      <PencilSquareIcon className="w-5 h-5 ml-2 text-gray-400 group-hover:inline hidden absolute -right-8 top-1/2 -translate-y-1/2" />
+                    )}
+                  </span>
+                </h2>
+              </div>
+            ) : (
+              <div className="flex justify-center items-center">
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={isAdmin ? saveTitle : undefined}
+                  onKeyDown={(e) => e.key === 'Enter' && isAdmin && saveTitle()}
+                  className="text-4xl font-bold text-center bg-transparent border-b-2 border-dashed border-gray-300 focus:border-green-500 focus:outline-none font-serif w-full max-w-2xl"
+                  autoFocus
+                />
+              </div>
+            )}
           </div>
           <div className="w-24 h-1 bg-gradient-to-r from-green-400 to-green-600 mx-auto my-4 rounded-full"></div>
-          <p className="text-lg text-gray-700 max-w-2xl mx-auto font-sans">
-            Discover the most beautiful and popular tourist spots in Kapangan
-          </p>
+          
+          {!isEditingDescription ? (
+            <div className="relative group">
+              <p 
+                className={`text-lg text-gray-600 max-w-3xl mx-auto relative group ${isAdmin ? 'hover:bg-gray-50 rounded-lg p-2 -m-2 cursor-pointer' : ''} inline-block`}
+                onClick={isAdmin ? () => setIsEditingDescription(true) : undefined}
+              >
+                {description}
+                <PencilSquareIcon className="w-4 h-4 ml-2 text-gray-400 group-hover:inline hidden align-middle" />
+              </p>
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onBlur={isAdmin ? saveDescription : undefined}
+                onKeyDown={(e) => e.key === 'Enter' && isAdmin && saveDescription()}
+                className="text-lg text-center bg-transparent border-b border-dashed border-gray-300 focus:border-green-500 focus:outline-none font-sans w-full max-w-2xl"
+                autoFocus
+              />
+            </div>
+          )}
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -92,8 +274,7 @@ const FeaturedDestinations = () => {
               </div>
               <div className="p-4 bg-white">
                 <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
-                  Experience the breathtaking beauty of {destination.name} in {destination.location}. 
-                  A must-visit destination for nature lovers.
+                  {destination.description || `Experience the beauty of ${destination.name} in ${destination.location}. A must-visit destination for nature lovers.`}
                 </p>
                 <Link 
                   href="/tourist-spots"

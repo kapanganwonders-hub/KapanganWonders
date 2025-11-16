@@ -200,24 +200,14 @@ const WhyChooseSection = () => {
   }
 
   return (
-    <section className="relative py-20 min-h-[600px] flex items-center justify-center overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src="/assets/Kapangan.jpg"
-          alt="Kapangan Background"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"></div>
-      </div>
-
+    <section className="relative py-20 min-h-[600px] flex items-center justify-center overflow-hidden bg-white">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 z-0 opacity-10">
         <div className="absolute top-10 left-10 w-64 h-64 bg-green-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
         <div className="absolute bottom-10 right-10 w-64 h-64 bg-blue-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slower"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-gray-800">
         {/* Header Section */}
         <div className="text-center mb-16">
           {/* Title */}
@@ -230,18 +220,18 @@ const WhyChooseSection = () => {
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
                 autoFocus
-                className="text-4xl md:text-5xl font-bold text-white bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-8 py-6 outline-none text-center w-full max-w-2xl mx-auto placeholder-white/60 font-serif"
+                className="text-4xl md:text-5xl font-bold text-gray-800 bg-white/10 backdrop-blur-sm border border-gray-200 rounded-2xl px-8 py-6 outline-none text-center w-full max-w-2xl mx-auto placeholder-gray-400 font-serif"
                 placeholder="Enter section title..."
               />
             ) : (
-              <h2 className="text-4xl md:text-5xl font-bold text-white font-serif">
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-800 font-serif">
                 {sectionTitle}
               </h2>
             )}
             {isAdmin && (
               <button
                 onClick={() => startEditing({ type: "sectionTitle" })}
-                className="ml-4 text-white/60 hover:text-white transition-all duration-300 bg-white/10 hover:bg-white/20 p-3 rounded-full backdrop-blur-sm border border-white/20 hover:border-white/40"
+                className="ml-4 text-gray-600 hover:text-gray-800 transition-all duration-300 bg-gray-100 hover:bg-gray-200 p-3 rounded-full border border-gray-300 hover:border-gray-400"
               >
                 <Pencil className="h-5 w-5" />
               </button>
@@ -257,18 +247,18 @@ const WhyChooseSection = () => {
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
                 autoFocus
-                className="text-xl text-white/90 w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-6 py-4 outline-none text-center resize-none h-24 placeholder-white/60 font-sans"
+                className="text-xl text-gray-700 w-full bg-white/10 backdrop-blur-sm border border-gray-200 rounded-2xl px-6 py-4 outline-none text-center resize-none h-24 placeholder-gray-400 font-sans"
                 placeholder="Enter section description..."
               />
             ) : (
-              <p className="text-xl text-white/90 leading-relaxed font-sans">
+              <p className="text-xl text-gray-700 leading-relaxed font-sans">
                 {sectionDescription}
               </p>
             )}
             {isAdmin && (
               <button
                 onClick={() => startEditing({ type: "sectionDescription" })}
-                className="absolute -right-12 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white transition-all duration-300 bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-sm border border-white/20 hover:border-white/40"
+                className="absolute -right-12 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800 transition-all duration-300 bg-gray-100 hover:bg-gray-200 p-2 rounded-full border border-gray-300 hover:border-gray-400"
               >
                 <Pencil className="h-4 w-4" />
               </button>
@@ -276,7 +266,7 @@ const WhyChooseSection = () => {
           </div>
 
           {/* Decorative Line */}
-          <div className="w-32 h-1 bg-gradient-to-r from-white/50 to-white mx-auto mt-8 rounded-full"></div>
+          <div className="w-32 h-1 bg-gradient-to-r from-gray-400 to-gray-600 mx-auto mt-8 rounded-full"></div>
         </div>
 
         {/* Features Grid */}
@@ -284,13 +274,13 @@ const WhyChooseSection = () => {
           {features.map((feature) => (
             <div
               key={feature.id}
-              className="group relative text-center p-8 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 hover:border-white/40 transition-all duration-500 transform hover:-translate-y-3 hover:scale-105 hover:bg-white/15"
+              className="group relative text-center p-8 bg-white rounded-2xl border border-gray-200 hover:border-gray-300 transition-all duration-500 transform hover:-translate-y-3 hover:scale-105 hover:shadow-lg"
             >
               {/* Background Glow Effect */}
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-green-400/10 to-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
-              
+
               {/* Floating Border Effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-green-400/20 to-blue-400/20 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-20"></div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-green-100 to-blue-100 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-20"></div>
 
               {/* Feature Icon */}
               <div className="text-5xl mb-6 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
@@ -309,11 +299,11 @@ const WhyChooseSection = () => {
                     onBlur={handleSave}
                     onKeyDown={handleKeyDown}
                     autoFocus
-                    className="text-xl font-semibold text-white bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2 outline-none text-center w-full placeholder-white/60"
+                    className="text-xl font-semibold text-gray-800 bg-white/10 backdrop-blur-sm border border-gray-200 rounded-xl px-4 py-2 outline-none text-center w-full placeholder-gray-400"
                     placeholder="Enter feature title..."
                   />
                 ) : (
-                  <h3 className="text-xl font-semibold text-white">
+                  <h3 className="text-xl font-semibold text-gray-800">
                     {feature.title}
                   </h3>
                 )}
@@ -326,7 +316,7 @@ const WhyChooseSection = () => {
                         field: "title",
                       })
                     }
-                    className="ml-2 text-white/60 hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-sm border border-white/20 hover:border-white/40"
+                    className="ml-2 text-gray-400 hover:text-gray-600 transition-all duration-300 opacity-0 group-hover:opacity-100 bg-gray-100 hover:bg-gray-200 p-2 rounded-full border border-gray-200 hover:border-gray-300"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -344,11 +334,11 @@ const WhyChooseSection = () => {
                     onBlur={handleSave}
                     onKeyDown={handleKeyDown}
                     autoFocus
-                    className="text-white/80 w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 outline-none text-center resize-none h-24 placeholder-white/60 font-sans"
+                    className="text-gray-700 w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none text-center resize-none h-24 placeholder-gray-400 font-sans"
                     placeholder="Enter feature description..."
                   />
                 ) : (
-                  <p className="text-white/80 leading-relaxed font-sans">
+                  <p className="text-gray-600 leading-relaxed font-sans">
                     {feature.description}
                   </p>
                 )}
@@ -361,7 +351,7 @@ const WhyChooseSection = () => {
                         field: "description",
                       })
                     }
-                    className="absolute -right-8 top-0 text-white/60 hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-sm border border-white/20 hover:border-white/40"
+                    className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 text-gray-400 hover:text-gray-600 transition-all duration-300 opacity-0 group-hover:opacity-100 bg-white hover:bg-gray-100 p-2 rounded-full border border-gray-200 hover:border-gray-300 shadow-sm"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>

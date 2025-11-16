@@ -40,7 +40,7 @@ export default function Navigation() {
   }, [currentUser, isAdmin, pathname, router]);
 
   return (
-    <nav className="bg-white/90 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-gray-200/50 hover:border-green-200/50 transition-all duration-500">
+    <nav className="bg-gradient-to-b from-green-100 to-green-200 text-black shadow-lg sticky top-0 z-50 border-b border-gray-200/50 hover:border-green-200/50 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left - Dual Logos and Brand Name */}
