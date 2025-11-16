@@ -98,13 +98,9 @@ export default function Footer() {
               Quick Links
             </h4>
             <ul className="space-y-3">
-             <li><Link href="/eat-and-stay" className="text-gray-800 hover:text-green-700 transition-colors flex items-center">
+              <li><Link href="/tourist-spots" className="text-gray-800 hover:text-green-700 transition-colors flex items-center">
                 <span className="inline-block w-1.5 h-1.5 bg-green-700 rounded-full mr-2"></span>
                 Tourist Spots
-              </Link></li>
-              <li><Link href="/eat-and-stay" className="text-gray-800 hover:text-green-700 transition-colors flex items-center">
-                <span className="inline-block w-1.5 h-1.5 bg-green-700 rounded-full mr-2"></span>
-                Eat & Stay
               </Link></li>
               <li><Link href="/blogs" className="text-gray-800 hover:text-green-700 transition-colors flex items-center">
                 <span className="inline-block w-1.5 h-1.5 bg-green-700 rounded-full mr-2"></span>

@@ -1060,11 +1060,11 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
 
   return (
     <div className="min-h-screen bg-egg-white">
-      {/* Simple Hero Section */}
-      <div className="bg-primary-green text-egg-white py-12">
+      {/* Hero Section with Gradient Background */}
+      <div className="bg-gradient-to-b from-green-100 to-green-200 text-black py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-bold">Tourist Spots</h1>
-          <p className="mt-4 text-xl text-egg-white/90 max-w-3xl mx-auto">
+          <h1 className="text-4xl font-bold text-gray-900">Tourist Spots</h1>
+          <p className="mt-4 text-xl text-gray-700 max-w-3xl mx-auto">
             Explore the beautiful attractions and hidden gems of Kapangan
           </p>
         </div>
@@ -1113,13 +1113,6 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
           </div>
         </div>
 
-        {/* Results Summary */}
-        <div className="mb-8 text-center">
-          <p className="text-lg text-primary-green/80">
-            Showing {filteredSpots.length} tourist spot{filteredSpots.length !== 1 ? 's' : ''}
-            {selectedBarangay !== 'all' && ` in ${selectedBarangay}`}
-          </p>
-        </div>
 
         {/* Tourist Spots by Barangay */}
         {Object.keys(groupedSpots).length > 0 ? (
@@ -1225,62 +1218,9 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
           </div>
         )}
 
-        <div className="text-center mt-12">
-          <p className="text-primary-green/80 mb-4">
-            Explore these amazing tourist destinations in Kapangan, Benguet. Each location offers unique experiences and breathtaking natural beauty.
-          </p>
-          <button className="bg-primary-green hover:bg-accent-green text-egg-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl">
-            Plan Your Visit
-          </button>
-        </div>
       </div>
-
-      {/* Footer */}
-      <footer className="bg-primary-green text-egg-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-2xl font-bold text-light-green mb-4">Kapangan Wonder</h3>
-              <p className="text-light-green/80">
-                Discover the natural beauty and cultural richness of Kapangan, Benguet.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li><Link href="/tourist-spots" className="text-light-green/80 hover:text-egg-white">Tourist Spots</Link></li>
-                <li><Link href="/eat-and-stay" className="text-light-green/80 hover:text-egg-white">Eat & Stay</Link></li>
-                <li><Link href="/blogs" className="text-light-green/80 hover:text-egg-white">Blogs</Link></li>
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Support</h4>
-              <ul className="space-y-2">
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Help Center</Link></li>
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact Us</Link></li>
-                <li><Link href="/signin" className="text-light-green/80 hover:text-egg-white">Sign In</Link></li>
-                <li><Link href="/signup" className="text-light-green/80 hover:text-egg-white">Sign Up</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Follow Us</h4>
-              <div className="flex space-x-4">
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📘</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">🐦</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📷</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📺</a>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-border-green mt-8 pt-8 text-center text-light-green/80">
-            <p>&copy; 2024 Kapangan Wonder. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
 // This function is already defined as a state setter in the component
 // and doesn't need to be redefined here
-

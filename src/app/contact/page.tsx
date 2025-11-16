@@ -1,15 +1,90 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+interface ContactInfo {
+  icon: string;
+  title: string;
+  details: string;
+}
+
+interface TravelInfo {
+  title: string;
+  description: string;
+  time: string;
+  distance?: string;
+  price?: string;
+}
 
 export default function Contact() {
+  const { currentUser, isAdmin } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     subject: '',
     message: ''
   });
+
+  const [contactInfo, setContactInfo] = useState<ContactInfo[]>([
+    {
+      icon: "🏢",
+      title: "Office Location",
+      details: "Municipal Tourism Office, Kapangan, Benguet"
+    },
+    {
+      icon: "📞",
+      title: "Phone",
+      details: "+63 (123) 456-7890"
+    },
+    {
+      icon: "✉️",
+      title: "Email",
+      details: "info@kapanganwonders.com"
+    },
+    {
+      icon: "⏰",
+      title: "Office Hours",
+      details: "Monday - Friday: 8:00 AM - 5:00 PM"
+    }
+  ]);
+
+  const [travelInfo, setTravelInfo] = useState<TravelInfo[]>([
+    {
+      title: "By Private Vehicle",
+      description: "From Baguio City: Take the Naguilian Road towards La Trinidad. Continue to Kapangan via the Benguet-Nueva Vizcaya Road.",
+      time: "1.5–2 hours",
+      distance: "~45 km"
+    },
+    {
+      title: "By Public Transportation",
+      description: "Regular buses and jeepneys depart from Baguio's Dangwa Terminal to Kapangan.",
+      time: "~2 hours",
+      price: "₱80–₱100"
+    }
+  ]);
+
+  useEffect(() => {
+    const fetchContactData = async () => {
+      try {
+        const docRef = doc(db, 'content', 'contact');
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.contactInfo) setContactInfo(data.contactInfo);
+          if (data.travelInfo) setTravelInfo(data.travelInfo);
+        }
+      } catch (error) {
+        console.error("Error fetching contact data: ", error);
+      }
+    };
+
+    fetchContactData();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -18,240 +93,253 @@ export default function Contact() {
     });
   };
 
+  const handleContactInfoChange = (index: number, field: keyof ContactInfo, value: string) => {
+    const updatedInfo = [...contactInfo];
+    updatedInfo[index] = { ...updatedInfo[index], [field]: value };
+    setContactInfo(updatedInfo);
+  };
+
+  const handleTravelInfoChange = (index: number, field: keyof TravelInfo, value: string) => {
+    const updatedInfo = [...travelInfo];
+    updatedInfo[index] = { ...updatedInfo[index], [field]: value };
+    setTravelInfo(updatedInfo);
+  };
+
+  const handleSave = async () => {
+    try {
+      const docRef = doc(db, 'content', 'contact');
+      // Use setDoc with merge: true to create or update the document
+      await setDoc(docRef, {
+        contactInfo,
+        travelInfo,
+        lastUpdated: new Date()
+      }, { merge: true });
+      
+      setIsEditing(false);
+      alert('Contact information saved successfully!');
+    } catch (error) {
+      console.error("Error saving contact information: ", error);
+      alert('Failed to save contact information. Please try again.');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission here
     console.log('Form submitted:', formData);
     alert('Thank you for your message! We will get back to you soon.');
     setFormData({ name: '', email: '', subject: '', message: '' });
   };
 
-  const contactInfo = [
-    {
-      icon: "📍",
-      title: "Address",
-      details: "Kapangan, Benguet, Philippines"
-    },
-    {
-      icon: "📞",
-      title: "Phone",
-      details: "+63 917 123 4567"
-    },
-    {
-      icon: "✉️",
-      title: "Email",
-      details: "info@kapanganwonder.com"
-    },
-    {
-      icon: "🕒",
-      title: "Office Hours",
-      details: "Monday - Friday: 9:00 AM - 6:00 PM"
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-egg-white">
-      {/* Simple Hero Section */}
-      <div className="bg-primary-green text-egg-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-bold">Contact Us</h1>
-          <p className="mt-4 text-xl text-egg-white/90 max-w-3xl mx-auto">
-            Have questions or feedback? We'd love to hear from you.
+      {/* Hero Section with Green Gradient */}
+      <div className="bg-gradient-to-b from-green-100 to-green-200 text-black py-12 md:py-16 px-4">
+        <div className="max-w-7xl mx-auto text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold">Contact Us</h1>
+          <p className="mt-3 sm:mt-4 text-lg sm:text-xl text-gray-800 max-w-3xl mx-auto">
+            Reach out to the Municipal Tourism Office for inquiries and assistance.
           </p>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 py-16 bg-gradient-custom border-b border-primary-green/20">
-          {/* Contact Information */}
-          <div>
-            <h2 className="text-2xl font-bold text-primary-green mb-8">Get in Touch</h2>
+      {isAdmin && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="flex justify-end mb-4">
+            {isEditing ? (
+              <div className="space-y-4 sm:space-y-6">
+                <button
+                  onClick={handleSave}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Edit Content
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+          {/* Left Column - Our Office */}
+          <div className="bg-white p-5 sm:p-6 md:p-8 rounded-lg shadow-md">
+            <div className="flex items-center mb-6 sm:mb-8">
+              <div className="bg-green-100 p-3 rounded-full mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-primary-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-primary-green">Our Office</h2>
+            </div>
             <div className="space-y-6">
               {contactInfo.map((info, index) => (
-                <div key={index} className="flex items-start space-x-4">
-                  <div className="text-2xl">{info.icon}</div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-primary-green">{info.title}</h3>
-                    <p className="text-primary-green/70">{info.details}</p>
+                <div key={index} className="flex items-start space-x-3 sm:space-x-4">
+                  {isEditing ? (
+                    <select
+                      value={info.icon}
+                      onChange={(e) => handleContactInfoChange(index, 'icon', e.target.value)}
+                      className="text-2xl bg-white border rounded p-1"
+                    >
+                      <option value="🏢">🏢</option>
+                      <option value="📞">📞</option>
+                      <option value="✉️">✉️</option>
+                      <option value="⏰">⏰</option>
+                      <option value="📍">📍</option>
+                      <option value="🌐">🌐</option>
+                    </select>
+                  ) : (
+                    <div className="text-xl sm:text-2xl text-primary-green">{info.icon}</div>
+                  )}
+                  <div className="flex-1">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={info.title}
+                        onChange={(e) => handleContactInfoChange(index, 'title', e.target.value)}
+                        className="w-full font-semibold text-lg text-gray-800 bg-gray-50 border rounded p-1 mb-1"
+                      />
+                    ) : (
+                      <h3 className="text-lg font-semibold text-gray-800">{info.title}</h3>
+                    )}
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={info.details}
+                        onChange={(e) => handleContactInfoChange(index, 'details', e.target.value)}
+                        className="w-full text-gray-600 bg-gray-50 border rounded p-1"
+                      />
+                    ) : (
+                      <p className="text-gray-600">{info.details}</p>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
-
-            {/* Social Media Links */}
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold text-primary-green mb-4">Follow Us</h3>
-              <div className="flex space-x-4">
-                <a href="#" className="text-primary-green hover:text-accent-green text-2xl">
-                  📘
-                </a>
-                <a href="#" className="text-accent-green hover:text-primary-green text-2xl">
-                  🐦
-                </a>
-                <a href="#" className="text-primary-green hover:text-accent-green text-2xl">
-                  📷
-                </a>
-                <a href="#" className="text-accent-green hover:text-primary-green text-2xl">
-                  📺
-                </a>
-              </div>
-            </div>
-
-            {/* Map Placeholder */}
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold text-primary-green mb-4">Find Us</h3>
-              <div className="h-64 bg-gradient-to-r from-primary-green to-accent-green rounded-lg flex items-center justify-center">
-                <span className="text-white text-lg font-semibold">Interactive Map</span>
-              </div>
-            </div>
           </div>
 
-          {/* Contact Form */}
-          <div>
-            <h2 className="text-2xl font-bold text-primary-green mb-8">Send us a Message</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-primary-green mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-border-green rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
-                  placeholder="Your full name"
-                />
+          {/* Right Column - Getting to Kapangan */}
+          <div className="bg-white p-5 sm:p-6 md:p-8 rounded-lg shadow-md">
+            <div className="flex items-center mb-6 sm:mb-8">
+              <div className="bg-green-100 p-3 rounded-full mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-primary-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
               </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-primary-green mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-border-green rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
-                  placeholder="your.email@example.com"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="subject" className="block text-sm font-medium text-primary-green mb-2">
-                  Subject
-                </label>
-                <input
-                  type="text"
-                  id="subject"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-border-green rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
-                  placeholder="What's this about?"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="message" className="block text-sm font-medium text-primary-green mb-2">
-                  Message
-                </label>
-                <textarea
-                  id="message"
-                  name="message"
-                  value={formData.message}
-                  onChange={handleChange}
-                  required
-                  rows={6}
-                  className="w-full px-4 py-3 border border-border-green rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
-                  placeholder="Tell us more about your inquiry..."
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-primary-green hover:bg-accent-green text-egg-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 border border-border-green"
-              >
-                Send Message
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="mt-16 py-16 bg-gradient-custom-reverse text-primary-green">
-          <h2 className="text-3xl font-bold text-primary-green mb-8 text-center">Frequently Asked Questions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-egg-white rounded-lg shadow-lg p-6 border border-border-green">
-              <h3 className="text-lg font-semibold text-primary-green mb-3">What is the best time to visit Kapangan?</h3>
-              <p className="text-primary-green/70">The best time to visit Kapangan is during the dry season from November to April, when the weather is pleasant and perfect for outdoor activities.</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-primary-green">Getting to Kapangan</h2>
             </div>
-            <div className="bg-egg-white rounded-lg shadow-lg p-6 border border-border-green">
-              <h3 className="text-lg font-semibold text-primary-green mb-3">How do I get to Kapangan?</h3>
-              <p className="text-primary-green/70">Kapangan is accessible by bus from Baguio City. The journey takes approximately 2-3 hours through scenic mountain roads.</p>
-            </div>
-            <div className="bg-egg-white rounded-lg shadow-lg p-6 border border-border-green">
-              <h3 className="text-lg font-semibold text-primary-green mb-3">Are there accommodations available?</h3>
-              <p className="text-primary-green/70">Yes, there are various accommodations ranging from budget-friendly lodges to comfortable hotels and resorts.</p>
-            </div>
-            <div className="bg-egg-white rounded-lg shadow-lg p-6 border border-border-green">
-              <h3 className="text-lg font-semibold text-primary-green mb-3">What activities can I do in Kapangan?</h3>
-              <p className="text-primary-green/70">You can enjoy hiking, sightseeing, cultural tours, local cuisine tasting, and experiencing traditional festivals and events.</p>
+            
+            <div className="space-y-6 sm:space-y-8">
+              {travelInfo.map((info, index) => (
+                <div key={index} className="flex">
+                  <div className="flex-shrink-0 mr-3 sm:mr-4 mt-1">
+                    <div className={`${index % 2 === 0 ? 'bg-blue-100' : 'bg-green-100'} p-3 rounded-full`}>
+                      {index % 2 === 0 ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <div className={`border-l-4 ${index % 2 === 0 ? 'border-blue-400' : 'border-green-400'} pl-3 sm:pl-4 flex-1`}>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={info.title}
+                        onChange={(e) => handleTravelInfoChange(index, 'title', e.target.value)}
+                        className="w-full text-xl font-semibold text-gray-800 bg-gray-50 border rounded p-1 mb-2"
+                      />
+                    ) : (
+                      <h3 className="text-xl font-semibold text-gray-800 mb-2">{info.title}</h3>
+                    )}
+                    
+                    {isEditing ? (
+                      <textarea
+                        value={info.description}
+                        onChange={(e) => handleTravelInfoChange(index, 'description', e.target.value)}
+                        className="w-full text-gray-700 bg-gray-50 border rounded p-1 mb-3 h-20"
+                      />
+                    ) : (
+                      <p className="text-gray-700 mb-3">{info.description}</p>
+                    )}
+                    
+                    <div className="flex items-center text-gray-600 text-xs sm:text-sm flex-wrap gap-3 sm:gap-4">
+                      <span className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={info.time}
+                            onChange={(e) => handleTravelInfoChange(index, 'time', e.target.value)}
+                            className="w-20 sm:w-24 bg-gray-50 border rounded p-1 text-sm"
+                          />
+                        ) : (
+                          info.time
+                        )}
+                      </span>
+                      
+                      {info.distance && (
+                        <span className="flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={info.distance}
+                              onChange={(e) => handleTravelInfoChange(index, 'distance', e.target.value)}
+                              className="w-20 sm:w-24 bg-gray-50 border rounded p-1 text-sm"
+                            />
+                          ) : (
+                            info.distance
+                          )}
+                        </span>
+                      )}
+                      
+                      {info.price && (
+                        <span className="flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={info.price}
+                              onChange={(e) => handleTravelInfoChange(index, 'price', e.target.value)}
+                              className="w-20 sm:w-24 bg-gray-50 border rounded p-1 text-sm"
+                            />
+                          ) : (
+                            info.price
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="bg-primary-green text-egg-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-2xl font-bold text-light-green mb-4">Kapangan Wonder</h3>
-              <p className="text-light-green/80">
-                Discover the natural beauty and cultural richness of Kapangan, Benguet.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li><Link href="/tourist-spots" className="text-light-green/80 hover:text-egg-white">Tourist Spots</Link></li>
-                <li><Link href="/eat-and-stay" className="text-light-green/80 hover:text-egg-white">Eat & Stay</Link></li>
-                <li><Link href="/blogs" className="text-light-green/80 hover:text-egg-white">Blogs</Link></li>
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Support</h4>
-              <ul className="space-y-2">
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Help Center</Link></li>
-                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact Us</Link></li>
-                <li><Link href="/signin" className="text-light-green/80 hover:text-egg-white">Sign In</Link></li>
-                <li><Link href="/signup" className="text-light-green/80 hover:text-egg-white">Sign Up</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Follow Us</h4>
-              <div className="flex space-x-4">
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📘</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">🐦</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📷</a>
-                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📺</a>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-border-green mt-8 pt-8 text-center text-light-green/80">
-            <p>&copy; 2024 Kapangan Wonder. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
