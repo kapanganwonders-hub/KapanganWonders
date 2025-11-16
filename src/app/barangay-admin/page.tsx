@@ -97,18 +97,18 @@ export default function BarangayAdminDashboard() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <h1 className="text-3xl font-bold text-green-700">
+      <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-green-700">
           Barangay {barangay} Dashboard
         </h1>
-        <div className="flex gap-2 mt-4 sm:mt-0">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {['monthly', 'quarterly', 'yearly'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f as any)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition ${
                 filter === f
                   ? 'bg-green-600 text-white'
                   : 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -121,83 +121,127 @@ export default function BarangayAdminDashboard() {
       </div>
 
       {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <motion.div whileHover={{ scale: 1.03 }}>
-          <Card className="shadow-md border border-green-100">
-            <CardContent className="p-6 flex items-center justify-between">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Card className="shadow-sm sm:shadow-md border border-green-50 sm:border-green-100">
+            <CardContent className="p-4 sm:p-6 flex items-center justify-between">
               <div>
-                <h2 className="text-sm text-gray-500">Total Visitors</h2>
-                <p className="text-2xl font-bold text-green-700">{totalVisitors}</p>
+                <h2 className="text-xs sm:text-sm text-gray-500">Total Visitors</h2>
+                <p className="text-xl sm:text-2xl font-bold text-green-700">{totalVisitors}</p>
               </div>
-              <Users className="text-green-600" size={28} />
+              <div className="p-2 bg-green-50 rounded-lg">
+                <Users className="text-green-600" size={20} />
+              </div>
             </CardContent>
           </Card>
         </motion.div>
 
-
-        <motion.div whileHover={{ scale: 1.03 }}>
-          <Card className="shadow-md border border-green-100">
-            <CardContent className="p-6 flex items-center justify-between">
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Card className="shadow-sm sm:shadow-md border border-green-50 sm:border-green-100">
+            <CardContent className="p-4 sm:p-6 flex items-center justify-between">
               <div>
-                <h2 className="text-sm text-gray-500">Active Users</h2>
-                <p className="text-2xl font-bold text-green-700">{uniqueUsers}</p>
+                <h2 className="text-xs sm:text-sm text-gray-500">Tourist Spots</h2>
+                <p className="text-xl sm:text-2xl font-bold text-green-700">{uniqueSpots}</p>
               </div>
-              <BarChart3 className="text-green-600" size={28} />
+              <div className="p-2 bg-green-50 rounded-lg">
+                <MapPin className="text-green-600" size={20} />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Card className="shadow-sm sm:shadow-md border border-green-50 sm:border-green-100">
+            <CardContent className="p-4 sm:p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xs sm:text-sm text-gray-500">Active Users</h2>
+                <p className="text-xl sm:text-2xl font-bold text-green-700">{uniqueUsers}</p>
+              </div>
+              <div className="p-2 bg-green-50 rounded-lg">
+                <User className="text-green-600" size={20} />
+              </div>
             </CardContent>
           </Card>
         </motion.div>
       </div>
 
       {/* Charts + Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
         {/* 📊 Bar Chart */}
-        <Card className="shadow-md border border-green-100">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4 text-green-700">
+        <Card className="shadow-sm sm:shadow-md border border-green-50 sm:border-green-100">
+          <CardContent className="p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-green-700">
               Visitors per {filter === 'yearly' ? 'Year' : filter === 'quarterly' ? 'Quarter' : 'Month'}
             </h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={filteredData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="period" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="visitors" fill="#22c55e" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-[250px] sm:h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis 
+                    dataKey="period" 
+                    tick={{ fontSize: 12 }}
+                    tickMargin={8}
+                  />
+                  <YAxis 
+                    width={35}
+                    tick={{ fontSize: 12 }}
+                    tickMargin={8}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      fontSize: '14px',
+                      borderRadius: '8px',
+                      border: '1px solid #e5e7eb',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  <Bar 
+                    dataKey="visitors" 
+                    fill="#22c55e" 
+                    radius={[4, 4, 0, 0]}
+                    name="Visitors"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
         {/* 🕒 Recent Activities */}
-        <Card className="shadow-md border border-green-100">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4 text-green-700">Recent Activities</h2>
-            <div className="space-y-4 max-h-[320px] overflow-y-auto">
+        <Card className="shadow-sm sm:shadow-md border border-green-50 sm:border-green-100">
+          <CardContent className="p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-green-700">Recent Activities</h2>
+            <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1 -mr-2 sm:mr-0">
               {recentActivities.length > 0 ? (
                 recentActivities.map((log) => (
                   <motion.div
                     key={log.id}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-green-50 rounded-xl border border-green-100 shadow-sm"
+                    whileHover={{ x: 2 }}
+                    className="p-3 sm:p-4 bg-green-50 rounded-lg sm:rounded-xl border border-green-50 sm:border-green-100 shadow-xs sm:shadow-sm"
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium text-green-700">{log.name}</p>
-                        <p className="text-sm text-gray-600 flex items-center gap-1">
-                          <MapPin size={14} /> {log.spots?.join(', ') || '—'}
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm sm:text-base text-green-700 truncate">{log.name}</p>
+                        <p className="text-xs sm:text-sm text-gray-600 flex items-start sm:items-center gap-1 mt-1">
+                          <MapPin className="flex-shrink-0 mt-0.5 sm:mt-0" size={12} /> 
+                          <span className="truncate">{log.spots?.join(', ') || '—'}</span>
                         </p>
                       </div>
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <p className="text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap">
                         <Calendar size={12} /> {log.date}
                       </p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-2 flex items-center gap-1">
-                      <User size={14} /> {log.email}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Visitors: <strong>{log.numberOfVisitors || 0}</strong>
-                    </p>
+                    <div className="mt-2 sm:mt-3 pt-2 border-t border-green-100">
+                      <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1">
+                        <User size={12} /> 
+                        <span className="truncate">{log.email}</span>
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                        Visitors: <strong>{log.numberOfVisitors || 0}</strong>
+                      </p>
+                    </div>
                   </motion.div>
                 ))
               ) : (

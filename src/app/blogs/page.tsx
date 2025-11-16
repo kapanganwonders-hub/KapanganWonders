@@ -207,11 +207,7 @@ export default function Blogs() {
         const data = doc.data();
         return {
           id: doc.id,
-          ...data,
-          // Handle both Timestamp and raw timestamp objects
-          createdAt: data.createdAt || Timestamp.now(),
-          updatedAt: data.updatedAt || Timestamp.now(),
-          // Ensure all required fields have default values
+          // Explicitly map all fields including imageUrl
           title: data.title || 'Untitled Blog',
           content: data.content || '',
           excerpt: data.excerpt || '',
@@ -219,7 +215,13 @@ export default function Blogs() {
           views: data.views || 0,
           barangay: data.barangay || 'Kapangan',
           author: data.author || 'system',
-          authorName: data.authorName || 'Unknown Author'
+          authorName: data.authorName || 'Unknown Author',
+          authorBio: data.authorBio || '',
+          // Ensure imageUrl is properly included
+          imageUrl: data.imageUrl || '',
+          // Handle timestamps
+          createdAt: data.createdAt || Timestamp.now(),
+          updatedAt: data.updatedAt || Timestamp.now()
         } as Blog;
       });
       
@@ -426,10 +428,10 @@ export default function Blogs() {
   return (
     <div className="min-h-screen bg-egg-white">
       {/* Hero Section */}
-      <div className="bg-gradient-to-b from-green-100 to-green-200 text-black py-16">
+      <div className="bg-primary-green text-egg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Kapangan Blogs</h1>
-          <p className="text-xl text-black/90 max-w-3xl mx-auto">
+          <p className="text-xl text-egg-white/90 max-w-3xl mx-auto">
             Discover stories, news, and insights about the beautiful town of Kapangan
           </p>
           
@@ -443,7 +445,7 @@ export default function Blogs() {
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
                     selectedCategory === category
                       ? 'bg-egg-white text-primary-green'
-                      : 'bg-white/20 text-black hover:bg-white/30'
+                      : 'bg-white/10 text-egg-white hover:bg-white/20'
                   }`}
                 >
                   {category}
@@ -587,28 +589,41 @@ export default function Blogs() {
                     {searchParams.get('from') === 'dashboard' || editingBlog === selectedBlog?.id ? 'Back to Dashboard' : 'Back to Blogs'}
                   </button>
                   
-                  {(isBarangayAdmin || isPrivateSpotAdmin) && isAuthor(selectedBlog) && editingBlog === selectedBlog?.id && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleUpdateBlog(selectedBlog.id)}
-                        className="flex items-center gap-1 bg-primary-green text-egg-white px-3 py-1 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Save
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        className="flex items-center gap-1 bg-gray-100 text-primary-green px-3 py-1 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Cancel
-                      </button>
-                    </div>
-                  )}
+                 {(isBarangayAdmin || isPrivateSpotAdmin) &&
+ isAuthor(selectedBlog) &&
+ editingBlog === selectedBlog?.id && (
+  <div className="flex gap-2">
+    <button
+      onClick={() => handleUpdateBlog(selectedBlog.id)}
+      disabled={isUploading}
+      className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+        isUploading
+          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          : 'bg-primary-green text-egg-white hover:bg-green-700'
+      }`}
+    >
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      </svg>
+      Save
+    </button>
+    <button
+      onClick={cancelEdit}
+      disabled={isUploading}
+      className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+        isUploading
+          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          : 'bg-gray-100 text-primary-green hover:bg-gray-200'
+      }`}
+    >
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      </svg>
+      Cancel
+    </button>
+  </div>
+)}
+
                 </div>
 
                 {editingBlog === selectedBlog?.id ? (
@@ -816,6 +831,49 @@ export default function Blogs() {
         </div>
       )}
 
+      {/* Footer */}
+      <footer className="bg-primary-green text-egg-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <h3 className="text-2xl font-bold text-light-green mb-4">Kapangan Wonder</h3>
+              <p className="text-light-green/80">
+                Discover the natural beauty and cultural richness of Kapangan, Benguet.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
+              <ul className="space-y-2">
+                <li><Link href="/tourist-spots" className="text-light-green/80 hover:text-egg-white">Tourist Spots</Link></li>
+                <li><Link href="/eat-and-stay" className="text-light-green/80 hover:text-egg-white">Eat & Stay</Link></li>
+                <li><Link href="/blogs" className="text-light-green/80 hover:text-egg-white">Blogs</Link></li>
+                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Support</h4>
+              <ul className="space-y-2">
+                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Help Center</Link></li>
+                <li><Link href="/contact" className="text-light-green/80 hover:text-egg-white">Contact Us</Link></li>
+                <li><Link href="/signin" className="text-light-green/80 hover:text-egg-white">Sign In</Link></li>
+                <li><Link href="/signup" className="text-light-green/80 hover:text-egg-white">Sign Up</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Follow Us</h4>
+              <div className="flex space-x-4">
+                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📘</a>
+                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">🐦</a>
+                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📷</a>
+                <a href="#" className="text-light-green/80 hover:text-egg-white text-2xl">📺</a>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-border-green mt-8 pt-8 text-center text-light-green/80">
+            <p>&copy; 2024 Kapangan Wonder. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

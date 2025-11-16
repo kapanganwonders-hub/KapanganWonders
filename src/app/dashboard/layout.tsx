@@ -5,15 +5,18 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { logout } from '@/lib/auth';
-import { motion } from 'framer-motion';
-import { User, Map, Calendar, Bell, LogOut, LayoutDashboard, Megaphone } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Map, Calendar, Bell, LogOut, LayoutDashboard, Megaphone, Menu, X, Compass, MapPin, CalendarCheck, QrCode } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMediaQuery } from 'react-responsive';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { currentUser, isAdmin, isBarangayAdmin, barangayAdminData } = useAuth();
   const [profileSrc, setProfileSrc] = useState('/assets/default-avatar.png');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const isMobile = useMediaQuery({ maxWidth: 1024 });
 
   // Redirect barangay admins to their proper dashboard
   useEffect(() => {
@@ -41,35 +44,70 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const linkClass = (path: string) =>
-    `flex items-center gap-2 p-2 rounded-md transition ${
+    `flex items-center gap-3 p-3 rounded-lg transition-all text-sm lg:text-base ${
       pathname === path
-        ? 'bg-green-100 text-green-700 font-semibold'
-        : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
+        ? 'bg-green-50 text-green-700 font-medium border-l-4 border-green-500 pl-3'
+        : 'text-gray-600 hover:text-green-600 hover:bg-green-50 pl-4'
     }`;
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-green-50 to-green-100">
-      <div className="flex flex-1 p-6">
-        {/* Sidebar */}
-        <motion.aside
-          initial={{ x: -50, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="w-1/5 bg-white rounded-2xl shadow-md p-5 flex flex-col justify-between"
+      {/* Mobile Header */}
+      <header className="lg:hidden bg-white shadow-sm p-4 flex items-center justify-between sticky top-0 z-10">
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 rounded-md text-gray-700 hover:bg-gray-100"
+          aria-label="Toggle menu"
         >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+        <h1 className="text-lg font-semibold text-gray-800">Kapangan Wonders</h1>
+        <div className="w-8"></div> {/* Spacer for alignment */}
+      </header>
+
+      <div className="flex flex-1 p-2 sm:p-4 lg:p-6">
+        {/* Mobile Menu Overlay */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Sidebar */}
+        <AnimatePresence>
+          {(!isMobile || isMobileMenuOpen) && (
+            <motion.aside
+              initial={isMobile ? { x: -320 } : { x: 0 }}
+              animate={{ x: 0 }}
+              exit={{ x: -320 }}
+              transition={{ type: 'tween', ease: 'easeInOut' }}
+              className={`fixed lg:sticky top-0 left-0 h-screen lg:h-auto z-30 w-72 lg:w-1/5 bg-white shadow-xl lg:shadow-md rounded-r-2xl lg:rounded-2xl p-4 lg:p-5 flex flex-col`}
+            >
           <div>
             {/* Profile Section */}
             <div className="flex flex-col items-center mb-6">
-              <div className="relative w-20 h-20 mb-3">
+              <div className="relative w-16 h-16 lg:w-20 lg:h-20 mb-4">
                 <Image
                   src={profileSrc}
                   alt="Profile"
                   fill
                   className="rounded-full border-2 border-green-300 object-cover"
                   onError={handleImageError}
+                  sizes="(max-width: 1024px) 4rem, 5rem"
                 />
               </div>
-              <h2 className="font-semibold text-gray-800">
+              <h2 className="font-semibold text-gray-800 text-center text-sm lg:text-base">
                 {currentUser?.displayName || 'Guest'}
               </h2>
               {isAdmin ? (
@@ -96,9 +134,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
 
             {/* Navigation Sections */}
-            <div className="space-y-6">
+              <div className="space-y-4">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Account</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase mb-2 px-1">Account</p>
                 <ul className="space-y-2">
                   <li>
                     <Link href="/dashboard" className={linkClass('/dashboard')}>
@@ -119,15 +157,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Travel</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase mb-2 px-1">Travel</p>
                 <ul className="space-y-2">
                   <li>
                     <Link
                       href="/dashboard/my-travels"
                       className={linkClass('/dashboard/my-travels')}
                     >
-                      <Map size={18} />
-                      My Travels
+                      <Compass size={18} className="flex-shrink-0" />
+                      <span>My Travels</span>
                     </Link>
                   </li>
                   <li>
@@ -135,8 +173,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       href="/dashboard/places-visited"
                       className={linkClass('/dashboard/places-visited')}
                     >
-                      <Map size={18} />
-                      Places Visited
+                      <MapPin size={18} className="flex-shrink-0" />
+                      <span>Places Visited</span>
                     </Link>
                   </li>
                   <li>
@@ -144,8 +182,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       href="/dashboard/schedule-visit"
                       className={linkClass('/dashboard/schedule-visit')}
                     >
-                      <Calendar size={18} />
-                      Schedule Visit
+                      <CalendarCheck size={18} className="flex-shrink-0" />
+                      <span>Schedule Visit</span>
                     </Link>
                   </li>
                   <li>
@@ -158,24 +196,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </Link>
                   </li>
 
-                  {/* 🆕 NEW: My QR Code Page */}
+                  {/* NEW: My QR Code Page */}
                   <li>
                     <Link
                       href="/dashboard/my-qr-code"
                       className={linkClass('/dashboard/my-qr-code')}
                     >
-                      <Map size={18} />
-                      My QR Code
+                      <QrCode size={18} className="flex-shrink-0" />
+                      <span>My QR Code</span>
                     </Link>
                   </li>
                 </ul>
               </div>
 
-           
-
               {isAdmin && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Admin</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase mb-2 px-1">Admin</p>
                   <ul className="space-y-2">
                     <li>
                       <Link
@@ -230,12 +266,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           </div>
         </motion.aside>
+        )}
+      </AnimatePresence>
 
-        {/* Main Dashboard */}
-        <main className="flex-1 bg-white rounded-2xl shadow-md ml-6 p-6">
-          {children}
-        </main>
-      </div>
+      {/* Main Content */}
+      <main className={`flex-1 ${!isMobileMenuOpen || !isMobile ? 'ml-0 lg:ml-6' : 'ml-0'} transition-all duration-300 bg-white rounded-2xl shadow-md p-4 sm:p-6 overflow-y-auto w-full`}>
+        {children}
+      </main>
     </div>
+  </div>
   );
 }

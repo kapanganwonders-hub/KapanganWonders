@@ -86,7 +86,21 @@ export default function BlogsPage() {
       const blogsSnapshot = await getDocs(blogsQuery);
       let blogsData = blogsSnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        // Explicitly map all fields including imageUrl
+        title: doc.data().title || '',
+        content: doc.data().content || '',
+        excerpt: doc.data().excerpt || '',
+        category: doc.data().category || 'News',
+        imageUrl: doc.data().imageUrl || '',
+        // Preserve other fields
+        ...(doc.data().createdAt && { createdAt: doc.data().createdAt }),
+        ...(doc.data().updatedAt && { updatedAt: doc.data().updatedAt }),
+        views: doc.data().views || 0,
+        tags: doc.data().tags || [],
+        barangay: doc.data().barangay || '',
+        author: doc.data().author || '',
+        authorName: doc.data().authorName || ''
       } as Blog));
       
       setBlogs(blogsData);
