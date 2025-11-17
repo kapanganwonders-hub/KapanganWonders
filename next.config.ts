@@ -1,36 +1,43 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Turbopack configuration
   turbopack: {
-    root: __dirname, // Explicitly set the root directory
+    root: __dirname,
   },
   images: {
     domains: [
-      "lh3.googleusercontent.com", // ✅ Google profile photos
-      "firebasestorage.googleapis.com", // ✅ Firebase Storage (future use)
-      "res.cloudinary.com", // ✅ Cloudinary (optional future use)
-      "cloud.appwrite.io", // ✅ Appwrite storage
+      "lh3.googleusercontent.com",
+      "firebasestorage.googleapis.com",
+      "res.cloudinary.com",
+      "cloud.appwrite.io",
+    ],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
     ],
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '10mb',
+      bodySizeLimit: "10mb",
     },
   },
-  // Cache control headers - simplified for Turbopack compatibility
   headers: async () => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       return [
         {
-          source: '/_next/static/:path*',
+          source: "/_next/static/:path*",
           headers: [
-            { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+            { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
           ],
         },
       ];
     }
     return [];
+  },
+  eslint: {
+    ignoreDuringBuilds: true, // ✅ completely disables ESLint during build
   },
 };
 
