@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface GlowingCardProps {
-  style: any;
+  style: React.CSSProperties;
   children: React.ReactNode;
   className?: string;
   glowColor?: string;

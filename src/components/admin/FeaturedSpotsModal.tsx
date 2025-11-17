@@ -4,7 +4,7 @@ import { collection, getDocs, doc, setDoc, getDoc, query, where } from 'firebase
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
-interface Spot {
+export interface Spot {
   id: string;
   name: string;
   location: string;

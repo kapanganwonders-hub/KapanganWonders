@@ -8,6 +8,7 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, onSnapshot } from 'firebase/firestore';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import FeaturedSpotsModal from './admin/FeaturedSpotsModal';
+import type { Spot } from './admin/FeaturedSpotsModal';
 
 interface Destination {
   id: string;
@@ -128,20 +129,36 @@ const FeaturedDestinations = () => {
     }
   };
 
-  const handleSaveFeaturedSpots = async (selectedSpots: any[]) => {
+  interface SelectedSpot {
+    id: string;
+    name: string;
+    location: string;
+    imageUrl: string;
+    image?: string;      // Optional for backward compatibility
+    description?: string; // Optional since it's not in the base Spot type
+  }
+
+  const handleSaveFeaturedSpots = async (selectedSpots: Spot[]) => {
     try {
       const docRef = doc(db, 'featured', 'destinations');
+      // Convert Spot[] to the format we want to store
+      const spotsToSave = selectedSpots.map(spot => ({
+        id: spot.id,
+        name: spot.name,
+        location: spot.location || '',
+        image: spot.imageUrl,
+        imageUrl: spot.imageUrl,
+        description: `Experience the beauty of ${spot.name} in ${spot.location || 'Kapangan'}.`
+      }));
+      
       await setDoc(docRef, {
-        spots: selectedSpots.map(spot => ({
-          id: spot.id,
-          name: spot.name,
-          location: spot.location || '',
-          image: spot.imageUrl || spot.image || '/empty-travel.svg',
-          description: spot.description || `Experience the beauty of ${spot.name} in ${spot.location || 'Kapangan'}.`
-        })),
+        spots: spotsToSave,
         updatedAt: new Date().toISOString(),
         updatedBy: currentUser?.uid || 'admin'
       });
+      
+      // Update local state with the saved spots
+      setDestinations(spotsToSave);
     } catch (error) {
       console.error('Error saving featured spots:', error);
       throw error;

@@ -1,4 +1,4 @@
-import { Client, Account, Databases, Storage, ID, Permission, Role } from 'appwrite';
+import { Client, Account, Databases, Storage, ID } from 'appwrite';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -54,8 +54,9 @@ const ensureAppwriteUser = async () => {
 
     try {
       await account.get();
-    } catch (error: any) {
-      if (error.code === 401) {
+    } catch (error: unknown) {
+      const appwriteError = error as { code?: number; message?: string };
+      if (appwriteError.code === 401) {
         if (!user.email) {
           throw new Error('User email is required');
         }
@@ -74,17 +75,22 @@ const ensureAppwriteUser = async () => {
 };
 
 // --- Helper: Get headers for fetch requests ---
-const getAppwriteHeaders = () => ({
-  'X-Appwrite-Project': client.config.project,
-  'x-sdk-version': 'appwrite:web:14.0.0',
-  'Content-Type': 'application/json'
-});
+const getAppwriteHeaders = (): { [key: string]: string } => {
+  if (!client.config.project) {
+    throw new Error('Appwrite project ID is not configured');
+  }
+  return {
+    'X-Appwrite-Project': client.config.project,
+    'x-sdk-version': 'appwrite:web:14.0.0',
+    'Content-Type': 'application/json'
+  };
+};
 
 // --- Storage Bucket ID ---
-const BUCKET_ID = '69062d080010accbfb9e'; // ✅ Your Appwrite Bucket ID
+const BUCKET_ID = '69062d080010accbfb9e'; // Your Appwrite Bucket ID
 
 // --- Helper: Generate valid file name ---
-const generateFileName = (file: File) => {
+const generateFileName = (file: File): string => {
   const extension = file.name.split('.').pop()?.toLowerCase() || 'dat';
   const baseName = file.name
     .replace(/\.[^/.]+$/, '')
@@ -97,8 +103,38 @@ const generateFileName = (file: File) => {
   return `${truncatedName}-${timestamp}.${extension}`;
 };
 
+// --- Types ---
+interface UploadProgress {
+  $id: string;
+  progress: number;
+  status: string;
+  fileId: string;
+}
+
+interface UploadResult {
+  $id: string;
+  bucketId: string;
+  $createdAt: string;
+  $updatedAt: string;
+  $permissions: string[];
+  name: string;
+  originalName: string;
+  mimeType: string;
+  sizeOriginal: number;
+  size: number;
+  signature: string;
+  chunksTotal: number;
+  chunksUploaded: number;
+  url: string;
+  type: string;
+}
+
 // --- Function: Upload file to Appwrite Storage (safe version) ---
-const uploadFile = async (file: File, folder = 'touristSpots', p0: { onProgress: (progress: any) => void; }) => {
+const uploadFile = async (
+  file: File, 
+  folder = 'touristSpots', 
+  onProgress?: { onProgress: (progress: UploadProgress) => void }
+): Promise<UploadResult> => {
   try {
     if (!BUCKET_ID) throw new Error('Appwrite bucket ID is not configured.');
 
@@ -131,8 +167,15 @@ const uploadFile = async (file: File, folder = 'touristSpots', p0: { onProgress:
   }
 };
 
+// --- Types ---
+interface AppwriteError extends Error {
+  code?: number;
+  message: string;
+  type?: string;
+}
+
 // --- Function: Delete file from Appwrite Storage (safe version) ---
-const deleteFile = async (fileId: string) => {
+const deleteFile = async (fileId: string): Promise<boolean> => {
   try {
     if (!BUCKET_ID) throw new Error('Appwrite bucket ID is not configured.');
     if (!fileId) {
@@ -144,37 +187,38 @@ const deleteFile = async (fileId: string) => {
     console.log(`✅ File ${fileId} deleted successfully.`);
     return true;
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const appwriteError = error as AppwriteError;
+    
     // File not found
-    if (error?.message?.includes('not be found') || error?.code === 404) {
+    if (appwriteError?.message?.includes('not be found') || appwriteError?.code === 404) {
       console.warn(`⚠️ File ${fileId} not found in Appwrite. Skipping delete.`);
       return false;
     }
 
     // Permission issue fallback
-    if (error?.code === 401 || error?.code === 403) {
+    if (appwriteError?.code === 401 || appwriteError?.code === 403) {
       console.warn(`⚠️ Permission issue deleting file ${fileId}. Attempting fallback...`);
       try {
-        await storage.updateFile(BUCKET_ID, fileId, 
-          `read("any"),update("any")
-        `);
+        await storage.updateFile(BUCKET_ID, fileId, `read("any"),update("any")`);
         await storage.deleteFile(BUCKET_ID, fileId);
         console.log(`✅ File ${fileId} deleted after fallback permission update.`);
         return true;
       } catch (retryError) {
-        console.error(`❌ Failed to delete file ${fileId} after permission update:`, retryError);
+        const retryAppwriteError = retryError as AppwriteError;
+        console.error(`❌ Failed to delete file ${fileId} after permission update:`, retryAppwriteError);
         return false;
       }
     }
 
     // Unexpected error
-    console.error('❌ Unexpected error deleting file:', error);
-    return false; // Don’t throw — keep app running
+    console.error('❌ Unexpected error deleting file:', appwriteError);
+    return false; // Don't throw — keep app running
   }
 };
 
 // --- Safe wrapper to prevent crashes in UI ---
-const safeDeleteFile = async (fileUrl: string) => {
+const safeDeleteFile = async (fileUrl: string): Promise<boolean> => {
   try {
     if (!fileUrl || !fileUrl.includes('/files/')) {
       console.warn('⚠️ safeDeleteFile: Invalid file URL, skipping.');
@@ -188,8 +232,9 @@ const safeDeleteFile = async (fileUrl: string) => {
     }
 
     return await deleteFile(fileId);
-  } catch (err) {
-    console.error('❌ safeDeleteFile error:', err);
+  } catch (error: unknown) {
+    const appwriteError = error as AppwriteError;
+    console.error('❌ safeDeleteFile error:', appwriteError);
     return false;
   }
 };

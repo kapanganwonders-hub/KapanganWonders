@@ -6,7 +6,13 @@ import { Eye, EyeOff, Check, X } from "lucide-react";
 
 export type StrengthLevel = "empty" | "weak" | "medium" | "strong" | "very-strong";
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  type?: string;
+  className?: string;
+  placeholder?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
 
 export interface PasswordStrengthIndicatorProps {
   /** The value of the password input */
