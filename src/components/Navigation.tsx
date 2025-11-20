@@ -6,6 +6,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { logout } from '@/lib/auth';
 import { useRouter, usePathname } from 'next/navigation';
 
+/* --- Tailwind helper classes --- */
+const navLink =
+  'relative text-gray-700 hover:text-green-600 px-4 py-2 rounded-md text-sm font-medium transition-all duration-500 hover:scale-105 transform group';
+
+const authLink = {
+  border: 'relative px-4 py-1.5 text-sm font-medium text-green-700 hover:text-green-800 rounded-lg border-2 border-green-200 hover:border-green-300 transition-all duration-500 hover:scale-105',
+  bg: 'relative px-4 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all duration-500 hover:scale-105 transform hover:shadow-md'
+};
+
+const mobileLink =
+  'block relative text-gray-700 hover:text-green-600 px-4 py-3 rounded-xl text-base font-medium transition-all duration-300 group active:bg-gray-100 -mx-2';
+
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { currentUser, isAdmin } = useAuth();
@@ -120,21 +132,19 @@ export default function Navigation() {
                 <div className="absolute -inset-1 bg-gradient-to-r from-green-400/30 to-blue-400/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
               </button>
             ) : (
-              <>
+              <div className="hidden md:flex items-center space-x-3">
                 <Link href="/signin" className={authLink.border}>
                   <span className="relative z-10">Sign In</span>
-                  <div className="auth-link-hover-border"></div>
                 </Link>
                 <Link href="/signup" className={authLink.bg}>
                   <span className="relative z-10">Sign Up</span>
-                  <div className="auth-link-hover-bg"></div>
                 </Link>
-              </>
+              </div>
             )}
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center">
             <button
               onClick={toggleMenu}
               className="w-10 h-10 text-gray-700 hover:text-green-600 p-2 rounded-xl transition-all duration-500 hover:bg-green-50 group relative"
@@ -260,27 +270,9 @@ export default function Navigation() {
                   </>
                 )}
                 
-                {/* Sign In / Sign Up buttons for mobile - only show when not logged in */}
-                {!currentUser && (
-                  <div className="pt-4 px-2 space-y-3">
-                    <Link 
-                      href="/signin" 
-                      className="block w-full text-center px-4 py-3 text-base font-medium text-green-700 bg-white border-2 border-green-300 rounded-xl hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-200 transition-colors duration-300 active:scale-95"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Sign In
-                    </Link>
-                    <Link 
-                      href="/signup" 
-                      className="block w-full text-center px-4 py-3 text-base font-medium text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-green-200 transition-all duration-300 active:scale-95"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Sign Up
-                    </Link>
-                  </div>
-                )}
               </nav>
 
+              {/* Sign In / Sign Up buttons for mobile - only show when not logged in */}
               <div className="border-t border-gray-200/50 pt-3 mt-auto">
                 {!currentUser && (
                   <div className="px-2 space-y-2">
@@ -396,13 +388,3 @@ export default function Navigation() {
     </nav>
   );
 }
-
-/* --- Tailwind helper classes --- */
-const navLink =
-  'relative text-gray-700 hover:text-green-600 px-4 py-2 rounded-md text-sm font-medium transition-all duration-500 hover:scale-105 transform group';
-const authLink = {
-  border: 'relative text-green-600 border border-green-300 hover:border-green-400 px-4 py-2 rounded-md text-sm font-medium transition-all duration-500 hover:scale-105 transform hover:text-green-700 group auth-link-border',
-  bg: 'relative bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-500 hover:scale-105 transform hover:shadow-lg group auth-link-bg',
-};
-const mobileLink =
-  'block relative text-gray-700 hover:text-green-600 px-4 py-3 rounded-xl text-base font-medium transition-all duration-300 group active:bg-gray-100 -mx-2';
