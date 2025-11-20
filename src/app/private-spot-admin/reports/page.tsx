@@ -12,6 +12,8 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, User, Users } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function PrivateReportsPage() {
   const [visits, setVisits] = useState<any[]>([]);
@@ -54,18 +56,63 @@ export default function PrivateReportsPage() {
     return () => unsubAuth();
   }, []);
 
+  // 🔹 PDF EXPORT FUNCTION
+  const handleDownloadPDF = () => {
+    if (visits.length === 0) return; // 🔒 PREVENT DOWNLOAD WITH NO DATA
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text(`${spotName} – Completed Visits Report`, 14, 15);
+
+    const tableRows = visits.map((v) => {
+      const completedAt = v.completedAt?.toDate ? v.completedAt.toDate() : null;
+      return [
+        v.fullName || 'N/A',
+        v.email || 'N/A',
+        v.spots?.join(', ') || '—',
+        v.companions?.length || 0,
+        completedAt ? completedAt.toLocaleDateString('en-PH') : '—',
+        completedAt
+          ? completedAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })
+          : '—',
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 25,
+      head: [['Name', 'Email', 'Spots', 'Companions', 'Date', 'Time']],
+      body: tableRows,
+    });
+
+    doc.save(`${spotName}_Completed_Visits.pdf`);
+  };
+
+
   if (loading) {
     return <p className="text-center mt-10 text-gray-600">Loading visit reports...</p>;
   }
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <h1 className="text-3xl font-bold text-green-700">
           {spotName} – Completed Visits
         </h1>
       </div>
+
+      {/* 🔽 PDF BUTTON — NOW DISABLED IF NO COMPLETED VISITS */}
+      <button
+        onClick={handleDownloadPDF}
+        disabled={visits.length === 0}
+        className={`mb-4 px-4 py-2 rounded text-white ${
+          visits.length === 0
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-green-600 hover:bg-green-700'
+        }`}
+      >
+        📄 Download PDF
+      </button>
 
       {visits.length === 0 ? (
         <p className="text-gray-500 text-center mt-10">
@@ -83,21 +130,6 @@ export default function PrivateReportsPage() {
               const completedAt = visit.completedAt?.toDate
                 ? visit.completedAt.toDate()
                 : null;
-
-              const formattedDate = completedAt
-                ? completedAt.toLocaleDateString('en-PH', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })
-                : visit.date;
-
-              const formattedTime = completedAt
-                ? completedAt.toLocaleTimeString('en-PH', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : '—';
 
               return (
                 <motion.li
@@ -119,7 +151,7 @@ export default function PrivateReportsPage() {
                         <MapPin size={14} /> Spots: {visit.spots?.join(', ') || '—'}
                       </p>
 
-                      {visit.companions && visit.companions.length > 0 && (
+                      {visit.companions?.length > 0 && (
                         <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                           <Users size={14} /> Companions: {visit.companions.join(', ')}
                         </p>
@@ -128,9 +160,19 @@ export default function PrivateReportsPage() {
 
                     <div className="mt-3 sm:mt-0 text-sm text-gray-500 flex flex-col items-end">
                       <span className="flex items-center gap-1">
-                        <Calendar size={14} /> {formattedDate}
+                        <Calendar size={14} /> 
+                        {completedAt
+                          ? completedAt.toLocaleDateString('en-PH')
+                          : '—'}
                       </span>
-                      <span>{formattedTime}</span>
+                      <span>
+                        {completedAt
+                          ? completedAt.toLocaleTimeString('en-PH', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : '—'}
+                      </span>
                     </div>
                   </div>
                 </motion.li>

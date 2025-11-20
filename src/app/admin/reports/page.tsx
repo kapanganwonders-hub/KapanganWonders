@@ -4,16 +4,17 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Trash } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-// ✅ Define the Visit type (matches Firestore data)
 interface Visit {
   id: string;
   fullName?: string;
   email?: string;
   companions?: string[];
   status?: string;
-  completedAt?: any; // Firestore Timestamp or Date
-  visitorType?: string; // "domestic" or "foreign"
+  completedAt?: any;
+  visitorType?: string;
 }
 
 export default function ReportsPage() {
@@ -33,12 +34,8 @@ export default function ReportsPage() {
           .filter((v) => v.status?.toLowerCase() === 'completed')
           .sort(
             (a, b) =>
-              new Date(
-                b.completedAt?.toDate?.() || b.completedAt || 0
-              ).getTime() -
-              new Date(
-                a.completedAt?.toDate?.() || a.completedAt || 0
-              ).getTime()
+              new Date(b.completedAt?.toDate?.() || b.completedAt || 0).getTime() -
+              new Date(a.completedAt?.toDate?.() || a.completedAt || 0).getTime()
           );
 
         setCompletedVisits(completed);
@@ -51,6 +48,36 @@ export default function ReportsPage() {
 
     fetchCompletedVisits();
   }, []);
+
+  // 🔹 PDF EXPORT FUNCTION — UPDATED
+  const handleDownloadPDF = () => {
+    if (completedVisits.length === 0) {
+      alert('No completed visit reports available to download.');
+      return;
+    }
+
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('Kapangan Wonders - Completed Visits Report', 14, 15);
+
+    const tableRows = completedVisits.map((v) => [
+      v.fullName || 'N/A',
+      v.email || 'N/A',
+      v.visitorType || 'Unknown',
+      v.companions?.length || 0,
+      v.completedAt
+        ? new Date(v.completedAt?.toDate?.() || v.completedAt).toLocaleString()
+        : 'N/A',
+    ]);
+
+    autoTable(doc, {
+      startY: 25,
+      head: [['Name', 'Email', 'Visitor Type', 'Companions', 'Completed At']],
+      body: tableRows,
+    });
+
+    doc.save('Completed_Visits_Report.pdf');
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this completed visit?')) return;
@@ -66,6 +93,19 @@ export default function ReportsPage() {
       <h1 className="text-3xl font-bold text-green-700 mb-6">
         ✅ Completed Visits
       </h1>
+
+      {/* 🔽 PDF BUTTON — UPDATED */}
+      <button
+        onClick={handleDownloadPDF}
+        disabled={completedVisits.length === 0} // Disable button if no reports
+        className={`mb-4 px-4 py-2 rounded text-white ${
+          completedVisits.length === 0
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-green-600 hover:bg-green-700'
+        }`}
+      >
+        📄 Download PDF
+      </button>
 
       <div className="overflow-x-auto rounded-lg shadow">
         <table className="min-w-full bg-white border border-gray-200">
@@ -95,12 +135,8 @@ export default function ReportsPage() {
                     {visit.visitorType || 'Unknown'}
                   </td>
                   <td className="p-3">
-                    {visit.companions && visit.companions.length > 0 ? (
-                      <ul className="list-disc list-inside text-sm text-gray-700">
-                        {visit.companions.map((companion, idx) => (
-                          <li key={idx}>{companion}</li>
-                        ))}
-                      </ul>
+                    {visit.companions?.length ? (
+                      `${visit.companions.length} companion(s)`
                     ) : (
                       <span className="text-gray-500 italic">No companions</span>
                     )}
