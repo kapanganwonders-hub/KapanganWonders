@@ -35,6 +35,7 @@ interface Advisory {
   createdBy: string;
   title: string;
   author?: string; // Added author field
+  privateSpotName?: string; // For private spot owners
 }
 
 export default function AdvisorySection() {
@@ -156,7 +157,8 @@ export default function AdvisorySection() {
             createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : 'Unknown date',
             createdBy: data.createdBy || data.author || 'Unknown', // Fallback to author if createdBy is empty
             title: data.title || 'No Title',
-            author: data.author // Keep original author if available
+            author: data.author, // Keep original author if available
+            privateSpotName: data.privateSpotName || data.businessName || undefined // Include private spot name or business name
           });
         });
 
@@ -338,7 +340,9 @@ export default function AdvisorySection() {
                           <div className="flex-1">
                             <p className="text-xs text-gray-500 font-medium">Posted By</p>
                             <p className="text-gray-700 font-medium break-words">
-                              {advisory.author || advisory.createdBy}
+                              {advisory.author === 'kapanganwonders@gmail.com' 
+                                ? 'Kapangan Municipality' 
+                                : advisory.privateSpotName || advisory.barangay || advisory.author || advisory.createdBy}
                             </p>
                           </div>
                           <div className="flex-1">
