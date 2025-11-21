@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, getDocs, orderBy, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
+import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
 import { db } from '@/lib/firebase';
 import useEmblaCarousel from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -44,9 +45,13 @@ export default function AdvisorySection() {
   const [visibleAdvisories, setVisibleAdvisories] = useState<Set<string>>(new Set());
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [isEditingSection, setIsEditingSection] = useState(false);
   const [sectionTitle, setSectionTitle] = useState('Latest Announcements');
   const [sectionDesc, setSectionDesc] = useState('Stay updated with the latest news and important updates from Kapangan');
+  const [originalTitle, setOriginalTitle] = useState('');
+  const [originalDesc, setOriginalDesc] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [notification, setNotification] = useState<{type: 'success' | 'destructive', title: string, message: string} | null>(null);
 
   const handleTitleBlur = async () => {
     setIsEditingTitle(false);
@@ -127,12 +132,51 @@ export default function AdvisorySection() {
     }
   };
 
+  // Handle edit section
+  const handleEditSection = () => {
+    setOriginalTitle(sectionTitle);
+    setOriginalDesc(sectionDesc);
+    setIsEditingSection(true);
+  };
+
+  // Save section changes
+  const saveSection = async () => {
+    try {
+      await saveSectionData({ title: sectionTitle, description: sectionDesc });
+      setIsEditingSection(false);
+      setNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Announcement section updated successfully!'
+      });
+    } catch (error) {
+      console.error('Error saving section:', error);
+      setNotification({
+        type: 'destructive',
+        title: 'Error',
+        message: 'Failed to update announcement section. Please try again.'
+      });
+    }
+    
+    // Auto-hide notification after 5 seconds
+    setTimeout(() => setNotification(null), 5000);
+  };
+
+  // Cancel editing
+  const cancelEdit = () => {
+    setSectionTitle(originalTitle);
+    setSectionDesc(originalDesc);
+    setIsEditingSection(false);
+  };
+
   // Load section data on component mount
   useEffect(() => {
     const loadSectionData = async () => {
       const data = await getSectionData();
       setSectionTitle(data.title);
       setSectionDesc(data.description);
+      setOriginalTitle(data.title);
+      setOriginalDesc(data.description);
       setIsLoading(false);
     };
     
@@ -219,6 +263,39 @@ export default function AdvisorySection() {
 
   return (
     <section className="py-12 relative overflow-hidden">
+      {notification && (
+        <div className="fixed bottom-4 right-4 z-50 w-80">
+          <Alert variant={notification.type}>
+            <AlertTitle>{notification.title}</AlertTitle>
+            <AlertDescription>{notification.message}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+      {isAdmin && (
+        <div className="flex justify-end mb-6 absolute top-4 right-4 z-20">
+          <div className="flex space-x-3">
+            <button
+              onClick={isEditingSection ? cancelEdit : handleEditSection}
+              className={`inline-flex items-center px-4 py-2 border ${
+                isEditingSection ? 'border-red-500 bg-red-600 hover:bg-red-700' : 'border-transparent bg-emerald-600 hover:bg-emerald-700'
+              } text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors`}
+            >
+              <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              {isEditingSection ? 'Cancel' : 'Manage Announcement Section'}
+            </button>
+            {isEditingSection && (
+              <button
+                onClick={saveSection}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors"
+              >
+                Save Changes
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {/* Background Design */}
       <div className="absolute inset-0 z-0">
         {/* Subtle Background Pattern */}
@@ -236,62 +313,35 @@ export default function AdvisorySection() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12" style={{ opacity: isLoading ? 0.7 : 1, transition: 'opacity 0.3s' }}>
           <div className="inline-block relative group">
-            {isEditingTitle ? (
+            {isEditingSection ? (
               <input
                 type="text"
                 value={sectionTitle}
                 onChange={(e) => setSectionTitle(e.target.value)}
-                onBlur={handleTitleBlur}
-                onKeyDown={handleTitleKeyDown}
-                className="text-4xl font-bold text-gray-900 mb-4 text-center bg-transparent border-b-2 border-emerald-400 focus:outline-none focus:border-emerald-600 font-serif"
+                className="text-4xl font-bold text-gray-900 mb-4 text-center bg-white/50 border-b-2 border-emerald-400 focus:outline-none focus:border-emerald-600 font-serif px-4 py-2 rounded-md"
                 autoFocus
               />
             ) : (
-              <h2 
-                className="text-4xl font-bold text-gray-900 mb-4 relative z-10 font-serif cursor-pointer hover:opacity-80 transition-opacity inline-block"
-                onClick={() => isAdmin && setIsEditingTitle(true)}
-              >
+              <h2 className="text-4xl font-bold text-gray-900 mb-4 relative z-10 font-serif">
                 <span className="relative inline-block">
                   {sectionTitle}
                   <span className="absolute bottom-1 left-0 w-full h-2 bg-emerald-100 -z-10 transform translate-y-1 rounded-full"></span>
                 </span>
-                {isAdmin && (
-                  <span className="ml-2 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </span>
-                )}
               </h2>
             )}
           </div>
           <div className="w-24 h-1 bg-gradient-to-r from-emerald-400 to-green-600 mx-auto my-4 rounded-full"></div>
-          {isEditingDesc ? (
+          {isEditingSection ? (
             <input
               type="text"
               value={sectionDesc}
               onChange={(e) => setSectionDesc(e.target.value)}
-              onBlur={handleDescBlur}
-              onKeyDown={handleDescKeyDown}
-              className="text-lg text-gray-700 max-w-2xl mx-auto font-sans bg-transparent border-b border-emerald-300 focus:outline-none focus:border-emerald-500 text-center w-full px-4"
-              autoFocus
+              className="text-lg text-gray-700 max-w-2xl mx-auto font-sans bg-white/50 border border-emerald-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center w-full px-4 py-2"
             />
           ) : (
-            <div className="group relative inline-block">
-              <p 
-                className="text-lg text-gray-700 max-w-2xl mx-auto font-sans cursor-pointer hover:opacity-80 transition-opacity inline-block"
-                onClick={() => isAdmin && setIsEditingDesc(true)}
-              >
-                {sectionDesc}
-                {isAdmin && (
-                  <span className="ml-2 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </span>
-                )}
-              </p>
-            </div>
+            <p className="text-lg text-gray-700 max-w-2xl mx-auto font-sans">
+              {sectionDesc}
+            </p>
           )}
         </div>
         

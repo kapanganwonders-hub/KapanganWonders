@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Pencil } from "lucide-react";
+import { X, Save } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
+import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
 
 interface Feature {
   id: number;
@@ -46,17 +47,32 @@ const defaultFeatures: Feature[] = [
 
 const WhyChooseSection = () => {
   const { isAdmin, currentUser } = useAuth() || {};
+  
+  // Section data state
   const [features, setFeatures] = useState<Feature[]>([]);
   const [sectionTitle, setSectionTitle] = useState("Why Choose Kapangan?");
   const [sectionDescription, setSectionDescription] = useState(
     "Experience the perfect blend of natural beauty, cultural richness, and warm hospitality."
   );
+  
+  // UI state
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'destructive';
+    title: string;
+    message: string;
+  } | null>(null);
+  
+  // Original values for cancel
+  const [originalTitle, setOriginalTitle] = useState("");
+  const [originalDescription, setOriginalDescription] = useState("");
+  const [originalFeatures, setOriginalFeatures] = useState<Feature[]>([]);
 
-  /** 🔹 Firestore document reference */
+  // Firestore document reference
   const docRef = doc(db, "whyChooseSection", "main");
 
-  /** 🔹 Load data safely from Firestore */
+  // Load data from Firestore
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -66,51 +82,125 @@ const WhyChooseSection = () => {
           setSectionTitle(data.title || sectionTitle);
           setSectionDescription(data.description || sectionDescription);
           setFeatures(data.features || defaultFeatures);
+          
+          // Set original values
+          setOriginalTitle(data.title || sectionTitle);
+          setOriginalDescription(data.description || sectionDescription);
+          setOriginalFeatures(data.features || defaultFeatures);
         } else {
-          // ✅ Create document if not found (initial setup)
+          // Create document if not found (initial setup)
           await setDoc(docRef, {
             title: sectionTitle,
             description: sectionDescription,
             features: defaultFeatures,
             createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentUser?.email || 'system'
           });
           setFeatures(defaultFeatures);
+          setOriginalFeatures(defaultFeatures);
         }
       } catch (error) {
         console.error("Error loading Why Choose section:", error);
         setFeatures(defaultFeatures);
+        setOriginalFeatures(defaultFeatures);
       } finally {
         setIsLoading(false);
       }
     };
     loadData();
-  }, []);
+  }, [docRef]);
+  
+  // Auto-hide notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
-  /** 🔹 Safe save with admin check */
+  // Save data to Firestore
   const saveData = async (
     newTitle?: string,
     newDescription?: string,
     newFeatures?: Feature[]
   ) => {
     if (!isAdmin) {
-      console.warn("Write denied: user is not admin.");
-      return;
+      setNotification({
+        type: 'destructive',
+        title: 'Error',
+        message: 'You do not have permission to edit this section.'
+      });
+      return false;
     }
 
     try {
-      await setDoc(
-        docRef,
-        {
-          title: newTitle ?? sectionTitle,
-          description: newDescription ?? sectionDescription,
-          features: newFeatures ?? features,
-          lastUpdated: new Date().toISOString(),
-          updatedBy: currentUser?.email || "anonymous",
-        },
-        { merge: true }
-      );
+      const dataToSave = {
+        title: newTitle !== undefined ? newTitle : sectionTitle,
+        description: newDescription !== undefined ? newDescription : sectionDescription,
+        features: newFeatures || features,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.email || 'anonymous'
+      };
+
+      await setDoc(docRef, dataToSave, { merge: true });
+      
+      // Update local state
+      if (newTitle !== undefined) setSectionTitle(newTitle);
+      if (newDescription !== undefined) setSectionDescription(newDescription);
+      if (newFeatures) setFeatures(newFeatures);
+      
+      setNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Why Choose section updated successfully!'
+      });
+      
+      return true;
     } catch (error) {
-      console.error("Error saving Why Choose section:", error);
+      console.error('Error saving data:', error);
+      setNotification({
+        type: 'destructive',
+        title: 'Error',
+        message: 'Failed to update section. Please try again.'
+      });
+      return false;
+    }
+  };
+  
+  // Toggle edit mode
+  const toggleEditMode = () => {
+    if (!isEditMode) {
+      // When entering edit mode, save current state
+      setOriginalTitle(sectionTitle);
+      setOriginalDescription(sectionDescription);
+      setOriginalFeatures([...features]);
+    }
+    setIsEditMode(!isEditMode);
+  };
+  
+  // Handle canceling edits
+  const handleCancel = () => {
+    // Revert to original values
+    setSectionTitle(originalTitle);
+    setSectionDescription(originalDescription);
+    setFeatures([...originalFeatures]);
+    setIsEditMode(false);
+    
+    setNotification({
+      type: 'destructive',
+      title: 'Changes Discarded',
+      message: 'Your changes have been reverted.'
+    });
+  };
+  
+  // Handle saving all changes
+  const handleSaveChanges = async () => {
+    const success = await saveData(sectionTitle, sectionDescription, features);
+    if (success) {
+      setIsEditMode(false);
     }
   };
 
@@ -199,8 +289,61 @@ const WhyChooseSection = () => {
     );
   }
 
+  if (isLoading) {
+    return (
+      <section className="py-20 relative min-h-[600px] flex items-center justify-center">
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-blue-50"></div>
+        </div>
+        <div className="relative z-10 text-center">
+          <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-emerald-600 rounded-full mx-auto mb-3"></div>
+          <p className="text-gray-600">Loading content...</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="relative py-20 min-h-[600px] flex items-center justify-center overflow-hidden bg-white">
+      {notification && (
+        <div className="fixed bottom-4 right-4 z-50 w-80">
+          <Alert variant={notification.type}>
+            <AlertTitle>{notification.title}</AlertTitle>
+            <AlertDescription>{notification.message}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+      
+      {isAdmin && (
+        <div className="flex justify-end mb-6 absolute top-4 right-4 z-20">
+          <div className="flex space-x-3">
+            <button
+              onClick={isEditMode ? handleCancel : toggleEditMode}
+              className={`inline-flex items-center px-4 py-2 border ${
+                isEditMode ? 'border-red-500 bg-red-600 hover:bg-red-700' : 'border-transparent bg-emerald-600 hover:bg-emerald-700'
+              } text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors`}
+            >
+              {isEditMode ? (
+                <>
+                  <X className="-ml-1 mr-2 h-5 w-5" />
+                  Cancel
+                </>
+              ) : (
+                'Manage Why Choose Section'
+              )}
+            </button>
+            {isEditMode && (
+              <button
+                onClick={handleSaveChanges}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors"
+              >
+                <Save className="-ml-1 mr-2 h-5 w-5" />
+                Save Changes
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {/* Animated Background Elements */}
       <div className="absolute inset-0 z-0 opacity-10">
         <div className="absolute top-10 left-10 w-64 h-64 bg-green-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
@@ -211,57 +354,46 @@ const WhyChooseSection = () => {
         {/* Header Section */}
         <div className="text-center mb-16">
           {/* Title */}
-          <div className="relative inline-flex items-center justify-center mb-6">
-            {editingField?.type === "sectionTitle" ? (
+          <div className="relative mb-6">
+            {isEditMode ? (
               <input
                 type="text"
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
+                value={editingField?.type === 'sectionTitle' ? tempValue : sectionTitle}
+                onChange={(e) => {
+                  setTempValue(e.target.value);
+                  setSectionTitle(e.target.value);
+                }}
+                onFocus={() => startEditing({ type: 'sectionTitle' })}
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
-                autoFocus
-                className="text-4xl md:text-5xl font-bold text-gray-800 bg-white/10 backdrop-blur-sm border border-gray-200 rounded-2xl px-8 py-6 outline-none text-center w-full max-w-2xl mx-auto placeholder-gray-400 font-serif"
-                placeholder="Enter section title..."
+                className="text-3xl md:text-4xl font-bold text-center w-full bg-white/50 border-b-2 border-emerald-500 focus:outline-none focus:ring-0 px-2 py-1 rounded-md font-serif"
               />
             ) : (
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-800 font-serif">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-800 text-center font-serif">
                 {sectionTitle}
               </h2>
-            )}
-            {isAdmin && (
-              <button
-                onClick={() => startEditing({ type: "sectionTitle" })}
-                className="ml-4 text-gray-600 hover:text-gray-800 transition-all duration-300 bg-gray-100 hover:bg-gray-200 p-3 rounded-full border border-gray-300 hover:border-gray-400"
-              >
-                <Pencil className="h-5 w-5" />
-              </button>
             )}
           </div>
 
           {/* Description */}
-          <div className="relative max-w-3xl mx-auto">
-            {editingField?.type === "sectionDescription" ? (
+          <div className="relative max-w-3xl mx-auto mb-12">
+            {isEditMode ? (
               <textarea
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
+                value={editingField?.type === 'sectionDescription' ? tempValue : sectionDescription}
+                onChange={(e) => {
+                  setTempValue(e.target.value);
+                  setSectionDescription(e.target.value);
+                }}
+                onFocus={() => startEditing({ type: 'sectionDescription' })}
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
-                autoFocus
-                className="text-xl text-gray-700 w-full bg-white/10 backdrop-blur-sm border border-gray-200 rounded-2xl px-6 py-4 outline-none text-center resize-none h-24 placeholder-gray-400 font-sans"
+                className="text-lg text-gray-700 w-full bg-white/50 border border-emerald-300 rounded-md p-4 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center h-32"
                 placeholder="Enter section description..."
               />
             ) : (
-              <p className="text-xl text-gray-700 leading-relaxed font-sans">
+              <p className="text-lg text-gray-700 text-center">
                 {sectionDescription}
               </p>
-            )}
-            {isAdmin && (
-              <button
-                onClick={() => startEditing({ type: "sectionDescription" })}
-                className="absolute -right-12 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800 transition-all duration-300 bg-gray-100 hover:bg-gray-200 p-2 rounded-full border border-gray-300 hover:border-gray-400"
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
             )}
           </div>
 
@@ -271,10 +403,14 @@ const WhyChooseSection = () => {
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map((feature) => (
+          {features.map((feature, index) => (
             <div
               key={feature.id}
-              className="group relative text-center p-8 bg-white rounded-2xl border border-gray-200 hover:border-gray-300 transition-all duration-500 transform hover:-translate-y-3 hover:scale-105 hover:shadow-lg"
+              className={`group relative text-center p-8 bg-white rounded-2xl border-2 ${
+                isEditMode ? 'border-emerald-500' : 'border-gray-200 hover:border-gray-300'
+              } transition-all duration-500 transform ${
+                isEditMode ? '' : 'hover:-translate-y-3 hover:scale-105 hover:shadow-lg'
+              }`}
             >
               {/* Background Glow Effect */}
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-green-400/10 to-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
@@ -284,77 +420,97 @@ const WhyChooseSection = () => {
 
               {/* Feature Icon */}
               <div className="text-5xl mb-6 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-                {feature.icon}
+                {isEditMode ? (
+                  <div className="flex justify-center">
+                    <select
+                      value={feature.icon}
+                      onChange={(e) => {
+                        const updated = [...features];
+                        updated[index].icon = e.target.value;
+                        setFeatures(updated);
+                      }}
+                      className="text-4xl text-center bg-white/50 border border-emerald-300 rounded-md p-1"
+                    >
+                      <option value="🏔️">🏔️</option>
+                      <option value="🎭">🎭</option>
+                      <option value="🍽️">🍽️</option>
+                      <option value="🥾">🥾</option>
+                      <option value="🌿">🌿</option>
+                      <option value="🏖️">🏖️</option>
+                      <option value="🏕️">🏕️</option>
+                      <option value="🚣">🚣</option>
+                    </select>
+                  </div>
+                ) : (
+                  feature.icon
+                )}
               </div>
 
               {/* Title */}
-              <div className="relative inline-flex items-center justify-center mb-4 min-h-[3rem]">
-                {editingField?.type === "feature" &&
-                editingField.id === feature.id &&
-                editingField.field === "title" ? (
-                  <input
-                    type="text"
-                    value={tempValue}
-                    onChange={(e) => setTempValue(e.target.value)}
-                    onBlur={handleSave}
-                    onKeyDown={handleKeyDown}
-                    autoFocus
-                    className="text-xl font-semibold text-gray-800 bg-white/10 backdrop-blur-sm border border-gray-200 rounded-xl px-4 py-2 outline-none text-center w-full placeholder-gray-400"
-                    placeholder="Enter feature title..."
-                  />
+              <div className="relative mb-4 min-h-[3rem] flex items-center justify-center">
+                {isEditMode ? (
+                  <div className="w-full">
+                    <input
+                      type="text"
+                      value={editingField?.type === 'feature' && editingField.id === feature.id && editingField.field === 'title' ? tempValue : feature.title}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setTempValue(value);
+                        setFeatures(features.map(f => 
+                          f.id === feature.id ? { ...f, title: value } : f
+                        ));
+                      }}
+                      onFocus={() => startEditing({ type: 'feature', id: feature.id, field: 'title' })}
+                      onBlur={handleSave}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSave();
+                        } else if (e.key === 'Escape') {
+                          setEditingField(null);
+                        }
+                      }}
+                      className="text-xl font-bold w-full bg-white/80 border-b border-emerald-500 focus:outline-none focus:ring-0 px-2 py-1 text-center"
+                    />
+                  </div>
                 ) : (
                   <h3 className="text-xl font-semibold text-gray-800">
                     {feature.title}
                   </h3>
                 )}
-                {isAdmin && (
-                  <button
-                    onClick={() =>
-                      startEditing({
-                        type: "feature",
-                        id: feature.id,
-                        field: "title",
-                      })
-                    }
-                    className="ml-2 text-gray-400 hover:text-gray-600 transition-all duration-300 opacity-0 group-hover:opacity-100 bg-gray-100 hover:bg-gray-200 p-2 rounded-full border border-gray-200 hover:border-gray-300"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                )}
               </div>
 
               {/* Description */}
-              <div className="relative min-h-[6rem]">
-                {editingField?.type === "feature" &&
-                editingField.id === feature.id &&
-                editingField.field === "description" ? (
-                  <textarea
-                    value={tempValue}
-                    onChange={(e) => setTempValue(e.target.value)}
-                    onBlur={handleSave}
-                    onKeyDown={handleKeyDown}
-                    autoFocus
-                    className="text-gray-700 w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none text-center resize-none h-24 placeholder-gray-400 font-sans"
-                    placeholder="Enter feature description..."
-                  />
+              <div className="min-h-[6rem]">
+                {isEditMode ? (
+                  <div className="w-full">
+                    <textarea
+                      value={editingField?.type === 'feature' && editingField.id === feature.id && editingField.field === 'description' ? tempValue : feature.description}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setTempValue(value);
+                        setFeatures(features.map(f => 
+                          f.id === feature.id ? { ...f, description: value } : f
+                        ));
+                      }}
+                      onFocus={() => startEditing({ type: 'feature', id: feature.id, field: 'description' })}
+                      onBlur={handleSave}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSave();
+                        } else if (e.key === 'Escape') {
+                          setEditingField(null);
+                        }
+                      }}
+                      className="w-full h-24 bg-white/80 border border-emerald-300 rounded-md p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center text-sm"
+                      placeholder="Enter feature description..."
+                    />
+                  </div>
                 ) : (
-                  <p className="text-gray-600 leading-relaxed font-sans">
+                  <p className="text-gray-600 text-sm leading-relaxed">
                     {feature.description}
                   </p>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={() =>
-                      startEditing({
-                        type: "feature",
-                        id: feature.id,
-                        field: "description",
-                      })
-                    }
-                    className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 text-gray-400 hover:text-gray-600 transition-all duration-300 opacity-0 group-hover:opacity-100 bg-white hover:bg-gray-100 p-2 rounded-full border border-gray-200 hover:border-gray-300 shadow-sm"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
                 )}
               </div>
 
