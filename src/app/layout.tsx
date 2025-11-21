@@ -32,7 +32,29 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
-          <Toaster position="top-center" />
+          <Toaster 
+            position="bottom-right"
+            toastOptions={{
+              className: '!bg-white !text-gray-800 !border !border-gray-200 !shadow-lg',
+              duration: 3000,
+              style: {
+                borderRadius: '0.5rem',
+                padding: '0.75rem 1rem',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#10B981',
+                  secondary: 'white',
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: '#EF4444',
+                  secondary: 'white',
+                },
+              },
+            }}
+          />
         </AuthProvider>
       </body>
     </html>
