@@ -188,9 +188,15 @@ const FeaturedSpotsModal: React.FC<FeaturedSpotsModalProps> = ({
                 
                 <div className="mt-2">
                   <p className="text-sm text-gray-500 mb-4">
-                    Select up to 3 destinations to feature on the homepage. Current selections: {selectedSpots.size}/3
-                    {selectedSpots.size >= 3 && (
-                      <span className="ml-2 text-amber-600">(Maximum limit reached)</span>
+                    Select up to 3 destinations to feature on the homepage. 
+                    {selectedSpots.size > 0 ? (
+                      <span>Current selections: <span className="font-medium">{selectedSpots.size}/3</span>
+                        {selectedSpots.size >= 3 && (
+                          <span className="ml-2 text-amber-600">(Maximum limit reached)</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">No spots selected</span>
                     )}
                   </p>
                   
