@@ -25,6 +25,7 @@ export default function HeroSection() {
   const [title, setTitle] = useState("Loading...");
   const [description, setDescription] = useState("");
   const [showEditControls, setShowEditControls] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editingTitle, setEditingTitle] = useState("");
@@ -61,12 +62,13 @@ export default function HeroSection() {
 
   // ✅ Toggle edit mode for both title and description
   const toggleEditMode = () => {
-    if (!isEditingTitle && !isEditingDescription) {
+    if (!isEditMode) {
       // Entering edit mode
       setEditingTitle(title);
       setEditingDescription(description);
       setIsEditingTitle(true);
       setIsEditingDescription(true);
+      setIsEditMode(true);
     } else {
       // Exiting edit mode
       handleSave();
@@ -89,6 +91,7 @@ export default function HeroSection() {
       // Show success notification
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000); // Hide after 3 seconds
+      setIsEditMode(false);
     } catch (error) {
       console.error("Error saving changes:", error);
     }
@@ -100,24 +103,7 @@ export default function HeroSection() {
     setIsEditingDescription(false);
     setEditingTitle(title);
     setEditingDescription(description);
-  };
-
-  // ✅ Toggle edit controls visibility
-  const toggleEditControls = () => {
-    const newState = !showEditControls;
-    setShowEditControls(newState);
-    
-    // Reset edit modes when hiding controls
-    if (!newState) {
-      setIsEditingTitle(false);
-      setIsEditingDescription(false);
-    } else {
-      // When showing controls, also enter edit mode
-      setEditingTitle(title);
-      setEditingDescription(description);
-      setIsEditingTitle(true);
-      setIsEditingDescription(true);
-    }
+    setIsEditMode(false);
   };
 
   // Check if in any edit mode
@@ -222,23 +208,40 @@ export default function HeroSection() {
       )}
       {/* Admin Controls */}
       {isAdmin && (
-        <div className="flex justify-end mb-6 absolute top-4 right-4 z-20">
-          <button
-            onClick={toggleEditControls}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-          >
-            {showEditControls ? (
-              <>
+        <div className="flex justify-end mb-6 absolute top-4 right-4 z-20 space-x-2">
+          {isEditMode ? (
+            <>
+              <button
+                onClick={handleCancel}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+              >
                 <XMarkIcon className="-ml-1 mr-2 h-5 w-5" />
-                Hide Controls
-              </>
-            ) : (
-              <>
-                <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
-                Manage Hero Section
-              </>
-            )}
-          </button>
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+              >
+                <Save className="-ml-1 mr-2 h-5 w-5" />
+                Save Changes
+              </button>
+              <button
+                onClick={() => setIsManageModalOpen(true)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+              >
+                <ImageIcon className="-ml-1 mr-2 h-5 w-5" />
+                Manage Carousel
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={toggleEditMode}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+            >
+              <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
+              Manage Hero Section
+            </button>
+          )}
         </div>
       )}
 
@@ -275,7 +278,8 @@ export default function HeroSection() {
                     className="ml-3 px-3 py-1 text-sm text-gray-600 hover:text-green-700 rounded-full hover:bg-green-50 transition-colors border border-gray-200 hover:border-green-200 flex items-center h-8"
                     onClick={toggleEditMode}
                   >
-                    <span>{isEditing ? 'Done Editing' : 'Edit'}</span>
+                    <PencilSquareIcon className="w-4 h-4 mr-1" />
+                    <span>Edit</span>
                   </button>
                 )}
               </div>
@@ -300,22 +304,15 @@ export default function HeroSection() {
             )}
           </div>
 
-          {/* Save/Cancel Button Group */}
-          {showEditControls && (isEditingTitle || isEditingDescription) && (
-            <div className="flex space-x-3 mt-6">
-              <button
-                onClick={handleSave}
-                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
-              >
-                <Save className="w-4 h-4 mr-2" /> Save Changes
-              </button>
-              <button
-                onClick={handleCancel}
-                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-              >
-                <XMarkIcon className="w-4 h-4 mr-1" /> Cancel
-              </button>
-            </div>
+          {/* Edit button for title/description */}
+          {isAdmin && isEditing && !isEditMode && (
+            <button
+              className="flex items-center px-3 py-1 text-sm text-gray-600 hover:text-green-700 rounded-full hover:bg-green-50 transition-colors border border-gray-200 hover:border-green-200 mt-4"
+              onClick={toggleEditMode}
+            >
+              <PencilSquareIcon className="w-4 h-4 mr-1" />
+              <span>Edit</span>
+            </button>
           )}
 
           <Link
@@ -328,18 +325,6 @@ export default function HeroSection() {
 
         {/* Carousel Section */}
         <div className="w-full md:w-7/12 relative group z-10">
-          {isAdmin && showEditControls && (
-            <div className="absolute top-4 right-4 z-10 flex space-x-2">
-              <button
-                onClick={() => setIsManageModalOpen(true)}
-                className="flex items-center px-3 py-1.5 bg-white/90 hover:bg-white text-gray-700 text-sm font-medium rounded-full shadow-md hover:shadow-lg transition-all duration-200 opacity-90 hover:opacity-100"
-                title="Manage carousel"
-              >
-                <ImageIcon className="w-4 h-4 mr-1" />
-                <span>Manage Carousel</span>
-              </button>
-            </div>
-          )}
 
           <div
             className="embla overflow-hidden w-full rounded-3xl shadow-2xl mx-auto border-4 border-white ring-2 ring-green-100 relative"

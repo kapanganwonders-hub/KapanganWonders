@@ -8,7 +8,7 @@ const alertVariants = {
     destructive:
       " border-gray-400 dark:border-gray-700/50 text-red-500  [&>svg]:text-destructive",
     success:
-      "border-green-500/50 text-green-700 dark:text-green-500 [&>svg]:text-green-500",
+      "bg-white border-green-500/50 text-green-700 dark:text-green-500 [&>svg]:text-green-500",
     warning:
       "border-yellow-500/50 text-yellow-700 dark:text-yellow-500 [&>svg]:text-yellow-500",
     info:

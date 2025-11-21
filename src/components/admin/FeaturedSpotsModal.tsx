@@ -6,9 +6,12 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 
 export interface Spot {
   id: string;
-  name: string;
-  location: string;
-  imageUrl: string;
+  name?: string;
+  location?: string;
+  imageUrl?: string;
+  image?: string;
+  description?: string;
+  isPrivate?: boolean;
 }
 
 interface FeaturedSpotsModalProps {
@@ -25,20 +28,86 @@ const FeaturedSpotsModal: React.FC<FeaturedSpotsModalProps> = ({
   currentFeatured 
 }) => {
   const [spots, setSpots] = useState<Spot[]>([]);
-  const [selectedSpots, setSelectedSpots] = useState<Set<string>>(new Set(currentFeatured));
+  const [selectedSpots, setSelectedSpots] = useState<Set<string>>(new Set());
+  
+  // Initialize selected spots when modal opens or currentFeatured changes
+  useEffect(() => {
+    if (isOpen && currentFeatured) {
+      setSelectedSpots(new Set(currentFeatured));
+    }
+  }, [isOpen, currentFeatured]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchSpots = async () => {
       try {
-        const spotsRef = collection(db, 'touristSpots');
-        const snapshot = await getDocs(spotsRef);
-        const spotsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Spot[];
-        setSpots(spotsData);
+        setLoading(true);
+        
+        // Fetch all spots from both collections in parallel
+        const [publicSpotsSnapshot, privateSpotsSnapshot] = await Promise.all([
+          getDocs(query(collection(db, 'touristSpots'))),
+          getDocs(query(collection(db, 'privateSpots')))
+        ]);
+
+        // Helper function to parse different timestamp formats
+        const parseTimestamp = (timestamp: any) => {
+          if (!timestamp) return '';
+          try {
+            if (typeof timestamp.toDate === 'function') {
+              return timestamp.toDate().toISOString();
+            } else if (timestamp.seconds) {
+              return new Date(timestamp.seconds * 1000).toISOString();
+            } else if (typeof timestamp === 'string') {
+              return timestamp;
+            }
+            return '';
+          } catch (error) {
+            console.warn('Error parsing timestamp:', timestamp, error);
+            return '';
+          }
+        };
+
+        // Process public spots
+        const publicSpots = publicSpotsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: `public_${doc.id}`,
+            name: data.name || 'Unnamed Spot',
+            location: data.location || 'No location',
+            imageUrl: data.imageUrl || data.image,
+            image: data.image,
+            description: data.description,
+            isPrivate: false,
+            createdAt: parseTimestamp(data.createdAt),
+            updatedAt: parseTimestamp(data.updatedAt)
+          } as Spot;
+        });
+
+        // Process private spots
+        const privateSpots = privateSpotsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: `private_${doc.id}`,
+            name: data.name || 'Unnamed Spot',
+            location: data.location || 'No location',
+            imageUrl: data.imageUrl || data.image,
+            image: data.image,
+            description: data.description,
+            isPrivate: true,
+            createdAt: parseTimestamp(data.createdAt),
+            updatedAt: parseTimestamp(data.updatedAt)
+          } as Spot;
+        });
+
+        // Combine both spot types and sort by name
+        const allSpots = [...publicSpots, ...privateSpots].sort((a, b) => {
+          const nameA = a.name ?? '';
+          const nameB = b.name ?? '';
+          return nameA.localeCompare(nameB);
+        });
+
+        setSpots(allSpots);
       } catch (error) {
         console.error('Error fetching spots:', error);
       } finally {
@@ -55,8 +124,11 @@ const FeaturedSpotsModal: React.FC<FeaturedSpotsModalProps> = ({
     const newSelected = new Set(selectedSpots);
     if (newSelected.has(spotId)) {
       newSelected.delete(spotId);
-    } else if (newSelected.size < 6) { // Limit to 6 featured spots
+    } else if (newSelected.size < 3) { // Limit to 3 featured spots
       newSelected.add(spotId);
+    } else {
+      // Optional: Show a message or toast that the limit is reached
+      alert('You can only select up to 3 spots as featured');
     }
     setSelectedSpots(newSelected);
   };
@@ -116,7 +188,10 @@ const FeaturedSpotsModal: React.FC<FeaturedSpotsModalProps> = ({
                 
                 <div className="mt-2">
                   <p className="text-sm text-gray-500 mb-4">
-                    Select up to 6 destinations to feature on the homepage. Current selections: {selectedSpots.size}/6
+                    Select up to 3 destinations to feature on the homepage. Current selections: {selectedSpots.size}/3
+                    {selectedSpots.size >= 3 && (
+                      <span className="ml-2 text-amber-600">(Maximum limit reached)</span>
+                    )}
                   </p>
                   
                   {loading ? (
@@ -124,28 +199,67 @@ const FeaturedSpotsModal: React.FC<FeaturedSpotsModalProps> = ({
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto p-2">
+                    <div className="space-y-3 overflow-y-auto max-h-[60vh] pr-2">
+                      <style jsx>{`
+                        .spot-card {
+                          width: 100%;
+                        }
+                        /* Custom scrollbar styling */
+                        .spot-cards-container::-webkit-scrollbar {
+                          width: 6px;
+                        }
+                        .spot-cards-container::-webkit-scrollbar-track {
+                          background: #f1f1f1;
+                          border-radius: 3px;
+                        }
+                        .spot-cards-container::-webkit-scrollbar-thumb {
+                          background: #888;
+                          border-radius: 3px;
+                        }
+                        .spot-cards-container::-webkit-scrollbar-thumb:hover {
+                          background: #555;
+                        }
+                      `}</style>
                       {spots.map((spot) => (
                         <div
                           key={spot.id}
                           onClick={() => toggleSpot(spot.id)}
-                          className={`relative rounded-lg border p-4 cursor-pointer transition-all ${
+                          className={`spot-card relative rounded-lg border p-4 cursor-pointer transition-all ${
                             selectedSpots.has(spot.id)
                               ? 'ring-2 ring-green-500 bg-green-50 border-green-200'
                               : 'hover:bg-gray-50 border-gray-200'
+                          } ${
+                            currentFeatured.includes(spot.id) && !selectedSpots.has(spot.id)
+                              ? 'ring-2 ring-amber-300 border-amber-200 bg-amber-50'
+                              : ''
                           }`}
+                          title={currentFeatured.includes(spot.id) && !selectedSpots.has(spot.id) 
+                            ? 'Currently featured on homepage' 
+                            : selectedSpots.has(spot.id) 
+                              ? 'Selected to be featured' 
+                              : 'Click to select'}
                         >
                           <div className="flex items-start space-x-3">
-                            <div className="flex-shrink-0 h-16 w-16 rounded-md overflow-hidden">
+                            <div className="flex-shrink-0 h-16 w-16 rounded-md overflow-hidden relative">
                               <img
                                 className="h-full w-full object-cover"
-                                src={spot.imageUrl || '/empty-travel.svg'}
+                                src={spot.imageUrl || spot.image || '/empty-travel.svg'}
                                 alt={spot.name}
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
-                                  target.src = '/empty-travel.svg';
+                                  // Try fallback image if available
+                                  if (spot.image && target.src !== spot.image) {
+                                    target.src = spot.image;
+                                  } else {
+                                    target.src = '/empty-travel.svg';
+                                  }
                                 }}
                               />
+                              {spot.isPrivate && (
+                                <span className="absolute top-1 right-1 bg-yellow-100 text-yellow-800 text-xs px-1 rounded">
+                                  Private
+                                </span>
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{spot.name}</p>
@@ -183,7 +297,7 @@ const FeaturedSpotsModal: React.FC<FeaturedSpotsModalProps> = ({
                     type="button"
                     className="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
                     onClick={handleSave}
-                    disabled={saving || selectedSpots.size === 0}
+                    disabled={saving || selectedSpots.size === 0 || selectedSpots.size > 3}
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>

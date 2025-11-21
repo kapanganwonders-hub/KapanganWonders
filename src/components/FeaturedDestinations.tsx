@@ -5,7 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, collection, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import FeaturedSpotsModal from './admin/FeaturedSpotsModal';
 import type { Spot } from './admin/FeaturedSpotsModal';
@@ -49,15 +50,54 @@ const FeaturedDestinations = () => {
   const [description, setDescription] = useState('Discover the most beautiful and popular tourist spots in Kapangan');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditingSection, setIsEditingSection] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [showSpotsModal, setShowSpotsModal] = useState(false);
+  const [sectionTitle, setSectionTitle] = useState(title);
+  const [sectionDescription, setSectionDescription] = useState(description);
+  const [originalTitle, setOriginalTitle] = useState(title);
+  const [originalDescription, setOriginalDescription] = useState(description);
   const [loading, setLoading] = useState(true);
+  // Define notification type
+  type NotificationType = {
+    type: 'success' | 'info' | 'warning' | 'destructive' | 'default';
+    title: string;
+    message: string;
+  };
+
+  const [notification, setNotification] = useState<NotificationType | null>(null);
+  
+  // Auto-hide notifications after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Log rendering of spots for debugging
+  useEffect(() => {
+    if (destinations.length > 0) {
+      console.log('Rendering spots with images:', 
+        destinations.map(d => ({
+          id: d.id, 
+          name: d.name, 
+          hasImage: !!d.image,
+          image: d.image
+        }))
+      );
+    }
+  }, [destinations]);
 
   // Reset edit states when admin logs out
   useEffect(() => {
     if (!isAdmin) {
       setIsEditingTitle(false);
       setIsEditingDescription(false);
-      setIsModalOpen(false);
+      setShowModal(false);
+      setShowSpotsModal(false);
     }
   }, [isAdmin]);
 
@@ -95,37 +135,98 @@ const FeaturedDestinations = () => {
       setIsEditingTitle(false);
       return;
     }
-    
     try {
       const docRef = doc(db, 'featured', 'destinations');
-      await setDoc(docRef, {
-        title,
-        updatedAt: new Date().toISOString(),
-        updatedBy: currentUser?.uid || 'admin'
+      await setDoc(docRef, { 
+        title: sectionTitle,
+        description: sectionDescription 
       }, { merge: true });
       setIsEditingTitle(false);
+      setTitle(sectionTitle);
+      setDescription(sectionDescription);
+      setNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Title updated successfully!'
+      });
     } catch (error) {
       console.error('Error saving title:', error);
+      setNotification({
+        type: 'destructive',
+        title: 'Error',
+        message: 'Failed to update title'
+      });
     }
   };
 
-  const saveDescription = async () => {
+  const saveSection = async () => {
     if (!isAdmin) {
-      console.error('Only admins can edit the description');
-      setIsEditingDescription(false);
+      console.error('Only admins can edit the section');
       return;
     }
-    
     try {
       const docRef = doc(db, 'featured', 'destinations');
-      await setDoc(docRef, {
-        description,
-        updatedAt: new Date().toISOString(),
-        updatedBy: currentUser?.uid || 'admin'
+      await setDoc(docRef, { 
+        title: sectionTitle,
+        description: sectionDescription 
+      }, { merge: true });
+      
+      // Update original values
+      setOriginalTitle(sectionTitle);
+      setOriginalDescription(sectionDescription);
+      setIsEditingSection(false);
+      setNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Feature Spot Section updated successfully!'
+      });
+    } catch (error) {
+      console.error('Error saving section:', error);
+      setNotification({
+        type: 'destructive',
+        title: 'Error',
+        message: 'Failed to update section'
+      });
+    }
+  };
+
+  const cancelEdit = () => {
+    // Revert to original values
+    setSectionTitle(originalTitle);
+    setSectionDescription(originalDescription);
+    setIsEditingSection(false);
+  };
+
+  const handleEditSection = () => {
+    // Save current values as original when starting to edit
+    setOriginalTitle(sectionTitle);
+    setOriginalDescription(sectionDescription);
+    setIsEditingSection(true);
+  };
+
+  const saveDescription = async () => {
+    if (!isAdmin) return;
+    try {
+      const docRef = doc(db, 'featured', 'destinations');
+      await setDoc(docRef, { 
+        title: sectionTitle,
+        description: sectionDescription 
       }, { merge: true });
       setIsEditingDescription(false);
+      setTitle(sectionTitle);
+      setDescription(sectionDescription);
+      setNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Description updated successfully!'
+      });
     } catch (error) {
       console.error('Error saving description:', error);
+      setNotification({
+        type: 'destructive',
+        title: 'Error',
+        message: 'Failed to update description'
+      });
     }
   };
 
@@ -139,40 +240,100 @@ const FeaturedDestinations = () => {
   }
 
   const handleSaveFeaturedSpots = async (selectedSpots: Spot[]) => {
+    if (!isAdmin) {
+      setNotification({
+        type: 'destructive',
+        title: 'Error',
+        message: 'You do not have permission to update featured destinations'
+      });
+      return;
+    }
+
     try {
       const docRef = doc(db, 'featured', 'destinations');
-      // Convert Spot[] to the format we want to store
-      const spotsToSave = selectedSpots.map(spot => ({
-        id: spot.id,
-        name: spot.name,
-        location: spot.location || '',
-        image: spot.imageUrl,
-        imageUrl: spot.imageUrl,
-        description: `Experience the beauty of ${spot.name} in ${spot.location || 'Kapangan'}.`
-      }));
       
+      // Transform spots to match the Destination type
+      const spotsToSave = selectedSpots.map(spot => ({
+        id: spot.id || '',
+        name: spot.name || 'Unnamed Spot',
+        location: spot.location || 'Unknown Location',
+        image: spot.image || spot.imageUrl || '',
+        description: spot.description || ''
+      }));
+
       await setDoc(docRef, {
         spots: spotsToSave,
+        title: sectionTitle,
+        description: sectionDescription,
         updatedAt: new Date().toISOString(),
         updatedBy: currentUser?.uid || 'admin'
-      });
-      
-      // Update local state with the saved spots
+      }, { merge: true });
+
+      // Update local state
       setDestinations(spotsToSave);
+      setShowSpotsModal(false);
+      
+      // Show success notification
+      setNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Featured destinations have been updated successfully!'
+      });
     } catch (error) {
       console.error('Error saving featured spots:', error);
+      setNotification({
+        type: 'destructive',
+        title: 'Error',
+        message: 'Failed to update featured destinations. Please try again.'
+      });
       throw error;
     }
   };
 
   return (
     <section className="py-12 relative overflow-hidden">
+      {/* Notification Alert */}
+      {notification && (
+        <div className="fixed bottom-4 right-4 z-50 w-80 animate-fade-in-up">
+          <Alert variant={notification.type} onDismiss={() => setNotification(null)}>
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                {notification.type === 'success' && (
+                  <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                {notification.type === 'destructive' && (
+                  <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+                {notification.type === 'info' && (
+                  <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+              <div className="ml-3">
+                <AlertTitle className="font-semibold text-sm">{notification.title}</AlertTitle>
+                <AlertDescription className="mt-1 text-sm">{notification.message}</AlertDescription>
+              </div>
+            </div>
+          </Alert>
+        </div>
+      )}
       <FeaturedSpotsModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={showSpotsModal}
+        onClose={() => setShowSpotsModal(false)}
         onSave={handleSaveFeaturedSpots}
         currentFeatured={destinations.map(d => d.id)}
       />
+      
+      {showModal && (
+        <div className="fixed z-50 inset-0 overflow-y-auto">
+          {/* Your existing modal content */}
+        </div>
+      )}
       {/* Background Design */}
       <div className="absolute inset-0 z-0">
         {/* Subtle Background Pattern */}
@@ -190,13 +351,32 @@ const FeaturedDestinations = () => {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {isAdmin && (
           <div className="flex justify-end mb-6">
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-            >
-              <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
-              Manage Featured Spots
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={isEditingSection ? cancelEdit : handleEditSection}
+                className={`inline-flex items-center px-4 py-2 border ${isEditingSection ? 'border-red-500 bg-red-600 hover:bg-red-700' : 'border-transparent bg-green-600 hover:bg-green-700'} text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors`}
+              >
+                <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
+                {isEditingSection ? 'Cancel' : 'Manage Featured Spots Section'}
+              </button>
+              {isEditingSection && (
+                <button
+                  onClick={saveSection}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors ml-2"
+                >
+                  Save Changes
+                </button>
+              )}
+              {isEditingSection && (
+                <button
+                  onClick={() => setShowSpotsModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                >
+                  <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
+                  Select Featured Spots
+                </button>
+              )}
+            </div>
           </div>
         )}
         <div className="text-center mb-12 relative group">
@@ -204,16 +384,23 @@ const FeaturedDestinations = () => {
             {!isEditingTitle ? (
               <div className="relative group">
                 <h2 className="text-4xl font-bold text-gray-900 mb-4 relative z-10 font-serif">
-                  <span 
-                    className={`relative inline-block ${isAdmin ? 'cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2' : ''}`}
-                    onClick={isAdmin ? () => setIsEditingTitle(true) : undefined}
-                  >
-                    {title}
-                    <span className="absolute bottom-1 left-0 w-full h-2 bg-green-100 -z-10 transform translate-y-1 rounded-full"></span>
-                    {isAdmin && (
-                      <PencilSquareIcon className="w-5 h-5 ml-2 text-gray-400 group-hover:inline hidden absolute -right-8 top-1/2 -translate-y-1/2" />
-                    )}
-                  </span>
+                  {isEditingSection ? (
+                    <input
+                      type="text"
+                      value={sectionTitle}
+                      onChange={(e) => setSectionTitle(e.target.value)}
+                      className="text-center border-b-2 border-green-500 focus:outline-none focus:border-green-700 bg-transparent"
+                      placeholder="Enter section title"
+                    />
+                  ) : (
+                    <span 
+                      className={`relative inline-block ${isAdmin ? 'cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2' : ''}`}
+                      onClick={isAdmin ? () => setIsEditingTitle(true) : undefined}
+                    >
+                      {sectionTitle}
+                      <span className="absolute bottom-1 left-0 w-full h-2 bg-green-100 -z-10 transform translate-y-1 rounded-full"></span>
+                    </span>
+                  )}
                 </h2>
               </div>
             ) : (
@@ -232,28 +419,33 @@ const FeaturedDestinations = () => {
           </div>
           <div className="w-24 h-1 bg-gradient-to-r from-green-400 to-green-600 mx-auto my-4 rounded-full"></div>
           
-          {!isEditingDescription ? (
-            <div className="relative group">
-              <p 
-                className={`text-lg text-gray-600 max-w-3xl mx-auto relative group ${isAdmin ? 'hover:bg-gray-50 rounded-lg p-2 -m-2 cursor-pointer' : ''} inline-block`}
-                onClick={isAdmin ? () => setIsEditingDescription(true) : undefined}
-              >
-                {description}
-                <PencilSquareIcon className="w-4 h-4 ml-2 text-gray-400 group-hover:inline hidden align-middle" />
-              </p>
-            </div>
-          ) : (
-            <div className="flex justify-center">
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={isAdmin ? saveDescription : undefined}
-                onKeyDown={(e) => e.key === 'Enter' && isAdmin && saveDescription()}
-                className="text-lg text-center bg-transparent border-b border-dashed border-gray-300 focus:border-green-500 focus:outline-none font-sans w-full max-w-2xl"
-                autoFocus
+          {isEditingSection ? (
+            <div className="mb-8">
+              <textarea
+                value={sectionDescription}
+                onChange={(e) => setSectionDescription(e.target.value)}
+                className="text-xl text-center w-full max-w-3xl mx-auto border-2 border-green-500 rounded-lg p-2 focus:outline-none focus:border-green-700 bg-white/80"
+                rows={3}
+                placeholder="Enter section description"
               />
             </div>
+          ) : isEditingDescription ? (
+            <input
+              type="text"
+              value={sectionDescription}
+              onChange={(e) => setSectionDescription(e.target.value)}
+              onBlur={() => setIsEditingDescription(false)}
+              onKeyDown={(e) => e.key === 'Enter' && setIsEditingDescription(false)}
+              className="text-xl text-center w-full max-w-3xl mx-auto border-b-2 border-green-500 focus:outline-none focus:border-green-700 bg-transparent"
+              autoFocus
+            />
+          ) : (
+            <p 
+              className={`text-xl text-gray-600 max-w-3xl mx-auto relative z-10 ${isAdmin ? 'cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2' : ''}`}
+              onClick={isAdmin ? () => setIsEditingDescription(true) : undefined}
+            >
+              {sectionDescription}
+            </p>
           )}
         </div>
         
@@ -265,13 +457,35 @@ const FeaturedDestinations = () => {
             >
               <div className="relative h-56 w-full overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent z-10"></div>
-                <Image
-                  src={destination.image}
-                  alt={destination.name}
-                  layout="fill"
-                  objectFit="cover"
-                  className="group-hover:scale-110 transition-transform duration-700 ease-in-out"
-                />
+                {destination.image ? (
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={destination.image}
+                      alt={destination.name}
+                      width={400}
+                      height={300}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        // If this is an Appwrite URL and we have a user, try to get an authenticated URL
+                        if (destination.image.includes('appwrite.io') && currentUser) {
+                          target.src = `${destination.image}&jwt=${currentUser.accessToken}`;
+                        } else {
+                          // Fallback to placeholder for other errors
+                          console.error(`Error loading image for ${destination.name}:`, destination.image);
+                          target.src = '/images/placeholder.svg';
+                        }
+                        // Remove the error handler to prevent infinite loop
+                        target.onerror = null;
+                      }}
+                      unoptimized={destination.image.includes('appwrite.io')}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                    <span className="text-gray-400">No image available</span>
+                  </div>
+                )}
                 <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
                   <h3 className="text-xl font-bold text-white mb-1 group-hover:text-green-200 transition-colors">
                     {destination.name}
