@@ -14,8 +14,12 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Kapangan Wonder - Discover the Beauty of Kapangan",
+  title: "Kapangan Wonders - Discover the Beauty of Kapangan",
   description: "Explore the natural wonders, cultural heritage, and warm hospitality of Kapangan, Benguet. Your gateway to unforgettable adventures in the heart of the Philippines.",
+  icons: {
+    icon: "/icons/appicon.svg",
+    apple: "/icons/appicon.svg",
+  },
 };
 
 export default function RootLayout({
