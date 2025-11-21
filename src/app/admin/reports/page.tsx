@@ -15,6 +15,8 @@ interface Visit {
   status?: string;
   completedAt?: any;
   visitorType?: string;
+  barangays?: string[];
+  spots?: string[];
 }
 
 export default function ReportsPage() {
@@ -49,7 +51,7 @@ export default function ReportsPage() {
     fetchCompletedVisits();
   }, []);
 
-  // 🔹 PDF EXPORT FUNCTION — UPDATED
+  // ⬇ UPDATED: Includes Barangay & Spot
   const handleDownloadPDF = () => {
     if (completedVisits.length === 0) {
       alert('No completed visit reports available to download.');
@@ -64,6 +66,8 @@ export default function ReportsPage() {
       v.fullName || 'N/A',
       v.email || 'N/A',
       v.visitorType || 'Unknown',
+      v.barangays?.join(', ') || 'N/A',
+      v.spots?.join(', ') || 'N/A',
       v.companions?.length || 0,
       v.completedAt
         ? new Date(v.completedAt?.toDate?.() || v.completedAt).toLocaleString()
@@ -72,7 +76,17 @@ export default function ReportsPage() {
 
     autoTable(doc, {
       startY: 25,
-      head: [['Name', 'Email', 'Visitor Type', 'Companions', 'Completed At']],
+      head: [
+        [
+          'Name',
+          'Email',
+          'Visitor Type',
+          'Barangay',
+          'Spot',
+          'Companions',
+          'Completed At',
+        ],
+      ],
       body: tableRows,
     });
 
@@ -94,10 +108,9 @@ export default function ReportsPage() {
         ✅ Completed Visits
       </h1>
 
-      {/* 🔽 PDF BUTTON — UPDATED */}
       <button
         onClick={handleDownloadPDF}
-        disabled={completedVisits.length === 0} // Disable button if no reports
+        disabled={completedVisits.length === 0}
         className={`mb-4 px-4 py-2 rounded text-white ${
           completedVisits.length === 0
             ? 'bg-gray-400 cursor-not-allowed'
@@ -114,6 +127,8 @@ export default function ReportsPage() {
               <th className="p-3 text-left">Name</th>
               <th className="p-3 text-left">Email</th>
               <th className="p-3 text-left">Visitor Type</th>
+              <th className="p-3 text-left">Barangay</th>
+              <th className="p-3 text-left">Spot</th>
               <th className="p-3 text-left">Companions</th>
               <th className="p-3 text-left">Date & Time Completed</th>
               <th className="p-3 text-center">Action</th>
@@ -122,7 +137,7 @@ export default function ReportsPage() {
           <tbody>
             {completedVisits.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-6 text-gray-500">
+                <td colSpan={8} className="text-center py-6 text-gray-500">
                   No completed visits found.
                 </td>
               </tr>
@@ -135,11 +150,19 @@ export default function ReportsPage() {
                     {visit.visitorType || 'Unknown'}
                   </td>
                   <td className="p-3">
-                    {visit.companions?.length ? (
-                      `${visit.companions.length} companion(s)`
-                    ) : (
-                      <span className="text-gray-500 italic">No companions</span>
+                    {visit.barangays?.join(', ') || (
+                      <span className="text-gray-500 italic">N/A</span>
                     )}
+                  </td>
+                  <td className="p-3">
+                    {visit.spots?.join(', ') || (
+                      <span className="text-gray-500 italic">N/A</span>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    {visit.companions?.length
+                      ? `${visit.companions.length} companion(s)`
+                      : 'No companions'}
                   </td>
                   <td className="p-3">
                     {visit.completedAt
