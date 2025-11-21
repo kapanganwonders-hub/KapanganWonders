@@ -10,6 +10,17 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/ale
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import FeaturedSpotsModal from './admin/FeaturedSpotsModal';
 import type { Spot } from './admin/FeaturedSpotsModal';
+import { getImageUrl } from '@/lib/appwrite';
+
+// Extend the Destination interface to include imageUrl
+interface Destination {
+  id: string;
+  name: string;
+  location: string;
+  image: string;
+  imageUrl?: string;
+  description?: string;
+}
 
 interface Destination {
   id: string;
@@ -457,35 +468,38 @@ const FeaturedDestinations = () => {
             >
               <div className="relative h-56 w-full overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent z-10"></div>
-                {destination.image ? (
-                  <div className="relative w-full h-full">
-                    <Image
-                      src={destination.image}
-                      alt={destination.name}
-                      width={400}
-                      height={300}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        // If this is an Appwrite URL and we have a user, try to get an authenticated URL
-                        if (destination.image.includes('appwrite.io') && currentUser) {
-                          target.src = `${destination.image}&jwt=${currentUser.accessToken}`;
-                        } else {
-                          // Fallback to placeholder for other errors
-                          console.error(`Error loading image for ${destination.name}:`, destination.image);
-                          target.src = '/images/placeholder.svg';
-                        }
-                        // Remove the error handler to prevent infinite loop
-                        target.onerror = null;
-                      }}
-                      unoptimized={destination.image.includes('appwrite.io')}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                    <span className="text-gray-400">No image available</span>
-                  </div>
-                )}
+                {(() => {
+                  const imageSrc = destination.image 
+                    ? (destination.image.startsWith('http') || destination.image.startsWith('/') 
+                        ? destination.image 
+                        : getImageUrl(destination.image))
+                    : '';
+
+                  return (
+                    <div className="relative w-full h-full">
+                      {imageSrc ? (
+                        <Image
+                          src={imageSrc}
+                          alt={destination.name}
+                          fill
+                          className="object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (destination.imageUrl && destination.imageUrl !== destination.image) {
+                              target.src = destination.imageUrl;
+                            } else {
+                              target.src = '/images/default-spot.jpg';
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                          <span className="text-gray-400">No image available</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
                   <h3 className="text-xl font-bold text-white mb-1 group-hover:text-green-200 transition-colors">
                     {destination.name}
