@@ -36,6 +36,18 @@ const FeaturedSpotsModal: React.FC<FeaturedSpotsModalProps> = ({
       setSelectedSpots(new Set(currentFeatured));
     }
   }, [isOpen, currentFeatured]);
+
+  // Sync selected spots with available spots when spots change
+  useEffect(() => {
+    if (spots.length > 0 && selectedSpots.size > 0) {
+      const spotIds = new Set(spots.map(spot => spot.id));
+      const validSelectedSpots = Array.from(selectedSpots).filter(id => spotIds.has(id));
+      
+      if (validSelectedSpots.length !== selectedSpots.size) {
+        setSelectedSpots(new Set(validSelectedSpots));
+      }
+    }
+  }, [spots, selectedSpots]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
