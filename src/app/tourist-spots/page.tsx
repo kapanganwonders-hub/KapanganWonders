@@ -109,16 +109,16 @@ export default function TouristSpots() {
       const db = getFirestore();
       const spotRef = doc(db, 'touristSpots', editedSpot.id);
       
-      // Create update data object
+      // Create update data object with validation
       const updateData: Partial<TouristSpot> = {
-        name: editedSpot.name,
-        description: editedSpot.description,
-        location: editedSpot.location,
-        barangay: editedSpot.barangay,
-        category: editedSpot.category,
+        name: editedSpot.name || '',
+        description: editedSpot.description || '',
+        location: editedSpot.location || '',
+        barangay: editedSpot.barangay || '',
+        category: editedSpot.category || 'Other',
         contact: editedSpot.contact || '',
         googleMapsLink: editedSpot.googleMapsLink || '',
-        detailedDescription: editedSpot.detailedDescription || '',
+        detailedDescription: editedSpot.detailedDescription || editedSpot.description || '',
         updatedAt: new Date().toISOString()
       };
 
