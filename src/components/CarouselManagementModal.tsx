@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Upload, Trash2, Loader2, Image as ImageIcon, CheckCircle, XCircle, UploadCloud } from 'lucide-react';
-import { storage } from '@/lib/appwrite';
-import { client, ID } from '@/lib/appwrite';
+import { storage, client, ID, getImageUrl } from '@/lib/appwrite';
 import { toast } from 'react-hot-toast';
 
 interface CarouselItem {
@@ -54,7 +53,7 @@ export default function CarouselManagementModal({
       // Map storage files to carousel items format
       const storageItems = files.files.map(file => ({
         id: file.$id,
-        image: `${client.config.endpoint}/storage/buckets/${bucketId}/files/${file.$id}/view?project=${client.config.project}`,
+        image: getImageUrl(file.$id),
         fileId: file.$id
       }));
       

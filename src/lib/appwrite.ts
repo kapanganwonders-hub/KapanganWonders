@@ -239,6 +239,12 @@ const safeDeleteFile = async (fileUrl: string): Promise<boolean> => {
   }
 };
 
+// Function to get image URL with proper formatting
+const getImageUrl = (fileId: string): string => {
+  if (!fileId) return '';
+  return `${client.config.endpoint}/storage/buckets/${BUCKET_ID}/files/${fileId}/view?project=${client.config.project}`;
+};
+
 export {
   client,
   account,
@@ -249,7 +255,9 @@ export {
   getAppwriteSession,
   ensureAppwriteUser,
   getAppwriteHeaders,
+  BUCKET_ID,
   uploadFile,
   deleteFile,
-  safeDeleteFile
+  safeDeleteFile,
+  getImageUrl,
 };

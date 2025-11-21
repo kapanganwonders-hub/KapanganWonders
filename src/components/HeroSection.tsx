@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Pencil, Settings } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { db, doc, getDoc, setDoc } from "@/lib/firebase";
+import { getImageUrl } from "@/lib/appwrite";
 import useEmblaCarousel from "embla-carousel-react";
 import CarouselManagementModal from "@/components/CarouselManagementModal";
 
@@ -265,7 +266,7 @@ export default function HeroSection() {
                   >
                     <div className="relative h-80 md:h-96 w-full">
                       <Image
-                        src={item.image}
+                        src={item.image || "/placeholder-image.jpg"}
                         alt={`Carousel image ${index + 1}`}
                         fill
                         className="object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
