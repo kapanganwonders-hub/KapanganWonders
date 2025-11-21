@@ -44,35 +44,24 @@ export default function CarouselManagementModal({
   const [newImages, setNewImages] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Fetch the latest files from storage
-  const fetchFilesFromStorage = async () => {
+  // Refresh the carousel items from props
+  const fetchFilesFromStorage = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const files = await storage.listFiles(bucketId);
-      
-      // Map storage files to carousel items format
-      const storageItems = files.files.map(file => ({
-        id: file.$id,
-        image: getImageUrl(file.$id),
-        fileId: file.$id
-      }));
-      
-      setCarouselItems(storageItems);
-      onItemsUpdate(storageItems);
+      // Use the items that were passed in instead of fetching all files
+      setCarouselItems([...items]);
     } catch (error) {
-      console.error('Error fetching files from storage:', error);
-      toast.error('Failed to refresh files from storage');
+      console.error('Error refreshing files:', error);
+      toast.error('Failed to refresh files');
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [items]);
 
-  // Sync with storage when modal opens
+  // Update local state when items prop changes
   useEffect(() => {
-    if (isOpen) {
-      fetchFilesFromStorage();
-    }
-  }, [isOpen]);
+    setCarouselItems([...items]);
+  }, [items]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
