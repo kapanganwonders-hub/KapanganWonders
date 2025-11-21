@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { Pencil, Settings } from "lucide-react";
+import { PencilSquareIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Save, Image as ImageIcon } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { db, doc, getDoc, setDoc } from "@/lib/firebase";
 import { getImageUrl } from "@/lib/appwrite";
@@ -22,8 +23,11 @@ export default function HeroSection() {
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
   const [title, setTitle] = useState("Loading...");
   const [description, setDescription] = useState("");
+  const [showEditControls, setShowEditControls] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingDescription, setEditingDescription] = useState("");
 
   // ✅ Load hero section data
   useEffect(() => {
@@ -53,33 +57,65 @@ export default function HeroSection() {
     fetchHeroData();
   }, []);
 
-  // ✅ Save updated title
-  const handleSaveTitle = async (newTitle: string) => {
-    try {
-      setTitle(newTitle);
-      setIsEditingTitle(false);
-      await setDoc(doc(db, "heroSection", "main"), {
-        title: newTitle,
-        description,
-      });
-    } catch (error) {
-      console.error("Error saving title:", error);
+  // ✅ Toggle edit mode for both title and description
+  const toggleEditMode = () => {
+    if (!isEditingTitle && !isEditingDescription) {
+      // Entering edit mode
+      setEditingTitle(title);
+      setEditingDescription(description);
+      setIsEditingTitle(true);
+      setIsEditingDescription(true);
+    } else {
+      // Exiting edit mode
+      handleSave();
     }
   };
 
-  // ✅ Save updated description
-  const handleSaveDescription = async (newDescription: string) => {
+  // ✅ Save both title and description
+  const handleSave = async () => {
     try {
-      setDescription(newDescription);
+      setTitle(editingTitle);
+      setDescription(editingDescription);
+      setIsEditingTitle(false);
       setIsEditingDescription(false);
+      
       await setDoc(doc(db, "heroSection", "main"), {
-        title,
-        description: newDescription,
+        title: editingTitle,
+        description: editingDescription,
       });
     } catch (error) {
-      console.error("Error saving description:", error);
+      console.error("Error saving changes:", error);
     }
   };
+
+  // ✅ Cancel editing
+  const handleCancel = () => {
+    setIsEditingTitle(false);
+    setIsEditingDescription(false);
+    setEditingTitle(title);
+    setEditingDescription(description);
+  };
+
+  // ✅ Toggle edit controls visibility
+  const toggleEditControls = () => {
+    const newState = !showEditControls;
+    setShowEditControls(newState);
+    
+    // Reset edit modes when hiding controls
+    if (!newState) {
+      setIsEditingTitle(false);
+      setIsEditingDescription(false);
+    } else {
+      // When showing controls, also enter edit mode
+      setEditingTitle(title);
+      setEditingDescription(description);
+      setIsEditingTitle(true);
+      setIsEditingDescription(true);
+    }
+  };
+
+  // Check if in any edit mode
+  const isEditing = isEditingTitle || isEditingDescription;
 
   // ✅ Initialize Embla carousel
   const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -170,6 +206,28 @@ export default function HeroSection() {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-white to-green-50 overflow-hidden border-b-8 border-green-100">
+      {/* Admin Controls */}
+      {isAdmin && (
+        <div className="flex justify-end mb-6 absolute top-4 right-4 z-20">
+          <button
+            onClick={toggleEditControls}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+          >
+            {showEditControls ? (
+              <>
+                <XMarkIcon className="-ml-1 mr-2 h-5 w-5" />
+                Hide Controls
+              </>
+            ) : (
+              <>
+                <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
+                Manage Hero Section
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Background circles */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-green-100 rounded-full opacity-20"></div>
@@ -183,58 +241,72 @@ export default function HeroSection() {
         <div className="hidden md:block relative w-full md:w-5/12 pr-0 md:pr-12 mb-12 md:mb-0 bg-white/80 backdrop-blur-sm p-8 rounded-2xl border-2 border-green-100 shadow-lg">
           <div className="relative group mb-6">
             {isEditingTitle ? (
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => handleSaveTitle(title)}
-                onKeyDown={(e) => e.key === "Enter" && handleSaveTitle(title)}
-                className="text-4xl md:text-5xl font-bold text-green-900 mb-6 bg-transparent border-b-2 border-green-200 outline-none w-full focus:border-green-500 transition-colors duration-300"
-                autoFocus
-              />
+              <div className="w-full max-w-[90%]">
+                <input
+                  type="text"
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  className="text-3xl md:text-4xl font-bold text-green-900 mb-4 bg-transparent border-b-2 border-green-200 outline-none w-full focus:border-green-500 transition-colors duration-300"
+                  autoFocus
+                  style={{ maxWidth: '100%' }}
+                />
+              </div>
             ) : (
-              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-700 to-green-500 bg-clip-text text-transparent mb-6">
-                {title}
-              </h1>
-            )}
-            {isAdmin && !isEditingTitle && (
-              <button
-                className="absolute -right-10 top-0 p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
-                onClick={() => setIsEditingTitle(true)}
-              >
-                <Pencil className="w-5 h-5" />
-              </button>
+              <div className="flex items-center group">
+                <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-green-700 to-green-500 bg-clip-text text-transparent mb-6 break-words">
+                  {title}
+                </h1>
+                {isAdmin && showEditControls && (
+                  <button
+                    className="ml-3 px-3 py-1 text-sm text-gray-600 hover:text-green-700 rounded-full hover:bg-green-50 transition-colors border border-gray-200 hover:border-green-200 flex items-center h-8"
+                    onClick={toggleEditMode}
+                  >
+                    <span>{isEditing ? 'Done Editing' : 'Edit'}</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
           <div className="relative group mb-8">
             {isEditingDescription ? (
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={() => handleSaveDescription(description)}
-                onKeyDown={(e) => e.key === "Enter" && handleSaveDescription(description)}
-                className="text-lg text-gray-700 mb-8 w-full bg-transparent border-b-2 border-green-100 outline-none resize-none h-24 focus:border-green-500 transition-colors duration-300"
-                autoFocus
-              />
+              <div className="w-full">
+                <textarea
+                  value={editingDescription}
+                  onChange={(e) => setEditingDescription(e.target.value)}
+                  className="text-lg text-gray-700 mb-4 w-full bg-transparent border-b-2 border-green-100 outline-none resize-none h-24 focus:border-green-500 transition-colors duration-300 p-1"
+                />
+              </div>
             ) : (
-              <p className="text-lg text-gray-700 mb-8 leading-relaxed">
-                {description}
-              </p>
-            )}
-            {isAdmin && !isEditingDescription && (
-              <button
-                className="absolute -right-10 top-0 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                onClick={() => setIsEditingDescription(true)}
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
+              <div className="w-full">
+                <p className="text-lg text-gray-700 mb-4 leading-relaxed">
+                  {description}
+                </p>
+              </div>
             )}
           </div>
 
+          {/* Save/Cancel Button Group */}
+          {showEditControls && (isEditingTitle || isEditingDescription) && (
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={handleSave}
+                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
+              >
+                <Save className="w-4 h-4 mr-2" /> Save Changes
+              </button>
+              <button
+                onClick={handleCancel}
+                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                <XMarkIcon className="w-4 h-4 mr-1" /> Cancel
+              </button>
+            </div>
+          )}
+
           <Link
             href="/tourist-spots"
-            className="inline-block bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-green-200 border-2 border-white"
+            className="inline-block bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-full font-semibold text-sm transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg mt-6"
           >
             Explore More Destinations
           </Link>
@@ -242,14 +314,17 @@ export default function HeroSection() {
 
         {/* Carousel Section */}
         <div className="w-full md:w-7/12 relative group z-10">
-          {isAdmin && (
-            <button
-              onClick={() => setIsManageModalOpen(true)}
-              className="absolute top-4 right-4 z-10 p-2 bg-white/80 hover:bg-white text-gray-700 rounded-full shadow-md hover:shadow-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
-              title="Manage carousel"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
+          {isAdmin && showEditControls && (
+            <div className="absolute top-4 right-4 z-10 flex space-x-2">
+              <button
+                onClick={() => setIsManageModalOpen(true)}
+                className="flex items-center px-3 py-1.5 bg-white/90 hover:bg-white text-gray-700 text-sm font-medium rounded-full shadow-md hover:shadow-lg transition-all duration-200 opacity-90 hover:opacity-100"
+                title="Manage carousel"
+              >
+                <ImageIcon className="w-4 h-4 mr-1" />
+                <span>Manage Carousel</span>
+              </button>
+            </div>
           )}
 
           <div
