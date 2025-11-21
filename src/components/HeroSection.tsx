@@ -7,6 +7,7 @@ import { PencilSquareIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Save, Image as ImageIcon } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { db, doc, getDoc, setDoc } from "@/lib/firebase";
+import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
 import { getImageUrl } from "@/lib/appwrite";
 import useEmblaCarousel from "embla-carousel-react";
 import CarouselManagementModal from "@/components/CarouselManagementModal";
@@ -28,6 +29,7 @@ export default function HeroSection() {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingDescription, setEditingDescription] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // ✅ Load hero section data
   useEffect(() => {
@@ -83,6 +85,10 @@ export default function HeroSection() {
         title: editingTitle,
         description: editingDescription,
       });
+      
+      // Show success notification
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000); // Hide after 3 seconds
     } catch (error) {
       console.error("Error saving changes:", error);
     }
@@ -206,6 +212,14 @@ export default function HeroSection() {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-white to-green-50 overflow-hidden border-b-8 border-green-100">
+      {showSuccess && (
+        <div className="fixed bottom-4 right-4 z-50 w-80">
+          <Alert variant="success" className="bg-white border-2 border-green-500">
+            <AlertTitle>Update Successful</AlertTitle>
+            <AlertDescription>Hero section has been updated successfully</AlertDescription>
+          </Alert>
+        </div>
+      )}
       {/* Admin Controls */}
       {isAdmin && (
         <div className="flex justify-end mb-6 absolute top-4 right-4 z-20">
