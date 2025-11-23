@@ -6,7 +6,7 @@ import { auth } from '@/lib/firebase';
 import { logout } from '@/lib/auth';
 import { onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Map, Calendar, Bell, LogOut, LayoutDashboard, Users, Menu, X, FileText } from 'lucide-react';
+import { User, Map, Calendar, Bell, LogOut, LayoutDashboard, Users, Menu, X, FileText, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -150,6 +150,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <li><Link href="/admin" className={linkClass('/admin')}><LayoutDashboard size={18}/>Dashboard</Link></li>
                   <li><Link href="/admin/users" className={linkClass('/admin/users')}><Users size={18}/>Manage Users</Link></li>
                   <li><Link href="/admin/visits" className={linkClass('/admin/visits')}><Map size={18}/>Visits</Link></li>
+                  <li><Link href="/admin/tourist-spots" className={linkClass('/admin/tourist-spots')}><MapPin size={18}/>Tourist Spots</Link></li>
                   <li><Link href="/admin/announcements" className={linkClass('/admin/announcements')}><Bell size={18}/>Announcements</Link></li>
                 </ul>
               </div>

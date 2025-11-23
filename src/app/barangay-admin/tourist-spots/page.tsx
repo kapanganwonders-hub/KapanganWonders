@@ -20,24 +20,41 @@ import { MapPin, Plus, Edit, Trash2, X } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
 import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 
+interface Coordinates {
+  lat: number;
+  lng: number;
+}
 interface TouristSpot {
   id: string;
   name: string;
-  detailedDescription?: string;
+  detailedDescription: string;
   category: string;
   barangay: string;
   address: string;
   location: string;
   image: string;
   imageId?: string;
-  images?: string[];
-  contact?: string;
-  entranceFee?: string;
-  googleMapsLink?: string;
-  status: 'active' | 'inactive';
-  coordinates?: { lat: number; lng: number };
-  lat: number;
-  lng: number;
+  images: string[];
+  contact: string;
+  entranceFee: string;
+  entranceFees?: {
+    adults: { amount: number };
+    children: { amount: number };
+    environmental: { amount: number };
+    kids: { amount: number };
+    pwd: { amount: number };
+    seniors: { amount: number };
+    tourGuide: { amount: number };
+  };
+  googleMapsLink: string;
+  status: 'active' | 'inactive' | 'pending';
+  coordinates?: Coordinates;
+  lat?: number;
+  lng?: number;
+  submittedBy?: string;
+  submittedByEmail?: string;
+  submittedAt?: Date;
+  reviewed?: boolean;
   createdAt: any;
   updatedAt: any;
 }
@@ -51,6 +68,8 @@ export default function TouristSpotsPage() {
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
   const [alertState, setAlertState] = useState<{ variant: 'success' | 'destructive' | 'warning' | 'info' | 'default'; message: string } | null>(null);
   const [spotToDelete, setSpotToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'pending'>('active');
+  const [viewingSpot, setViewingSpot] = useState<TouristSpot | null>(null);
 
   interface FormData {
     name: string;
@@ -97,41 +116,55 @@ export default function TouristSpotsPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
-    if (barangayAdminData) fetchSpots();
-  }, [barangayAdminData]);
+    fetchSpots();
+  }, [barangayAdminData, activeTab]);
 
   const fetchSpots = async () => {
+    if (!barangayAdminData?.barangay) return;
+    
     try {
       setLoading(true);
-      if (!barangayAdminData) return;
-
-      const barangayName =
-        barangayAdminData.barangay ||
-        barangayAdminData.barangayName ||
-        barangayAdminData.displayName;
-
-      if (!barangayName) {
-        console.error('No barangay name found');
-        setLoading(false);
-        return;
+      let q;
+      
+      if (activeTab === 'pending') {
+        // For pending tab, fetch from pendingSpots collection
+        q = query(
+          collection(db, 'pendingSpots'),
+          where('barangay', '==', barangayAdminData.barangay)
+        );
+      } else {
+        // For active tab, show all approved spots from touristSpots
+        q = query(
+          collection(db, 'touristSpots'),
+          where('barangay', '==', barangayAdminData.barangay)
+        );
       }
-
-      const spotsRef = collection(db, 'touristSpots');
-      const spotsQuery = query(spotsRef, where('barangay', '==', barangayName));
-      const snapshot = await getDocs(spotsQuery);
-
-      const spotsData = snapshot.docs.map((d) => {
-        const data = d.data();
+      
+      const querySnapshot = await getDocs(q);
+      let spotsData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Safely handle Firestore timestamps
+        const safeToDate = (timestamp: any): Date | undefined => {
+          if (!timestamp) return undefined;
+          return typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(timestamp);
+        };
+        
         return {
-          id: d.id,
+          id: doc.id,
           ...data,
-          images: data.images || [data.image].filter(Boolean)
+          // Safely convert timestamps
+          createdAt: safeToDate(data.createdAt) || new Date(),
+          updatedAt: safeToDate(data.updatedAt) || new Date(),
+          submittedAt: safeToDate(data.submittedAt)
         } as TouristSpot;
       });
-
+      
+      // No need to filter for pending spots since we're querying different collections
+      
       setSpots(spotsData);
-    } catch (err) {
-      console.error('Error fetching tourist spots:', err);
+    } catch (error) {
+      console.error('Error fetching spots:', error);
+      setAlertState({ variant: 'destructive', message: 'Failed to load tourist spots. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -177,14 +210,23 @@ export default function TouristSpotsPage() {
 
   const handleAddSpot = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
     try {
-      if (!barangayAdminData) throw new Error('No barangay admin data available');
+      if (!barangayAdminData) {
+        throw new Error('No barangay admin data available. Please make sure you are logged in as a barangay admin.');
+      }
+      
       if (!imageFile) {
         setAlertState({
           variant: 'destructive',
           message: 'Please select an image for the tourist spot'
         });
         return;
+      }
+      
+      if (!currentUser?.uid) {
+        throw new Error('You must be logged in to submit a tourist spot.');
       }
 
       const barangayName =
@@ -198,27 +240,51 @@ export default function TouristSpotsPage() {
       const uploadedFile = await uploadFile(imageFile);
       const imageUrl = `https://cloud.appwrite.io/v1/storage/buckets/69062d080010accbfb9e/files/${uploadedFile.$id}/view?project=6905f83f00038caa24fb`;
 
-      const spotData = {
-        ...formData,
+      // Prepare spot data for pending approval
+      const pendingSpotData: Omit<TouristSpot, 'id'> = {
+        name: formData.name.trim(),
+        detailedDescription: formData.detailedDescription,
+        category: formData.category,
         barangay: barangayName,
-        location: formData.address,
+        address: formData.address.trim(),
+        location: formData.location || formData.address.trim(),
+        contact: formData.contact,
+        entranceFee: formData.entranceFee,
+        googleMapsLink: formData.googleMapsLink,
         image: imageUrl,
         images: [imageUrl],
-        imageId: uploadedFile.$id, // Store the file ID for future reference
-        status: 'active', // Set default status
+        imageId: uploadedFile.$id,
+        status: 'pending',
+        submittedBy: currentUser.uid,
+        submittedByEmail: currentUser.email || '',
+        submittedAt: new Date(),
+        reviewed: false,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        entranceFees: formData.entranceFees
       };
 
-      await addDoc(collection(db, 'touristSpots'), spotData);
+      // Save to pendingSpots collection
+      await addDoc(collection(db, 'pendingSpots'), pendingSpotData);
+      
+      // Reset form and show success message
       setShowAddForm(false);
+      setImageFile(null);
+      setImagePreview(null);
+      
+      setAlertState({
+        variant: 'success',
+        message: 'Tourist spot submitted for admin approval. It will be visible once approved.'
+      });
+      
+      // Reset form data
       setFormData({
         name: '',
         detailedDescription: '',
         category: 'Natural',
-        barangay: formData.barangay, // Preserve the barangay
+        barangay: barangayName, // Keep the same barangay
         address: '',
-        location: formData.location || '', // Preserve location if exists
+        location: '',
         contact: '',
         entranceFee: '',
         googleMapsLink: '',
@@ -232,11 +298,18 @@ export default function TouristSpotsPage() {
           tourGuide: { amount: 400 }
         }
       });
-      setAlertState({ variant: 'success', message: 'Tourist spot added successfully' });
-      fetchSpots();
-    } catch (err) {
-      console.error('Error adding spot:', err);
-      setAlertState({ variant: 'destructive', message: 'Failed to add tourist spot' });
+      
+      // Refresh the spots list
+      await fetchSpots();
+      
+    } catch (error) {
+      console.error('Error adding tourist spot:', error);
+      setAlertState({
+        variant: 'destructive',
+        message: error instanceof Error ? error.message : 'Failed to add tourist spot. Please try again.'
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -394,6 +467,14 @@ export default function TouristSpotsPage() {
   };
 
   const handleCloseDetails = () => setSelectedSpot(null);
+  
+  const handleViewSpot = (spot: TouristSpot) => {
+    setViewingSpot(spot);
+  };
+  
+  const closeViewModal = () => {
+    setViewingSpot(null);
+  };
 
   if (loading) {
     return (
@@ -662,7 +743,7 @@ export default function TouristSpotsPage() {
                   type="submit"
                   className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
                 >
-                  Add Spot
+                  Submit
                 </button>
               </div>
             </form>
@@ -670,35 +751,64 @@ export default function TouristSpotsPage() {
         </div>
       )}
 
-      {/* Spots List - Updated to match announcements style */}
       <div className="p-6">
+        <div className="mb-8">
+          
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('active')}
+                className={`${activeTab === 'active' 
+                  ? 'border-indigo-500 text-indigo-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} 
+                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Active Spots
+              </button>
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`${activeTab === 'pending' 
+                  ? 'border-indigo-500 text-indigo-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} 
+                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Pending Approval
+              </button>
+            </nav>
+          </div>
+        </div>
+
         {spots.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
             <MapPin size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-600">No tourist spots found</h3>
-            <p className="text-gray-500 mt-1">Get started by adding a new tourist spot.</p>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              <Plus size={16} className="mr-2" />
-              Add First Spot
-            </button>
+            <h3 className="text-lg font-medium text-gray-600">
+              {activeTab === 'active' ? 'No tourist spots found' : 'No pending spots'}
+            </h3>
+            {activeTab === 'active' && (
+              <p className="text-gray-500 mt-1">Get started by adding a new tourist spot using the 'Add New Spot' button above.</p>
+            )}
           </div>
         ) : (
           <div className="grid gap-5">
             {spots.map((spot) => (
-              <div
-                key={spot.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
-              >
+              <div key={spot.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
                 <div className="md:flex">
                   <div className="md:flex-shrink-0 md:w-48 h-48 bg-gray-100 relative">
-                    {spot.images?.length ? (
+                    {spot.images?.[0] || spot.image ? (
                       <img
-                        src={spot.images[0]}
+                        src={spot.images?.[0] || spot.image}
                         alt={spot.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '';
+                          target.parentElement!.innerHTML = `
+                            <div class="w-full h-full flex items-center justify-center text-gray-400">
+                              <MapPin size={32} />
+                            </div>
+                          `;
+                        }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -724,16 +834,32 @@ export default function TouristSpotsPage() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditNavigation(spot);
-                          }}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit"
-                        >
-                          <Edit size={18} />
-                        </button>
+                        {spot.status === 'pending' ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewSpot(spot);
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="View Details"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditNavigation(spot);
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Edit"
+                          >
+                            <Edit size={18} />
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -787,6 +913,120 @@ export default function TouristSpotsPage() {
         confirmText="Delete Spot"
         cancelText="Cancel"
       />
+
+      {/* View Spot Modal */}
+      {viewingSpot && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold">{viewingSpot.name}</h2>
+                <button 
+                  onClick={closeViewModal}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                {viewingSpot.images?.[0] ? (
+                  <img 
+                    src={viewingSpot.images[0]} 
+                    alt={viewingSpot.name} 
+                    className="w-full h-64 object-cover rounded-lg mb-4"
+                  />
+                ) : (
+                  <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 mb-4">
+                    <MapPin size={48} />
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-700">Category</h3>
+                    <p className="text-gray-600">{viewingSpot.category}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-700">Status</h3>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      viewingSpot.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : viewingSpot.status === 'pending'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {viewingSpot.status}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="mb-4">
+                  <h3 className="font-semibold text-gray-700">Address</h3>
+                  <p className="text-gray-600">{viewingSpot.address || 'Not specified'}</p>
+                </div>
+                
+                {viewingSpot.contact && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-gray-700">Contact</h3>
+                    <p className="text-gray-600">{viewingSpot.contact}</p>
+                  </div>
+                )}
+                
+                <div className="mb-4">
+                  <h3 className="font-semibold text-gray-700 mb-2">Entrance Fees</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {viewingSpot.entranceFees && Object.entries(viewingSpot.entranceFees).map(([feeType, fee]) => (
+                      fee.amount > 0 && (
+                        <div key={feeType} className="bg-gray-50 p-2 rounded">
+                          <div className="text-sm font-medium text-gray-700">
+                            {feeType.charAt(0).toUpperCase() + feeType.slice(1)}
+                          </div>
+                          <div className="text-sm text-gray-600">₱{fee.amount.toFixed(2)}</div>
+                        </div>
+                      )
+                    ))}
+                    {!viewingSpot.entranceFees && (
+                      <p className="text-gray-500">No entrance fees specified</p>
+                    )}
+                  </div>
+                </div>
+                
+                {viewingSpot.detailedDescription && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-gray-700">Description</h3>
+                    <p className="text-gray-600 whitespace-pre-line">{viewingSpot.detailedDescription}</p>
+                  </div>
+                )}
+                
+                {viewingSpot.googleMapsLink && (
+                  <div className="mt-4">
+                    <a 
+                      href={viewingSpot.googleMapsLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center"
+                    >
+                      <MapPin className="w-4 h-4 mr-1" />
+                      View on Google Maps
+                    </a>
+                  </div>
+                )}
+                
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={closeViewModal}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
+}

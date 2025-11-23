@@ -74,7 +74,8 @@ interface TouristSpot {
 }
 
 export default function TouristSpots() {
-  const { isBarangayAdmin, barangayAdminData, user, isPrivateSpotAdmin, privateSpotAdminData } = useAuth();
+  const router = useRouter();
+  const { isBarangayAdmin, barangayAdminData, user, isPrivateSpotAdmin, privateSpotAdminData, isAdmin } = useAuth();
   const [closureAnnouncements, setClosureAnnouncements] = useState<Announcement[]>([]);
   const [selectedBarangay, setSelectedBarangay] = useState<string>('all');
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
@@ -84,7 +85,14 @@ export default function TouristSpots() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [cameFromAdmin, setCameFromAdmin] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if we came from admin panel
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setCameFromAdmin(params.get('fromAdmin') === 'true');
+  }, []);
 
   const handleRemoveImage = () => {
     if (!editedSpot) return;
@@ -125,16 +133,24 @@ export default function TouristSpots() {
       // Handle image upload if there's a new image
       if (editedSpot._tempImage) {
         try {
+          // Show loading toast for image upload
+          const uploadToast = toast.loading('Uploading image...');
           const fileData = await uploadFile(editedSpot._tempImage, `tourist-spots/${editedSpot.id}`);
-updateData.image = fileData.url;  // Use the url property instead of the whole object
+          updateData.image = fileData.url;
+          toast.dismiss(uploadToast);
+          toast.success('Image uploaded successfully');
         } catch (error) {
           console.error('Error uploading image:', error);
+          toast.dismiss();
           toast.error('Failed to upload image. Please try again.');
           setLoading(false);
           return;
         }
       }
 
+      // Show saving toast
+      const saveToast = toast.loading('Saving changes...');
+      
       // Update the document in Firestore
       await updateDoc(spotRef, updateData);
       
@@ -150,11 +166,25 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
         )
       );
       
-      toast.success('Tourist spot updated successfully');
-      setIsEditing(false);
+      // Show success message and dismiss loading toast
+      toast.dismiss(saveToast);
+      toast.success('Tourist spot updated successfully!', {
+        duration: 3000,
+        position: 'top-center',
+      });
+      
+      // Exit edit mode after a short delay
+      setTimeout(() => {
+        setIsEditing(false);
+      }, 500);
+      
     } catch (error) {
       console.error('Error updating tourist spot:', error);
-      toast.error('Failed to update tourist spot. Please try again.');
+      toast.dismiss();
+      toast.error('Failed to update tourist spot. Please try again.', {
+        duration: 4000,
+        position: 'top-center',
+      });
     } finally {
       setLoading(false);
     }
@@ -676,18 +706,19 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
     setEditedSpot(updatedSpot);
   };
 
-  const router = useRouter();
-
   const closeDetails = () => {
-    if (isEditing) {
-      // If in edit mode, navigate to the appropriate dashboard
+    if (isAdmin) {
+      // Always go to main admin dashboard for admin users
+      router.push('/admin');
+    } else if (isEditing) {
+      // For non-admin users in edit mode
       if (isPrivateSpotAdmin) {
         router.push('/private-spot-admin');
       } else if (isBarangayAdmin) {
         router.push('/barangay-admin');
       } else {
-        // Default fallback
-        router.push('/');
+        // Default fallback for regular users
+        router.push('/tourist-spots');
       }
     } else {
       // Otherwise, just close the details view
@@ -710,7 +741,11 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              {isEditing ? 'Back to Dashboard' : 'Back to Tourist Spots'}
+              {isEditing 
+                ? 'Back to Dashboard' 
+                : isAdmin 
+                  ? 'Back to Admin Dashboard' 
+                  : 'Back to Tourist Spots'}
             </button>
           </div>
         </div>
@@ -812,13 +847,25 @@ updateData.image = fileData.url;  // Use the url property instead of the whole o
                     <div className="flex gap-2">
                       <button
                         onClick={handleSave}
-                        className="bg-primary-green text-egg-white px-3 py-1 rounded text-sm font-medium hover:bg-opacity-90 transition-colors"
+                        disabled={loading}
+                        className={`flex items-center gap-2 bg-primary-green text-egg-white px-4 py-1.5 rounded text-sm font-medium hover:bg-opacity-90 transition-colors ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                       >
-                        Save
+                        {loading ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
                       </button>
                       <button
                         onClick={handleCancelEdit}
-                        className="bg-gray-300 text-primary-green px-3 py-1 rounded text-sm font-medium hover:bg-opacity-90 transition-colors"
+                        disabled={loading}
+                        className="bg-gray-200 text-primary-green px-4 py-1.5 rounded text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>
