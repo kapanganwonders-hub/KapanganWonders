@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { PencilSquareIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Save, Image as ImageIcon } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { db, doc, getDoc, setDoc } from "@/lib/firebase";
@@ -238,7 +238,6 @@ export default function HeroSection() {
               onClick={toggleEditMode}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
             >
-              <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
               Manage Hero Section
             </button>
           )}
@@ -273,15 +272,6 @@ export default function HeroSection() {
                 <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-green-700 to-green-500 bg-clip-text text-transparent mb-6 break-words">
                   {title}
                 </h1>
-                {isAdmin && showEditControls && (
-                  <button
-                    className="ml-3 px-3 py-1 text-sm text-gray-600 hover:text-green-700 rounded-full hover:bg-green-50 transition-colors border border-gray-200 hover:border-green-200 flex items-center h-8"
-                    onClick={toggleEditMode}
-                  >
-                    <PencilSquareIcon className="w-4 h-4 mr-1" />
-                    <span>Edit</span>
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -304,16 +294,6 @@ export default function HeroSection() {
             )}
           </div>
 
-          {/* Edit button for title/description */}
-          {isAdmin && isEditing && !isEditMode && (
-            <button
-              className="flex items-center px-3 py-1 text-sm text-gray-600 hover:text-green-700 rounded-full hover:bg-green-50 transition-colors border border-gray-200 hover:border-green-200 mt-4"
-              onClick={toggleEditMode}
-            >
-              <PencilSquareIcon className="w-4 h-4 mr-1" />
-              <span>Edit</span>
-            </button>
-          )}
 
           <Link
             href="/tourist-spots"

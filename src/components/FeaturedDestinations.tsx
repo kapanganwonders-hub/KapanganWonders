@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
-import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import FeaturedSpotsModal from './admin/FeaturedSpotsModal';
 import type { Spot } from './admin/FeaturedSpotsModal';
 import { getImageUrl } from '@/lib/appwrite';
@@ -367,7 +366,6 @@ const FeaturedDestinations = () => {
                 onClick={isEditingSection ? cancelEdit : handleEditSection}
                 className={`inline-flex items-center px-4 py-2 border ${isEditingSection ? 'border-red-500 bg-red-600 hover:bg-red-700' : 'border-transparent bg-green-600 hover:bg-green-700'} text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors`}
               >
-                <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
                 {isEditingSection ? 'Cancel' : 'Manage Featured Spots Section'}
               </button>
               {isEditingSection && (
@@ -383,7 +381,6 @@ const FeaturedDestinations = () => {
                   onClick={() => setShowSpotsModal(true)}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
                 >
-                  <PencilSquareIcon className="-ml-1 mr-2 h-5 w-5" />
                   Select Featured Spots
                 </button>
               )}

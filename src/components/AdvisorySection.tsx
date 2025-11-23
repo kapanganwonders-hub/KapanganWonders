@@ -280,10 +280,7 @@ export default function AdvisorySection() {
                 isEditingSection ? 'border-red-500 bg-red-600 hover:bg-red-700' : 'border-transparent bg-emerald-600 hover:bg-emerald-700'
               } text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors`}
             >
-              <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              {isEditingSection ? 'Cancel' : 'Manage Announcement Section'}
+{isEditingSection ? 'Cancel' : 'Manage Announcement Section'}
             </button>
             {isEditingSection && (
               <button

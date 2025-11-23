@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Save } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/lightswind/alert';
 
 interface ContactInfo {
   icon: string;
@@ -22,6 +25,8 @@ interface TravelInfo {
 export default function Contact() {
   const { currentUser, isAdmin } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -107,8 +112,8 @@ export default function Contact() {
 
   const handleSave = async () => {
     try {
+      setIsSaving(true);
       const docRef = doc(db, 'content', 'contact');
-      // Use setDoc with merge: true to create or update the document
       await setDoc(docRef, {
         contactInfo,
         travelInfo,
@@ -116,17 +121,21 @@ export default function Contact() {
       }, { merge: true });
       
       setIsEditing(false);
-      alert('Contact information saved successfully!');
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       console.error("Error saving contact information: ", error);
       alert('Failed to save contact information. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted:', formData);
-    alert('Thank you for your message! We will get back to you soon.');
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
     setFormData({ name: '', email: '', subject: '', message: '' });
   };
 
@@ -145,28 +154,66 @@ export default function Contact() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <div className="flex justify-end mb-4">
             {isEditing ? (
-              <div className="space-y-4 sm:space-y-6">
+              <div className="flex space-x-3">
                 <button
                   onClick={handleSave}
-                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  disabled={isSaving}
                 >
-                  Save Changes
+                  {isSaving ? (
+                    'Saving...'
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsEditing(false)}
-                  className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors"
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
                   Cancel
                 </button>
               </div>
             ) : (
               <button
+                type="button"
                 onClick={() => setIsEditing(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 Edit Content
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {showSuccess && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full">
+          <div className="bg-white rounded-lg shadow-lg border-l-4 border-green-500 overflow-hidden">
+            <div className="p-4">
+              <div className="flex items-start">
+                <CheckCircleIcon className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-green-800">
+                    Success
+                  </p>
+                  <p className="mt-1 text-sm text-green-700">
+                    {isEditing ? 'Changes saved successfully!' : 'Thank you for your message! We will get back to you soon.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="ml-4 flex-shrink-0 rounded-md inline-flex text-green-500 hover:text-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  onClick={() => setShowSuccess(false)}
+                >
+                  <span className="sr-only">Close</span>
+                  <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
