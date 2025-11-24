@@ -48,7 +48,10 @@ export default function BlogsPage() {
     excerpt: '',
     content: '',
     category: 'News',
-    imageUrl: ''
+    imageUrl: '',
+    contactNumber: '',
+    location: '',
+    facebookUrl: ''
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -121,7 +124,7 @@ export default function BlogsPage() {
       setIsSubmitting(true);
       
       const spotName = privateSpotAdminData?.privateSpotName || privateSpotAdminData?.businessName || privateSpotAdminData?.displayName || 'Private Spot';
-      const blogData = {
+      const blogData: any = {
         title: formData.title,
         excerpt: formData.excerpt,
         content: formData.content,
@@ -138,6 +141,13 @@ export default function BlogsPage() {
         updatedAt: serverTimestamp(),
         views: editingBlog?.views || 0,
       };
+
+      // Add contact information for specific categories
+      if (formData.category === 'Where to Eat' || formData.category === 'Where to Stay') {
+        blogData.contactNumber = formData.contactNumber || '';
+        blogData.location = formData.location || '';
+        blogData.facebookUrl = formData.facebookUrl || '';
+      }
       
       if (editingBlog) {
         await updateDoc(doc(db, 'blogs', editingBlog.id), blogData);
@@ -153,7 +163,10 @@ export default function BlogsPage() {
         excerpt: '',
         content: '',
         category: 'News',
-        imageUrl: ''
+        imageUrl: '',
+        contactNumber: '',
+        location: '',
+        facebookUrl: ''
       });
       setEditingBlog(null);
       fetchBlogs();
@@ -327,6 +340,22 @@ export default function BlogsPage() {
     }
   };
 
+  const handleEdit = (blog: any) => {
+    setEditingBlog(blog);
+    setFormData({
+      title: blog.title,
+      excerpt: blog.excerpt || '',
+      content: blog.content,
+      category: blog.category || 'News',
+      imageUrl: blog.imageUrl || '',
+      contactNumber: blog.contactNumber || '',
+      location: blog.location || '',
+      facebookUrl: blog.facebookUrl || '',
+    });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -441,25 +470,73 @@ export default function BlogsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-                Category
+                Category <span className="text-red-500">*</span>
               </label>
               <select
                 id="category"
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                required
               >
-                <option value="Tourism">Tourism</option>
-                <option value="Culture">Culture</option>
-                <option value="Events">Events</option>
                 <option value="News">News</option>
-                <option value="Guide">Guide</option>
-                <option value="Where to Stay">Where to Stay</option>
+                <option value="Events">Events</option>
+                <option value="Promotions">Promotions</option>
                 <option value="Where to Eat">Where to Eat</option>
+                <option value="Where to Stay">Where to Stay</option>
               </select>
             </div>
           </div>
+
+          {(formData.category === 'Where to Eat' || formData.category === 'Where to Stay') && (
+            <>
+              <div className="mb-4">
+                <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Contact Number
+                </label>
+                <input
+                  type="tel"
+                  id="contactNumber"
+                  name="contactNumber"
+                  value={formData.contactNumber || ''}
+                  onChange={handleInputChange}
+                  placeholder="e.g., +63 912 345 6789"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  id="location"
+                  name="location"
+                  value={formData.location || ''}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Poblacion, Kapangan, Benguet"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="facebookUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                  Facebook Page URL
+                </label>
+                <input
+                  type="url"
+                  id="facebookUrl"
+                  name="facebookUrl"
+                  value={formData.facebookUrl || ''}
+                  onChange={handleInputChange}
+                  placeholder="e.g., https://facebook.com/yourpage"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </>
+          )}
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">

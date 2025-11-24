@@ -18,13 +18,18 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/ale
 interface Blog {
   id: string;
   title: string;
+  excerpt?: string;
   content: string;
   barangay: string;
   author: string;
   authorName: string;
+  authorType: string; // Added this line
   category: string;
   tags: string[];
   views: number;
+  location?: string;
+  contactNumber?: string;
+  facebookUrl?: string;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
   imageUrl?: string;
@@ -41,7 +46,10 @@ export default function BlogsPage() {
     excerpt: '',
     content: '',
     category: 'News',
-    imageUrl: ''
+    imageUrl: '',
+    location: '',
+    contactNumber: '',
+    facebookUrl: ''
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -99,7 +107,7 @@ export default function BlogsPage() {
     try {
       setIsSubmitting(true);
       
-      const blogData = {
+      const blogData: Omit<Blog, 'id'> = {
         title: formData.title,
         excerpt: formData.excerpt,
         content: formData.content,
@@ -109,10 +117,13 @@ export default function BlogsPage() {
         authorName: barangayAdminData?.name || currentUser.name || 'Barangay Admin',
         authorType: 'barangay_admin',
         imageUrl: formData.imageUrl || '',
+        location: formData.location || undefined,
+        contactNumber: formData.contactNumber || undefined,
+        facebookUrl: formData.facebookUrl || undefined,
         tags: [],
-        createdAt: editingBlog ? editingBlog.createdAt : serverTimestamp(),
-        updatedAt: serverTimestamp(),
         views: editingBlog?.views || 0,
+        createdAt: editingBlog ? editingBlog.createdAt : new Date(),
+        updatedAt: serverTimestamp() as unknown as Timestamp,
       };
       
       if (editingBlog) {
@@ -124,12 +135,15 @@ export default function BlogsPage() {
       }
       
       setShowForm(false);
-      setFormData({
+setFormData({
         title: '',
         excerpt: '',
         content: '',
         category: 'News',
-        imageUrl: ''
+        imageUrl: '',
+        location: '',
+        contactNumber: '',
+        facebookUrl: ''
       });
       setEditingBlog(null);
       fetchBlogs();
@@ -453,6 +467,57 @@ export default function BlogsPage() {
               </select>
             </div>
           </div>
+
+          {/* Business Information Fields */}
+          {(formData.category === 'Where to Stay' || formData.category === 'Where to Eat') && (
+            <div className="space-y-4 mb-4">
+              <h3 className="text-sm font-medium text-gray-700">Business Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                    Location <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    required={formData.category === 'Where to Stay' || formData.category === 'Where to Eat'}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Number
+                  </label>
+                  <input
+                    type="tel"
+                    id="contactNumber"
+                    name="contactNumber"
+                    value={formData.contactNumber}
+                    onChange={(e) => setFormData(prev => ({ ...prev, contactNumber: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., 09123456789"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label htmlFor="facebookUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                    Facebook Page (optional)
+                  </label>
+                  <input
+                    type="url"
+                    id="facebookUrl"
+                    name="facebookUrl"
+                    value={formData.facebookUrl}
+                    onChange={(e) => setFormData(prev => ({ ...prev, facebookUrl: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="https://facebook.com/yourpage"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">

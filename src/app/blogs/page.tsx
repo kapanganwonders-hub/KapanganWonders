@@ -274,6 +274,13 @@ export default function Blogs() {
           author: data.author || 'system',
           authorName: data.authorName || 'Unknown Author',
           authorBio: data.authorBio || '',
+          authorType: data.authorType || 'barangay',
+          // Include business information fields
+          location: data.location || '',
+          contactNumber: data.contactNumber || '',
+          facebookUrl: data.facebookUrl || '',
+          // Include tags if they exist
+          tags: data.tags || [],
           // Ensure imageUrl is properly included
           imageUrl: data.imageUrl || '',
           // Handle timestamps
@@ -865,7 +872,6 @@ export default function Blogs() {
                 {/* Business Information - Both View and Edit Modes */}
                 {(selectedBlog?.category === 'Where to Stay' || selectedBlog?.category === 'Where to Eat') && (
                   <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-medium text-gray-700 mb-3">Business Information</h3>
                     <div className="space-y-3">
                       {editingBlog === selectedBlog?.id ? (
                         <>
