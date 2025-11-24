@@ -140,7 +140,7 @@ export default function MyTravelsPage() {
                 </p>
                 <p className="flex items-center gap-2">
                   <MapPin className="text-blue-500" size={16} />
-                  <strong>Spots:</strong> {visit.spots?.join(', ') || 'N/A'}
+                  <strong>Spots:</strong> {visit.spotNames?.join(', ') || visit.spots?.join(', ') || 'N/A'}
                 </p>
                 <p className="flex items-center gap-2">
                   <Users className="text-purple-500" size={16} />

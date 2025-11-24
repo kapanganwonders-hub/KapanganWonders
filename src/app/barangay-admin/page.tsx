@@ -238,7 +238,7 @@ export default function BarangayAdminDashboard() {
                         <p className="font-medium text-sm sm:text-base text-green-700 truncate">{log.fullName}</p>
                         <p className="text-xs sm:text-sm text-gray-600 flex items-start sm:items-center gap-1 mt-1">
                           <MapPin size={12} />
-                          <span className="truncate">{log.spots?.join(', ') || '—'}</span>
+                          <span className="truncate">{log.spotNames?.join(', ') || log.spots?.join(', ') || '—'}</span>
                         </p>
                       </div>
                       <p className="text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap">

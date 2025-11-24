@@ -12,6 +12,7 @@ interface Visit {
   fullName?: string;
   barangays?: string[];
   spots?: string[];
+  spotNames?: string[];
   date?: string;
   status?: string;
   qrUrl?: string;
@@ -49,6 +50,7 @@ export default function MyQrCodePage() {
               name: data.fullName,
               barangays: data.barangays || [],
               spots: data.spots || [],
+              spotNames: data.spotNames || data.spots || [],
               date: data.date,
             });
 
@@ -149,7 +151,7 @@ export default function MyQrCodePage() {
                 <span className="font-medium">Barangay:</span>{' '}
                 {visit.barangays?.join(', ') || 'N/A'}
               </p>
-              <p className="text-sm text-gray-600">{visit.spots?.join(', ')}</p>
+              <p className="text-sm text-gray-600">{visit.spotNames?.join(', ') || visit.spots?.join(', ')}</p>
               <p className="text-xs text-gray-500 mt-1">Visit Date: {visit.date}</p>
 
               <button

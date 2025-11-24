@@ -97,7 +97,7 @@ export default function ScheduleVisitPage() {
     age: '',
     visitorType: '', // 🆕 Added field
     barangays: [] as string[],
-    spots: [] as string[],
+    spots: [] as {id: string, name: string}[],
     companions: [''],
     date: '',
     agree: false,
@@ -115,11 +115,13 @@ export default function ScheduleVisitPage() {
     setForm({ ...form, barangays: newBarangays, spots: [] });
   };
 
-  const handleSpotChange = (spot: string) => {
-    const newSpots = form.spots.includes(spot)
-      ? form.spots.filter((s) => s !== spot)
-      : [...form.spots, spot];
-    setForm({ ...form, spots: newSpots });
+  const handleSpotChange = (spotId: string, spotName: string, isChecked: boolean) => {
+    setForm(prev => ({
+      ...prev,
+      spots: isChecked 
+        ? [...prev.spots, { id: spotId, name: spotName }] 
+        : prev.spots.filter(spot => spot.id !== spotId)
+    }));
   };
 
   const handleCompanionChange = (index: number, value: string) => {
@@ -146,9 +148,10 @@ export default function ScheduleVisitPage() {
         fullName: form.fullName,
         email: form.email,
         age: form.age,
-        visitorType: form.visitorType, // 🆕 Save to Firestore
+        visitorType: form.visitorType, // 
         barangays: form.barangays,
-        spots: form.spots,
+        spots: form.spots.map(spot => spot.id), // Store spot IDs in the database
+        spotNames: form.spots.map(spot => spot.name), // Also store spot names for easy display
         companions: form.companions.filter((c) => c.trim() !== ''),
         date: form.date,
         agree: form.agree,
@@ -223,7 +226,7 @@ export default function ScheduleVisitPage() {
                 />
               </div>
 
-              {/* 🆕 Visitor Type */}
+              {/*  Visitor Type */}
               <div className="md:col-span-1">
                 <label className="block text-gray-600 mb-1">Visitor Type</label>
                 <select
@@ -319,18 +322,18 @@ export default function ScheduleVisitPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {form.barangays.flatMap(barangay => 
                     spotsByBarangay[barangay]?.map(spot => (
-                      <label
-                        key={`${barangay}-${spot.id}`}
-                        className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 transition-colors"
-                      >
+                      <div key={spot.id} className="flex items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={form.spots.includes(spot.id)}
-                          onChange={() => handleSpotChange(spot.id)}
-                          className="h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                          id={`spot-${spot.id}`}
+                          checked={form.spots.some(s => s.id === spot.id)}
+                          onChange={(e) => handleSpotChange(spot.id, spot.name, e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-gray-900">{spot.name}</span>
-                      </label>
+                        <label htmlFor={`spot-${spot.id}`} className="text-sm text-gray-700">
+                          {spot.name}
+                        </label>
+                      </div>
                     ))
                   )}
                 </div>
