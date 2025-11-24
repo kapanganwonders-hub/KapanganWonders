@@ -8,7 +8,8 @@
     "build": "next build --no-lint",
     "start": "next start",
     "lint": "eslint",
-    "import:spots": "node scripts/importSpots.cjs"
+    "import:spots": "node scripts/importSpots.cjs",
+    "import:blogs": "set NODE_OPTIONS=--experimental-specifier-resolution=node --loader ts-node/esm && node --no-warnings=ExperimentalWarnings scripts/importSampleBlogs.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -61,7 +62,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/firebase": "^2.4.32",
-    "@types/node": "^20.19.24",
+    "@types/node": "^20.19.25",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
