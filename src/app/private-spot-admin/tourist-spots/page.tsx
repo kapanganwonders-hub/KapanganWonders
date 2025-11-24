@@ -205,6 +205,16 @@ export default function TouristSpotsPage() {
       console.log('handleAddSpot: Starting to add spot...');
       
       if (!privateSpotAdminData) throw new Error('No admin data available');
+      
+      // Check if user already has a spot
+      if (spots.length > 0) {
+        setAlertState({
+          variant: 'destructive',
+          message: 'You can only have one tourist spot. Please edit your existing spot instead.'
+        });
+        return;
+      }
+      
       if (!imageFile) {
         console.log('handleAddSpot: No image file selected');
         setAlertState({
@@ -484,24 +494,20 @@ export default function TouristSpotsPage() {
         }
       `}</style>
 
-      {/* Header */}
-      <div className="p-6 bg-white border-b flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Tourist Spots</h1>
-          <p className="text-gray-600">
-            Manage tourist spots in{' '}
-            {privateSpotAdminData?.barangay ||
-              privateSpotAdminData?.barangayName ||
-              ''}
-          </p>
+      {/* Header with Title and Add Spot Button */}
+      <div className="p-6 bg-white border-b">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-800">My Tourist Spot</h1>
+          {spots.length === 0 && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
+            >
+              <Plus size={20} />
+              Add Spot
+            </button>
+          )}
         </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
-        >
-          <Plus size={20} />
-          Add Spot
-        </button>
       </div>
 
       {/* Add Form Modal */}
@@ -825,4 +831,4 @@ export default function TouristSpotsPage() {
       />
     </div>
   );
-};
+}

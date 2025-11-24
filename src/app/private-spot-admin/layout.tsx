@@ -159,7 +159,7 @@ export default function PrivateSpotAdminLayout({ children }: { children: React.R
                   <li>
                     <Link href="/private-spot-admin/tourist-spots" className={linkClass('/private-spot-admin/tourist-spots')}>
                       <MapPin size={18}/>
-                      Tourist Spots
+                      Tourist Spot
                     </Link>
                   </li>
                   <li>
