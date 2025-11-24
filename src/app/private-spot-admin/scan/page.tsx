@@ -19,7 +19,7 @@ export default function PrivateSpotScanPage() {
   const [successPopup, setSuccessPopup] = useState(false);
   const [privateOwner, setPrivateOwner] = useState<any>(null);
 
-  // Fetch logged-in private spot owner info
+  // Load private spot owner details
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) return;
@@ -44,6 +44,7 @@ export default function PrivateSpotScanPage() {
 
     try {
       const parsed = JSON.parse(data);
+
       const visitRef = doc(db, 'visits', parsed.visitId);
       const visitSnap = await getDoc(visitRef);
 
@@ -55,17 +56,31 @@ export default function PrivateSpotScanPage() {
 
       const visitData = visitSnap.data();
 
-      // Update visit status
+      // Validate using spots only
+      const ownerSpot = privateOwner?.privateSpotName?.trim().toLowerCase();
+      const visitSpots = visitData.spots?.map((s: string) => s.trim().toLowerCase());
+
+      if (!visitSpots?.includes(ownerSpot)) {
+        alert(
+          `❌ This QR is not for your tourist spot.\nAllowed Spot: ${privateOwner?.privateSpotName}\nVisitor Spots: ${visitData.spots?.join(
+            ', '
+          )}`
+        );
+        setScanning(false);
+        return;
+      }
+
+      // Mark as completed
       await updateDoc(visitRef, {
         status: 'Completed',
         completedAt: serverTimestamp(),
       });
 
-      // Add to visitLogs
+      // Log the scan
       await addDoc(collection(db, 'visitLogs'), {
         visitId: parsed.visitId,
         userId: parsed.userId,
-        name: visitData.name || '',
+        name: visitData.name || visitData.fullName || '',
         email: visitData.email || '',
         contactNumber: visitData.contactNumber || '',
         address: visitData.address || '',
@@ -80,6 +95,7 @@ export default function PrivateSpotScanPage() {
         year: new Date().getFullYear(),
       });
 
+      // Show success popup
       setSuccessPopup(true);
       setScannedData(null);
       setTimeout(() => setSuccessPopup(false), 3000);
@@ -99,7 +115,8 @@ export default function PrivateSpotScanPage() {
 
       {privateOwner ? (
         <p className="mb-2 text-sm text-gray-700">
-          Logged in as: <strong>{privateOwner.displayName}</strong>
+          Logged in as: <strong>{privateOwner.displayName}</strong> <br />
+          Spot: <strong>{privateOwner.privateSpotName}</strong>
         </p>
       ) : (
         <p className="mb-2 text-sm text-gray-500">Loading owner info...</p>
@@ -125,8 +142,8 @@ export default function PrivateSpotScanPage() {
       {successPopup && (
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
-                     bg-blue-600 text-white px-6 py-4 rounded-xl shadow-lg text-lg font-semibold 
-                     z-50 transition-opacity duration-500"
+                       bg-blue-600 text-white px-6 py-4 rounded-xl shadow-lg text-lg font-semibold 
+                       z-50 transition-opacity duration-500"
         >
           ✅ Scanned Successfully!
         </div>

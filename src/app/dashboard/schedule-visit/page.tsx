@@ -227,93 +227,89 @@ export default function ScheduleVisitPage() {
     setForm({ ...form, companions: form.companions.filter((_, i) => i !== index) });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      alert('Please sign in first.');
-      return;
+  e.preventDefault();
+  if (!user) {
+    alert('Please sign in first.');
+    return;
+  }
+
+  if (!form.date) {
+    alert('Please select a date for your visit.');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const formattedDate = form.date.toISOString().split('T')[0];
+
+    // Separate private and public spots
+    const privateSpots = form.spots.filter(spot => spot.businessId);
+    const publicSpots = form.spots.filter(spot => !spot.businessId);
+
+    // Group private spots by businessId
+    const privateSpotsByBusiness = privateSpots.reduce<Record<string, Spot[]>>((acc, spot) => {
+      if (!spot.businessId) return acc;
+      if (!acc[spot.businessId]) acc[spot.businessId] = [];
+      acc[spot.businessId].push(spot);
+      return acc;
+    }, {});
+
+    // Public visit
+    if (publicSpots.length > 0) {
+      await addDoc(collection(db, 'visits'), {
+        userId: user.uid,
+        fullName: form.fullName,
+        email: form.email,
+        age: form.age,
+        visitorType: form.visitorType,
+        barangays: form.barangays,
+        spots: publicSpots.map(spot => spot.name), // 🔥 Save names directly
+        companions: form.companions.filter(c => c.trim() !== ''),
+        date: formattedDate,
+        agree: form.agree,
+        status: 'pending',
+        isPrivate: false,
+        createdAt: serverTimestamp(),
+      });
     }
-    
-    if (!form.date) {
-      alert('Please select a date for your visit.');
-      return;
+
+    // Private visits
+    for (const [businessId, spots] of Object.entries(privateSpotsByBusiness)) {
+      if (spots.length === 0) continue;
+
+      await addDoc(collection(db, 'visits'), {
+        userId: user.uid,
+        fullName: form.fullName,
+        email: form.email,
+        age: form.age,
+        visitorType: form.visitorType,
+        barangays: form.barangays,
+        spots: spots.map(spot => spot.name), // 🔥 Save names directly
+        companions: form.companions.filter(c => c.trim() !== ''),
+        date: formattedDate,
+        agree: form.agree,
+        status: 'pending',
+        isPrivate: true,
+        businessId: businessId,
+        businessName: spots[0].businessId || '',
+        createdAt: serverTimestamp(),
+      });
     }
 
-    setLoading(true);
-    try {
-      // Format the date to ISO string for Firestore
-      const formattedDate = form.date.toISOString().split('T')[0];
-      
-      // Separate private and public spots
-      const privateSpots = form.spots.filter(spot => spot.businessId);
-      const publicSpots = form.spots.filter(spot => !spot.businessId);
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      router.push('/dashboard/my-travels');
+    }, 2000);
 
-      // Group private spots by businessId
-      const privateSpotsByBusiness = privateSpots.reduce<Record<string, Spot[]>>((acc, spot) => {
-        if (!spot.businessId) return acc;
-        
-        if (!acc[spot.businessId]) {
-          acc[spot.businessId] = [];
-        }
-        acc[spot.businessId].push(spot);
-        return acc;
-      }, {});
+  } catch (error) {
+    console.error('Error saving visit:', error);
+    alert('Failed to save visit. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
-      // Create public visit if there are public spots
-      if (publicSpots.length > 0) {
-        await addDoc(collection(db, 'visits'), {
-          userId: user.uid,
-          fullName: form.fullName,
-          email: form.email,
-          age: form.age,
-          visitorType: form.visitorType,
-          barangays: form.barangays,
-          spots: publicSpots.map(spot => spot.id),
-          spotNames: publicSpots.map(spot => spot.name),
-          companions: form.companions.filter((c) => c.trim() !== ''),
-          date: formattedDate,
-          agree: form.agree,
-          status: 'pending',
-          isPrivate: false,
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      // Create separate visits for each business's private spots
-      for (const [businessId, spots] of Object.entries(privateSpotsByBusiness)) {
-        if (spots.length === 0) continue;
-        
-        await addDoc(collection(db, 'visits'), {
-          userId: user.uid,
-          fullName: form.fullName,
-          email: form.email,
-          age: form.age,
-          visitorType: form.visitorType,
-          barangays: form.barangays,
-          spots: spots.map(spot => spot.id),
-          spotNames: spots.map(spot => spot.name),
-          companions: form.companions.filter((c) => c.trim() !== ''),
-          date: formattedDate,
-          agree: form.agree,
-          status: 'pending',
-          isPrivate: true,
-          businessId: businessId,
-          businessName: spots[0].businessId || '', // Provide a fallback empty string
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        router.push('/dashboard/my-travels');
-      }, 2000);
-    } catch (error) {
-      console.error('Error saving visit:', error);
-      alert('Failed to save visit. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const availableSpots = form.barangays.flatMap((b) => spotsByBarangay[b] || []);
 
