@@ -25,7 +25,7 @@ export default function ScheduleVisitPage() {
           const q = query(spotsRef, orderBy('barangay'), orderBy('name'));
           const querySnapshot = await getDocs(q);
           
-          const spotsData: Record<string, {id: string, name: string}[]> = {};
+          const spotsData: Record<string, Spot[]> = {};
           
           querySnapshot.forEach((doc) => {
             const spotData = doc.data();
@@ -37,7 +37,8 @@ export default function ScheduleVisitPage() {
             
             spotsData[barangay].push({
               id: doc.id,
-              name: spotData.name || 'Unnamed Spot'
+              name: spotData.name || 'Unnamed Spot',
+              businessId: spotData.businessId || null
             });
           });
           
@@ -52,7 +53,7 @@ export default function ScheduleVisitPage() {
           
           // Fallback query without ordering (client-side sort)
           const querySnapshot = await getDocs(spotsRef);
-          const spotsData: Record<string, {id: string, name: string}[]> = {};
+          const spotsData: Record<string, Spot[]> = {};
           
           querySnapshot.forEach((doc) => {
             const spotData = doc.data();
@@ -64,7 +65,8 @@ export default function ScheduleVisitPage() {
             
             spotsData[barangay].push({
               id: doc.id,
-              name: spotData.name || 'Unnamed Spot'
+              name: spotData.name || 'Unnamed Spot',
+              businessId: spotData.businessId || null
             });
           });
           
@@ -74,7 +76,7 @@ export default function ScheduleVisitPage() {
             .reduce((acc, [barangay, spots]) => {
               acc[barangay] = [...spots].sort((a, b) => a.name.localeCompare(b.name));
               return acc;
-            }, {} as Record<string, {id: string, name: string}[]>);
+            }, {} as Record<string, Spot[]>);
           
           setSpotsByBarangay(sortedData);
         }
@@ -97,7 +99,7 @@ export default function ScheduleVisitPage() {
     age: '',
     visitorType: '', // 🆕 Added field
     barangays: [] as string[],
-    spots: [] as {id: string, name: string}[],
+    spots: [] as Spot[],
     companions: [''],
     date: '',
     agree: false,
@@ -105,7 +107,13 @@ export default function ScheduleVisitPage() {
 
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [spotsByBarangay, setSpotsByBarangay] = useState<Record<string, {id: string, name: string}[]>>({});
+  interface Spot {
+    id: string;
+    name: string;
+    businessId?: string | null;
+  }
+
+  const [spotsByBarangay, setSpotsByBarangay] = useState<Record<string, Spot[]>>({});
   const [isLoadingSpots, setIsLoadingSpots] = useState(true);
 
   const handleBarangayChange = (barangay: string) => {
@@ -115,11 +123,11 @@ export default function ScheduleVisitPage() {
     setForm({ ...form, barangays: newBarangays, spots: [] });
   };
 
-  const handleSpotChange = (spotId: string, spotName: string, isChecked: boolean) => {
+  const handleSpotChange = (spotId: string, spotName: string, isChecked: boolean, businessId: string | null = null) => {
     setForm(prev => ({
       ...prev,
       spots: isChecked 
-        ? [...prev.spots, { id: spotId, name: spotName }] 
+        ? [...prev.spots, { id: spotId, name: spotName, businessId }] 
         : prev.spots.filter(spot => spot.id !== spotId)
     }));
   };
@@ -143,21 +151,62 @@ export default function ScheduleVisitPage() {
 
     setLoading(true);
     try {
-      await addDoc(collection(db, 'visits'), {
-        userId: user.uid,
-        fullName: form.fullName,
-        email: form.email,
-        age: form.age,
-        visitorType: form.visitorType, // 
-        barangays: form.barangays,
-        spots: form.spots.map(spot => spot.id), // Store spot IDs in the database
-        spotNames: form.spots.map(spot => spot.name), // Also store spot names for easy display
-        companions: form.companions.filter((c) => c.trim() !== ''),
-        date: form.date,
-        agree: form.agree,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      });
+      // Separate private and public spots
+      const privateSpots = form.spots.filter(spot => spot.businessId);
+      const publicSpots = form.spots.filter(spot => !spot.businessId);
+
+      // Group private spots by businessId
+      const privateSpotsByBusiness = privateSpots.reduce<Record<string, Spot[]>>((acc, spot) => {
+        if (!spot.businessId) return acc;
+        
+        if (!acc[spot.businessId]) {
+          acc[spot.businessId] = [];
+        }
+        acc[spot.businessId].push(spot);
+        return acc;
+      }, {});
+
+      // Create public visit if there are public spots
+      if (publicSpots.length > 0) {
+        await addDoc(collection(db, 'visits'), {
+          userId: user.uid,
+          fullName: form.fullName,
+          email: form.email,
+          age: form.age,
+          visitorType: form.visitorType,
+          barangays: form.barangays,
+          spots: publicSpots.map(spot => spot.id),
+          spotNames: publicSpots.map(spot => spot.name),
+          companions: form.companions.filter((c) => c.trim() !== ''),
+          date: form.date,
+          agree: form.agree,
+          status: 'pending',
+          isPrivate: false,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      // Create separate visits for each business's private spots
+      for (const [businessId, spots] of Object.entries(privateSpotsByBusiness)) {
+        await addDoc(collection(db, 'visits'), {
+          userId: user.uid,
+          fullName: form.fullName,
+          email: form.email,
+          age: form.age,
+          visitorType: form.visitorType,
+          barangays: form.barangays,
+          spots: spots.map(spot => spot.id),
+          spotNames: spots.map(spot => spot.name),
+          companions: form.companions.filter((c) => c.trim() !== ''),
+          date: form.date,
+          agree: form.agree,
+          status: 'pending',
+          isPrivate: true,
+          businessId: businessId,
+          businessName: spots[0].businessId, // Store the business name/id for reference
+          createdAt: serverTimestamp(),
+        });
+      }
 
       setShowSuccess(true);
       setTimeout(() => {
@@ -327,7 +376,7 @@ export default function ScheduleVisitPage() {
                           type="checkbox"
                           id={`spot-${spot.id}`}
                           checked={form.spots.some(s => s.id === spot.id)}
-                          onChange={(e) => handleSpotChange(spot.id, spot.name, e.target.checked)}
+                          onChange={(e) => handleSpotChange(spot.id, spot.name, e.target.checked, spot.businessId || null)}
                           className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                         <label htmlFor={`spot-${spot.id}`} className="text-sm text-gray-700">

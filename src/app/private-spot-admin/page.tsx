@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, getDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, getDoc, doc, getDocs, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, MapPin, BarChart3, User, Calendar } from 'lucide-react';
+import { Users, MapPin, BarChart3, User, Calendar, MapPin as MapPinIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   BarChart,
@@ -23,67 +23,70 @@ export default function BarangayAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
-  // 🔥 Fetch Complete Visits from visitLogs
+  // Fetch scanned visits from visitLogs
   useEffect(() => {
+    let unsub: (() => void) | undefined;
+    
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
-      if (!user) return setLoading(false);
-
-      const barangayRef = doc(db, 'privateAdmins', user.uid);
-      const barangaySnap = await getDoc(barangayRef);
-
-      if (!barangaySnap.exists()) {
+      if (!user) {
         setLoading(false);
         return;
       }
 
-      const barangayName = barangaySnap.data().barangay;
-      setBarangay(barangayName);
+      try {
+        // Get private spot owner info
+        const ownerRef = doc(db, 'privateSpotOwners', user.uid);
+        const ownerSnap = await getDoc(ownerRef);
 
-      const q = query(collection(db, 'visits'));
+        if (!ownerSnap.exists()) {
+          setLoading(false);
+          return;
+        }
 
-      const unsub = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((log: any) => {
-            const matchesBarangay = log.barangays
-              ?.map((b: string) => b.toLowerCase())
-              .includes(barangayName.toLowerCase());
+        const ownerData = ownerSnap.data();
+        const displayName = ownerData?.displayName || 'Private Spot';
+        setBarangay(displayName);
 
-            const isCompleted = log.status === "Completed";
+        // Query visitLogs for scans by this owner
+        const q = query(collection(db, 'visitLogs'));
 
-            return matchesBarangay && isCompleted;
-          });
+        unsub = onSnapshot(q, (snapshot) => {
+          const data = snapshot.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((log: any) => log.scannedBy === displayName);
 
-        setVisits(data);
+          setVisits(data);
+          setLoading(false);
+        });
+      } catch (error) {
+        console.error('Error fetching visit logs:', error);
         setLoading(false);
-      });
-
-      return () => unsub();
+      }
     });
 
-    return () => unsubAuth();
+    return () => {
+      unsubAuth();
+      if (unsub) unsub();
+    };
   }, []);
 
-  // 📊 Visitors for chart
+  // Calculate statistics for the chart
   const filteredData = useMemo(() => {
     const grouped: Record<string, number> = {};
 
-    visits.forEach((v: any) => {
-      const date = new Date(v.date);
+    visits.forEach((visit: any) => {
+      const date = visit.scannedAt?.toDate() || new Date();
       const month = date.toLocaleString('default', { month: 'short' });
       const year = date.getFullYear();
-
-      const visitors = 1 + (v.companions?.length || 0);
+      const visitors = visit.numberOfVisitors || 1;
 
       if (filter === 'monthly') {
         const key = `${month} ${year}`;
         grouped[key] = (grouped[key] || 0) + visitors;
-
       } else if (filter === 'quarterly') {
         const quarter = Math.floor(date.getMonth() / 3) + 1;
         const key = `Q${quarter} ${year}`;
         grouped[key] = (grouped[key] || 0) + visitors;
-
       } else if (filter === 'yearly') {
         const key = `${year}`;
         grouped[key] = (grouped[key] || 0) + visitors;
@@ -96,30 +99,53 @@ export default function BarangayAdminDashboard() {
     }));
   }, [visits, filter]);
 
-  // ✔ Corrected Total Visitors
-  const totalVisitors = visits.reduce((sum, v) => {
-    const main = 1;
-    const companions = v.companions?.length || 0;
-    return sum + (main + companions);
-  }, 0);
+  // Calculate summary statistics
+  const totalVisitors = visits.reduce(
+    (sum, visit: any) => sum + 1, // Count each scan as 1 visitor
+    0
+  );
 
-  const uniqueSpots = new Set(visits.flatMap((v) => v.spots || [])).size;
-  const uniqueUsers = new Set(visits.map((v) => v.email)).size;
-
+  const uniqueVisitors = new Set(visits.map((v: any) => v.email || v.userId)).size;
   const recentActivities = [...visits]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a: any, b: any) => b.scannedAt?.toDate() - a.scannedAt?.toDate())
     .slice(0, 6);
 
   if (loading) {
-    return <p className="text-center mt-10 text-gray-600">Loading dashboard...</p>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-pulse text-center">
+          <div className="text-2xl font-bold text-gray-700 mb-4">
+            Loading Scan Analytics...
+          </div>
+          <div className="h-2 bg-gray-200 rounded w-48 mx-auto"></div>
+        </div>
+      </div>
+    );
   }
+
+  if (!barangay) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center p-6 max-w-md mx-auto">
+          <div className="text-red-500 text-5xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
+          <p className="text-gray-600">
+            You don't have permission to view this dashboard. Please make sure you're logged in as a private spot owner.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate the statistics to use in the UI
+  const totalVisits = visits.length;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row justify-between items-start sm:items-center mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-green-700">
-          Private Spot {barangay} Dashboard
+          {barangay} Dashboard
         </h1>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {['monthly', 'quarterly', 'yearly'].map((f) => (
@@ -157,22 +183,8 @@ export default function BarangayAdminDashboard() {
           <Card className="shadow-sm sm:shadow-md border border-green-50 sm:border-green-100">
             <CardContent className="p-4 sm:p-6 flex items-center justify-between">
               <div>
-                <h2 className="text-xs sm:text-sm text-gray-500">Tourist Spots</h2>
-                <p className="text-xl sm:text-2xl font-bold text-green-700">{uniqueSpots}</p>
-              </div>
-              <div className="p-2 bg-green-50 rounded-lg">
-                <MapPin className="text-green-600" size={20} />
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Card className="shadow-sm sm:shadow-md border border-green-50 sm:border-green-100">
-            <CardContent className="p-4 sm:p-6 flex items-center justify-between">
-              <div>
                 <h2 className="text-xs sm:text-sm text-gray-500">Active Users</h2>
-                <p className="text-xl sm:text-2xl font-bold text-green-700">{uniqueUsers}</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-700">{uniqueVisitors}</p>
               </div>
               <div className="p-2 bg-green-50 rounded-lg">
                 <User className="text-green-600" size={20} />
@@ -225,7 +237,7 @@ export default function BarangayAdminDashboard() {
             </h2>
             <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1 -mr-2 sm:mr-0">
               {recentActivities.length > 0 ? (
-                recentActivities.map((log) => (
+                recentActivities.map((log: any) => (
                   <motion.div
                     key={log.id}
                     initial={{ opacity: 0, y: 5 }}
@@ -235,24 +247,40 @@ export default function BarangayAdminDashboard() {
                   >
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm sm:text-base text-green-700 truncate">{log.fullName}</p>
+                        <p className="font-medium text-sm sm:text-base text-green-700 truncate">
+                          {log.name || 'Unnamed Visitor'}
+                        </p>
                         <p className="text-xs sm:text-sm text-gray-600 flex items-start sm:items-center gap-1 mt-1">
                           <MapPin size={12} />
-                          <span className="truncate">{log.spots?.join(', ') || '—'}</span>
+                          <span className="truncate">
+                            {log.spots?.length > 0 
+                              ? Array.isArray(log.spots) 
+                                ? log.spots.join(', ')
+                                : log.spots
+                              : 'No spot specified'}
+                          </span>
                         </p>
                       </div>
                       <p className="text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap">
-                        <Calendar size={12} /> {log.date}
+                        <Calendar size={12} /> {log.scannedAt ? new Date(log.scannedAt.toDate()).toLocaleDateString() : 'No date'}
                       </p>
                     </div>
                     <div className="mt-2 sm:mt-3 pt-2 border-t border-green-100">
-                      <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1">
-                        <User size={12} />
-                        <span className="truncate">{log.email}</span>
-                      </p>
-                      <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                        Visitors: <strong>{1 + (log.companions?.length || 0)}</strong>
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1">
+                          <User size={12} />
+                          <span className="truncate">{log.email || 'No email'}</span>
+                        </p>
+                        <span className="text-gray-300">•</span>
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          <span>Visitors: <strong>{log.numberOfVisitors || 1}</strong></span>
+                        </p>
+                      </div>
+                      {log.purpose && (
+                        <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                          Purpose: {log.purpose}
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 ))

@@ -7,6 +7,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Check, Trash } from 'lucide-react';
@@ -17,8 +18,12 @@ interface Visit {
   fullName?: string;
   barangays?: string[];
   spots?: string[];
+  spotNames?: string[];
   date?: string;
   status?: string;
+  isPrivate?: boolean;
+  businessId?: string;
+  businessName?: string;
 }
 
 interface VisitsTableProps {
@@ -29,6 +34,52 @@ interface VisitsTableProps {
 export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [spotNames, setSpotNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    // Fetch spot names for all spots in visits
+    const fetchSpotNames = async () => {
+      try {
+        // Get all unique spot IDs from all visits
+        const allSpotIds = new Set<string>();
+        visits.forEach(visit => {
+          if (visit.spots) {
+            visit.spots.forEach(spotId => allSpotIds.add(spotId));
+          }
+        });
+
+        // Only fetch spot names that we don't already have
+        const spotIdsToFetch = Array.from(allSpotIds).filter(id => !spotNames[id]);
+        
+        if (spotIdsToFetch.length === 0) return;
+
+        const names: Record<string, string> = {};
+        
+        // Fetch spot names in batches to avoid too many requests
+        for (const spotId of spotIdsToFetch) {
+          try {
+            const spotDoc = await getDoc(doc(db, 'touristSpots', spotId));
+            if (spotDoc.exists()) {
+              const spotData = spotDoc.data();
+              // Use the spot's name from the touristSpots collection
+              names[spotId] = spotData.name || 'Unknown Spot';
+            }
+          } catch (error) {
+            console.error(`Error fetching spot ${spotId}:`, error);
+            names[spotId] = 'Unknown Spot';
+          }
+        }
+        
+        if (Object.keys(names).length > 0) {
+          setSpotNames(prev => ({ ...prev, ...names }));
+        }
+      } catch (error) {
+        console.error('Error in fetchSpotNames:', error);
+      }
+    };
+
+    fetchSpotNames();
+  }, [visits]);
 
   useEffect(() => {
     // ✅ Real-time listener for visits collection
@@ -106,7 +157,7 @@ export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
                   {v.barangays?.join(', ') || 'N/A'}
                 </td>
                 <td className="py-2 px-4 border-b">
-                  {v.spots?.join(', ') || 'N/A'}
+                  {v.spots?.map(spotId => spotNames[spotId] || spotId).join(', ') || 'N/A'}
                 </td>
                 <td className="py-2 px-4 border-b">{v.date}</td>
                 <td className="py-2 px-4 border-b font-medium">

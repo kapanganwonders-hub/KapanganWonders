@@ -15,18 +15,16 @@ export default function PrivateSpotVisitsPage() {
 
   if (!currentUser) return <div>Loading...</div>;
 
-  // ✅ Correct filter using private spot name
+  // Filter visits by businessId to show only this private spot's visits
   const filterByPrivateSpot = (visit: any) => {
-    if (!privateSpotAdminData?.privateSpotName) return false;
-    return visit.spots?.some(
-      (s: string) => s.toLowerCase() === privateSpotAdminData.privateSpotName.toLowerCase()
-    );
+    if (!privateSpotAdminData?.uid) return false;
+    return visit.businessId === privateSpotAdminData.uid;
   };
 
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-4 text-blue-700">
-        Scheduled Visits ({privateSpotAdminData?.privateSpotName || 'Unknown Spot'})
+        Scheduled Visits ({privateSpotAdminData?.businessName || privateSpotAdminData?.displayName || 'Your Business'})
       </h1>
       <VisitsTable role="private" filterFn={filterByPrivateSpot} />
     </div>
