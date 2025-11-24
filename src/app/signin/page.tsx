@@ -15,6 +15,16 @@ export default function SignIn() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [redirectTo, setRedirectTo] = useState('');
+
+  // Check for redirectTo parameter in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const redirectParam = params.get('redirectTo');
+    if (redirectParam) {
+      setRedirectTo(redirectParam);
+    }
+  }, []);
 
   // ✅ Automatically redirect logged-in users
   useEffect(() => {
@@ -86,8 +96,9 @@ export default function SignIn() {
         return;
       }
       
-      // Regular user
-      router.push('/');
+      // Regular user - redirect based on where they came from
+      const redirectPath = redirectTo || '/';
+      router.push(redirectPath);
     } catch (err: any) {
       console.error('Sign in error:', err);
       let message = 'An error occurred during sign in. Please try again.';
@@ -149,8 +160,9 @@ export default function SignIn() {
           return;
         }
         
-        // Regular user
-        router.push('/');
+        // Regular user - redirect based on where they came from
+        const redirectPath = redirectTo || '/';
+        router.push(redirectPath);
       } else {
         alert(result.error || 'Google sign-in failed.');
       }
@@ -244,6 +256,15 @@ export default function SignIn() {
                 </svg>
                 <span>{isLoading ? 'Signing in...' : 'Sign in with Google'}</span>
               </button>
+              
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-600">
+                  Don't have an account?{' '}
+                  <Link href="/signup" className="font-medium text-primary-green hover:text-accent-green">
+                    Sign up
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
         </div>

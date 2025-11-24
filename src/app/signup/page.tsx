@@ -33,9 +33,19 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<StrengthLevel>('empty');
+  const [redirectTo, setRedirectTo] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Check for redirectTo parameter in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const redirectParam = params.get('redirectTo');
+    if (redirectParam) {
+      setRedirectTo(redirectParam);
+    }
+  }, []);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -100,8 +110,11 @@ export default function SignUp() {
         createdAt: new Date().toISOString(),
       });
 
-      alert('✅ Account created successfully! Redirecting to Sign In...');
-      router.push('/signin');
+      alert('✅ Account created successfully!');
+      // Redirect based on where they came from or to the home page
+      const redirectPath = redirectTo || '/';
+      console.log('Redirecting after signup to:', redirectPath);
+      router.push(redirectPath);
     } catch (err: any) {
       console.error('Signup error:', err);
       let message = 'An error occurred during signup. Please try again.';
@@ -177,7 +190,10 @@ export default function SignUp() {
       );
 
       alert('✅ Signed in with Google successfully!');
-      router.replace('/');
+      // Redirect based on where they came from or to the home page
+      const redirectPath = redirectTo || '/';
+      console.log('Redirecting after Google signup to:', redirectPath);
+      router.replace(redirectPath);
     } catch (err) {
       console.error('Google sign-in error:', err);
       setError('Google sign-in failed. Please try again.');
@@ -198,10 +214,6 @@ export default function SignUp() {
 
       {/* Form */}
       <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="text-center text-3xl font-bold text-primary-green">Create your account</h2>
-        </div>
-
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-egg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-border-green">
             <form className="space-y-6" onSubmit={handleSubmit}>
@@ -251,22 +263,17 @@ export default function SignUp() {
                 />
               </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-primary-green mb-1">
-                  Password
-                </label>
-                <div className="mt-2">
-                  <PasswordStrengthIndicator 
-                    value={formData.password}
-                    onStrengthChange={setPasswordStrength}
-                    showScore={true}
-                    className="w-full"
-                    onChange={(value) => {
-                      setFormData(prev => ({ ...prev, password: value }));
-                      if (error) setError('');
-                    }}
-                  />
-                </div>
+              <div className="mt-2">
+                <PasswordStrengthIndicator 
+                  value={formData.password}
+                  onStrengthChange={setPasswordStrength}
+                  showScore={true}
+                  className="w-full"
+                  onChange={(value) => {
+                    setFormData(prev => ({ ...prev, password: value }));
+                    if (error) setError('');
+                  }}
+                />
               </div>
 
               <div>
@@ -305,13 +312,22 @@ export default function SignUp() {
 
               {error && <p className="text-red-600 text-center text-sm">{error}</p>}
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-2 px-4 rounded-md bg-primary-green text-egg-white font-semibold hover:bg-accent-green transition disabled:opacity-50"
-              >
-                {isLoading ? 'Creating account...' : 'Create account'}
-              </button>
+              <div className="space-y-2">
+                {passwordStrength === 'weak' && formData.password && (
+                  <p className="text-sm text-amber-600">Please use a stronger password</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={isLoading || passwordStrength === 'weak'}
+                  className={`w-full py-2 px-4 rounded-md font-semibold transition ${
+                    isLoading || passwordStrength === 'weak'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-primary-green text-egg-white hover:bg-accent-green'
+                  }`}
+                >
+                  {isLoading ? 'Creating account...' : 'Create account'}
+                </button>
+              </div>
             </form>
 
             {/* Google Sign Up */}
@@ -329,11 +345,26 @@ export default function SignUp() {
                 </svg>
                 <span>{isLoading ? 'Signing in...' : 'Sign up with Google'}</span>
               </button>
+              
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-600">
+                  Already have an account?{' '}
+                  <Link 
+                    href={
+                      redirectTo 
+                        ? `/signin?redirectTo=${encodeURIComponent(redirectTo)}`
+                        : '/signin'
+                    } 
+                    className="font-medium text-primary-green hover:text-accent-green"
+                  >
+                    Sign in
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   );
 }

@@ -143,7 +143,7 @@ export default function Blogs() {
     return () => window.removeEventListener('keydown', handleEscape);
   }, []);
 
-  const categories = ["All", "Tourism", "Culture", "Events", "News", "Guide", "Where to Stay", "Where to Eat"];
+  const categories = ["All", "Tourism", "Culture", "Events", "Guide", "Where to Stay", "Where to Eat"];
 
   // Handle URL parameters when component mounts
   useEffect(() => {

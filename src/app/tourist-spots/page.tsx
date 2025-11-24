@@ -75,8 +75,29 @@ interface TouristSpot {
 
 export default function TouristSpots() {
   const router = useRouter();
-  const { isBarangayAdmin, barangayAdminData, user, isPrivateSpotAdmin, privateSpotAdminData, isAdmin } = useAuth();
+  const { isBarangayAdmin, barangayAdminData, currentUser, isPrivateSpotAdmin, privateSpotAdminData, isAdmin } = useAuth();
+  const [isMounted, setIsMounted] = useState(false);
   const [closureAnnouncements, setClosureAnnouncements] = useState<Announcement[]>([]);
+  
+  // Debug user state changes
+  useEffect(() => {
+    console.log('User state changed:', { 
+      currentUser: currentUser ? { uid: currentUser.uid, email: currentUser.email } : 'No user',
+      isBarangayAdmin,
+      isPrivateSpotAdmin,
+      isAdmin
+    });
+  }, [currentUser, isBarangayAdmin, isPrivateSpotAdmin, isAdmin]);
+  
+  // Add a mounted state to prevent hydration issues
+  useEffect(() => {
+    console.log('Component mounted');
+    setIsMounted(true);
+    return () => {
+      console.log('Component unmounted');
+      setIsMounted(false);
+    };
+  }, []);
   const [selectedBarangay, setSelectedBarangay] = useState<string>('all');
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -872,6 +893,7 @@ export default function TouristSpots() {
                     </div>
                   )}
                 </div>
+                
                 <div className="space-y-4">
                   {/* Category */}
                   <div>
@@ -1099,16 +1121,60 @@ export default function TouristSpots() {
                 </div>
               )}
             </div>
+
+            {/* Schedule Visit Button - Fixed at bottom right */}
+            {!isEditing && (
+              <div key={`schedule-btn-${currentUser?.uid || 'no-user'}-${Date.now()}`} className="fixed bottom-6 right-6 z-50">
+                {isMounted && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const spotParams = `?spotId=${selectedSpot.id}&spotName=${encodeURIComponent(selectedSpot.name)}`;
+                      if (currentUser) {
+                        router.push(`/dashboard/schedule-visit${spotParams}`);
+                      } else {
+                        router.push(`/signin?redirectTo=${encodeURIComponent(`/dashboard/schedule-visit${spotParams}`)}`);
+                      }
+                    }}
+                    className={`flex items-center justify-center gap-2 font-medium py-3 px-6 rounded-lg shadow-lg transition-all duration-300 ${
+                      currentUser 
+                        ? 'bg-primary-green hover:bg-opacity-90 text-egg-white' 
+                        : 'bg-yellow-500 hover:bg-yellow-600 text-egg-white transform hover:scale-105 shadow-xl'
+                    }`}
+                    data-user-id={currentUser?.uid || 'no-user'}
+                    data-testid="schedule-visit-button"
+                    key={`schedule-btn-${currentUser ? 'user' : 'no-user'}`}
+                  >
+                    {currentUser ? (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                        </svg>
+                        <span>Schedule a Visit</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                        </svg>
+                        <span>Sign In to Schedule a Visit</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
+  // Render the list view by default
   return (
     <div className="min-h-screen bg-egg-white">
-      {/* Hero Section with Gradient Background */}
-      <div className="bg-gradient-to-b from-green-100 to-green-200 text-black py-16">
+      {/* Hero Section */}
+      <div className="bg-light-green py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl font-bold text-gray-900">Tourist Spots</h1>
           <p className="mt-4 text-xl text-gray-700 max-w-3xl mx-auto">
@@ -1269,5 +1335,3 @@ export default function TouristSpots() {
     </div>
   );
 }
-// This function is already defined as a state setter in the component
-// and doesn't need to be redefined here
