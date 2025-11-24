@@ -1,11 +1,83 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, CheckCircle, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, CheckCircle, Loader2 } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import { addDoc, collection, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
+// Custom styles for DatePicker
+const customDatePickerStyles = {
+  control: (provided: any) => ({
+    ...provided,
+    minHeight: '48px',
+    fontSize: '1rem',
+    padding: '0.5rem',
+    borderRadius: '0.5rem',
+    borderColor: '#d1d5db',
+    '&:hover': {
+      borderColor: '#9ca3af'
+    },
+    '&:focus': {
+      borderColor: '#4f46e5',
+      boxShadow: '0 0 0 2px rgba(79, 70, 229, 0.2)'
+    }
+  }),
+  input: (provided: any) => ({
+    ...provided,
+    padding: '0.5rem',
+    fontSize: '1rem',
+  }),
+  menu: (provided: any) => ({
+    ...provided,
+    borderRadius: '0.5rem',
+    border: '1px solid #e5e7eb',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+  }),
+  day: (provided: any, state: any) => ({
+    ...provided,
+    width: '36px',
+    height: '36px',
+    margin: '0.2rem',
+    borderRadius: '0.375rem',
+    fontSize: '0.9rem',
+    lineHeight: '36px',
+    color: state.isToday ? '#ffffff' : state.isSelected ? '#ffffff' : '#1f2937',
+    backgroundColor: state.isToday 
+      ? '#4f46e5' 
+      : state.isSelected 
+        ? '#6366f1' 
+        : 'transparent',
+    '&:hover': {
+      backgroundColor: state.isSelected ? '#4f46e5' : '#f3f4f6',
+      color: state.isSelected ? '#ffffff' : '#1f2937'
+    }
+  }),
+  monthContainer: (provided: any) => ({
+    ...provided,
+    padding: '1rem',
+  }),
+  header: (provided: any) => ({
+    ...provided,
+    padding: '0.5rem',
+    backgroundColor: '#f9fafb',
+    borderTopLeftRadius: '0.5rem',
+    borderTopRightRadius: '0.5rem',
+    margin: '-1rem -1rem 0.5rem -1rem'
+  }),
+  weekDay: (provided: any) => ({
+    ...provided,
+    color: '#6b7280',
+    fontWeight: '500',
+    fontSize: '0.875rem',
+    width: '36px',
+    margin: '0.2rem',
+    lineHeight: '36px'
+  })
+};
 
 export default function ScheduleVisitPage() {
   const [user, setUser] = useState<any>(null);
@@ -93,15 +165,27 @@ export default function ScheduleVisitPage() {
     return () => unsubscribe();
   }, []);
 
-  const [form, setForm] = useState({
+  interface FormData {
+    fullName: string;
+    email: string;
+    age: string;
+    visitorType: string;
+    barangays: string[];
+    spots: Spot[];
+    companions: string[];
+    date: Date | null;
+    agree: boolean;
+  }
+
+  const [form, setForm] = useState<FormData>({
     fullName: '',
     email: '',
     age: '',
-    visitorType: '', // 🆕 Added field
-    barangays: [] as string[],
-    spots: [] as Spot[],
+    visitorType: '',
+    barangays: [],
+    spots: [],
     companions: [''],
-    date: '',
+    date: null,
     agree: false,
   });
 
@@ -148,9 +232,17 @@ export default function ScheduleVisitPage() {
       alert('Please sign in first.');
       return;
     }
+    
+    if (!form.date) {
+      alert('Please select a date for your visit.');
+      return;
+    }
 
     setLoading(true);
     try {
+      // Format the date to ISO string for Firestore
+      const formattedDate = form.date.toISOString().split('T')[0];
+      
       // Separate private and public spots
       const privateSpots = form.spots.filter(spot => spot.businessId);
       const publicSpots = form.spots.filter(spot => !spot.businessId);
@@ -178,7 +270,7 @@ export default function ScheduleVisitPage() {
           spots: publicSpots.map(spot => spot.id),
           spotNames: publicSpots.map(spot => spot.name),
           companions: form.companions.filter((c) => c.trim() !== ''),
-          date: form.date,
+          date: formattedDate,
           agree: form.agree,
           status: 'pending',
           isPrivate: false,
@@ -188,6 +280,8 @@ export default function ScheduleVisitPage() {
 
       // Create separate visits for each business's private spots
       for (const [businessId, spots] of Object.entries(privateSpotsByBusiness)) {
+        if (spots.length === 0) continue;
+        
         await addDoc(collection(db, 'visits'), {
           userId: user.uid,
           fullName: form.fullName,
@@ -198,12 +292,12 @@ export default function ScheduleVisitPage() {
           spots: spots.map(spot => spot.id),
           spotNames: spots.map(spot => spot.name),
           companions: form.companions.filter((c) => c.trim() !== ''),
-          date: form.date,
+          date: formattedDate,
           agree: form.agree,
           status: 'pending',
           isPrivate: true,
           businessId: businessId,
-          businessName: spots[0].businessId, // Store the business name/id for reference
+          businessName: spots[0].businessId || '', // Provide a fallback empty string
           createdAt: serverTimestamp(),
         });
       }
@@ -395,16 +489,65 @@ export default function ScheduleVisitPage() {
             <h2 className="text-xl font-semibold text-green-700 mb-4 border-l-4 border-green-400 pl-2">
               Visit Details
             </h2>
-            <div className="flex items-center gap-3 mb-6">
-              <Calendar className="text-green-500" />
-              <div className="flex-1">
-                <label className="block text-gray-600 mb-1 font-medium">Select Visit Date</label>
-                <input
-                  type="date"
-                  required
-                  value={form.date}
-                  className="border border-gray-300 rounded-md w-full p-2.5 focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+            <div className="mb-6">
+              <label className="block text-gray-600 mb-1 font-medium">Select Visit Date</label>
+              <div className="relative mt-1">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <CalendarIcon className="h-5 w-5 text-green-500" />
+                </div>
+                <DatePicker
+                  wrapperClassName="w-full"
+                  selected={form.date}
+                  onChange={(date: Date | null) => date && setForm({ ...form, date })}
+                  minDate={new Date()}
+                  maxDate={new Date(new Date().setFullYear(new Date().getFullYear() + 1))}
+                  placeholderText="Select a date"
+                  dateFormat="MMMM d, yyyy"
+                  className="w-full pl-10 py-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                  showPopperArrow={false}
+                  calendarClassName="font-sans shadow-lg rounded-lg border border-gray-200 rounded-xl overflow-hidden"
+                  dayClassName={(date: Date) => {
+                    const selectedDate = form.date;
+                    if (!selectedDate) return '';
+                    return date.getDate() === selectedDate.getDate() && 
+                           date.getMonth() === selectedDate.getMonth() && 
+                           date.getFullYear() === selectedDate.getFullYear()
+                      ? 'bg-green-500 text-white rounded-full'
+                      : 'hover:bg-gray-100';
+                  }}
+                  renderCustomHeader={({
+                    date,
+                    decreaseMonth,
+                    increaseMonth,
+                    prevMonthButtonDisabled,
+                    nextMonthButtonDisabled,
+                  }) => (
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200">
+                      <button
+                        onClick={decreaseMonth}
+                        disabled={prevMonthButtonDisabled}
+                        type="button"
+                        className={`p-1 rounded-full ${prevMonthButtonDisabled ? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}`}
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      <div className="text-lg font-semibold text-gray-700">
+                        {date.toLocaleString('default', { month: 'long' })} {date.getFullYear()}
+                      </div>
+                      <button
+                        onClick={increaseMonth}
+                        disabled={nextMonthButtonDisabled}
+                        type="button"
+                        className={`p-1 rounded-full ${nextMonthButtonDisabled ? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}`}
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 />
               </div>
             </div>
