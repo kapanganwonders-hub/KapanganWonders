@@ -1,23 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, CheckCircle } from 'lucide-react';
+import { Calendar, CheckCircle, Loader2 } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
-
-const spotsByBarangay: Record<string, string[]> = {
-  sagubo: ['Ampongot rice terraces','Badi falls','Camp Utopia','Puga Coffin Cave'],
-  cuba: ['Amburayan Bridge','Malagyao Footbridge','Mount Kalukasog'],
-  'taba_ao': ['Amburayan River','Dangwa Cave', 'Taba-ao Viewdeck'],
-  central: ['Kilong Hanging Coffin', 'Kapangan Museum'],
-  labueg: ['Burcio Anthurium Forest', 'Canuto Dragon Fruit Farm'],
-  pongayan: ['Dumanay Cave'],
-  balakbak: ['Longog Cave', 'Mount Dakiwagan', 'Obellan-Catampan Rice Terraces'],
-  bokloan: ['Pey-og Falls'],
-  pudong:['Toplac Falls', 'Toplac Rice Fields'],
-};
 
 export default function ScheduleVisitPage() {
   const [user, setUser] = useState<any>(null);
@@ -25,6 +13,81 @@ export default function ScheduleVisitPage() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
+    
+    // Fetch tourist spots from Firestore
+    const fetchSpots = async () => {
+      try {
+        setIsLoadingSpots(true);
+        const spotsRef = collection(db, 'touristSpots');
+        
+        // First try with the indexed query
+        try {
+          const q = query(spotsRef, orderBy('barangay'), orderBy('name'));
+          const querySnapshot = await getDocs(q);
+          
+          const spotsData: Record<string, {id: string, name: string}[]> = {};
+          
+          querySnapshot.forEach((doc) => {
+            const spotData = doc.data();
+            const barangay = spotData.barangay || 'Other';
+            
+            if (!spotsData[barangay]) {
+              spotsData[barangay] = [];
+            }
+            
+            spotsData[barangay].push({
+              id: doc.id,
+              name: spotData.name || 'Unnamed Spot'
+            });
+          });
+          
+          // Sort spots by name within each barangay (as a fallback)
+          Object.values(spotsData).forEach(spots => {
+            spots.sort((a, b) => a.name.localeCompare(b.name));
+          });
+          
+          setSpotsByBarangay(spotsData);
+        } catch (indexError) {
+          console.warn('Indexed query failed, falling back to client-side sorting:', indexError);
+          
+          // Fallback query without ordering (client-side sort)
+          const querySnapshot = await getDocs(spotsRef);
+          const spotsData: Record<string, {id: string, name: string}[]> = {};
+          
+          querySnapshot.forEach((doc) => {
+            const spotData = doc.data();
+            const barangay = spotData.barangay || 'Other';
+            
+            if (!spotsData[barangay]) {
+              spotsData[barangay] = [];
+            }
+            
+            spotsData[barangay].push({
+              id: doc.id,
+              name: spotData.name || 'Unnamed Spot'
+            });
+          });
+          
+          // Sort barangays and spots by name
+          const sortedData = Object.entries(spotsData)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .reduce((acc, [barangay, spots]) => {
+              acc[barangay] = [...spots].sort((a, b) => a.name.localeCompare(b.name));
+              return acc;
+            }, {} as Record<string, {id: string, name: string}[]>);
+          
+          setSpotsByBarangay(sortedData);
+        }
+      } catch (error) {
+        console.error('Error fetching spots:', error);
+        // Fallback to empty object if there's an error
+        setSpotsByBarangay({});
+      } finally {
+        setIsLoadingSpots(false);
+      }
+    };
+    
+    fetchSpots();
     return () => unsubscribe();
   }, []);
 
@@ -42,6 +105,8 @@ export default function ScheduleVisitPage() {
 
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [spotsByBarangay, setSpotsByBarangay] = useState<Record<string, {id: string, name: string}[]>>({});
+  const [isLoadingSpots, setIsLoadingSpots] = useState(true);
 
   const handleBarangayChange = (barangay: string) => {
     const newBarangays = form.barangays.includes(barangay)
@@ -219,39 +284,55 @@ export default function ScheduleVisitPage() {
             <h2 className="text-xl font-semibold text-green-700 mb-4 border-l-4 border-green-400 pl-2">
               Destination Selection
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-              {Object.keys(spotsByBarangay).map((b) => (
-                <label
-                  key={b}
-                  className="flex items-center gap-2 bg-gray-50 border rounded-md p-2 hover:bg-green-50 transition"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.barangays.includes(b)}
-                    onChange={() => handleBarangayChange(b)}
-                  />
-                  <span className="capitalize text-gray-700">{b.replace('-', ' ')}</span>
-                </label>
-              ))}
-            </div>
+            {isLoadingSpots ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="animate-spin h-6 w-6 text-green-600 mr-2" />
+                <span>Loading destinations...</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                {Object.entries(spotsByBarangay).map(([barangay, spots]) => (
+                  <label
+                    key={barangay}
+                    className="flex items-center gap-2 bg-gray-50 border rounded-md p-2 hover:bg-green-50 transition"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.barangays.includes(barangay)}
+                      onChange={() => handleBarangayChange(barangay)}
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-sm font-medium">
+                      {barangay.replace(/([A-Z])/g, ' $1').trim()} 
+                      <span className="text-gray-500 text-xs block">
+                        ({spots.length} {spots.length === 1 ? 'spot' : 'spots'})
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
 
-            {availableSpots.length > 0 && (
-              <div>
-                <p className="text-gray-600 mb-2 font-medium">Available Tourist Spots</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {availableSpots.map((s) => (
-                    <label
-                      key={s}
-                      className="flex items-center gap-2 bg-gray-50 border rounded-md p-2 hover:bg-green-50 transition"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.spots.includes(s)}
-                        onChange={() => handleSpotChange(s)}
-                      />
-                      <span className="text-gray-700">{s}</span>
-                    </label>
-                  ))}
+            {form.barangays.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-medium text-gray-700 mb-3">Select specific spots (optional):</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {form.barangays.flatMap(barangay => 
+                    spotsByBarangay[barangay]?.map(spot => (
+                      <label
+                        key={`${barangay}-${spot.id}`}
+                        className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.spots.includes(spot.id)}
+                          onChange={() => handleSpotChange(spot.id)}
+                          className="h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                        />
+                        <span className="text-gray-900">{spot.name}</span>
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
             )}
