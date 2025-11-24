@@ -56,33 +56,31 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left - Dual Logos and Brand Name */}
-          <div className="flex items-center space-x-2 sm:space-x-3 group">
-            <div className="flex items-center space-x-[-10px] sm:space-x-[-12px] group">
-              {/* First Logo */}
-              <div className="relative z-10">
-                <img
-                  src="/assets/logo-1.png"
-                  onError={(e) => (e.currentTarget.src = '/assets/default-logo.png')}
-                  alt="Kapangan Logo 1"
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white shadow-lg object-cover transition-all duration-500 group-hover:scale-110 group-hover:border-green-200 group-hover:shadow-xl"
-                  width={48}
-                  height={48}
-                />
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-green-400/20 to-blue-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
-              </div>
-              
-              {/* Second Logo */}
-              <div className="relative z-0">
-                <img
-                  src="/assets/logo-3.png"
-                  onError={(e) => (e.currentTarget.src = '/assets/default-logo.png')}
-                  alt="Kapangan Logo 2"
-                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white shadow-lg object-cover transition-all duration-500 group-hover:scale-110 group-hover:border-green-200 group-hover:shadow-xl delay-75"
-                  width={40}
-                  height={40}
-                />
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400/20 to-green-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-75 -z-10"></div>
-              </div>
+          <div className="flex items-center space-x-1 group">
+            {/* First Logo */}
+            <div className="relative">
+              <img
+                src="/assets/logo-1.svg"
+                onError={(e) => (e.currentTarget.src = '/assets/default-logo.png')}
+                alt="Kapangan Logo 1"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white shadow-lg object-cover transition-all duration-500 group-hover:scale-110 group-hover:border-green-200 group-hover:shadow-xl"
+                width={48}
+                height={48}
+              />
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-green-400/20 to-blue-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
+            </div>
+            
+            {/* Second Logo */}
+            <div className="relative -ml-1">
+              <img
+                src="/assets/logo-3.svg"
+                onError={(e) => (e.currentTarget.src = '/assets/default-logo.png')}
+                alt="Kapangan Logo 2"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white shadow-lg object-cover transition-all duration-500 group-hover:scale-110 group-hover:border-green-200 group-hover:shadow-xl"
+                width={48}
+                height={48}
+              />
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400/20 to-green-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
             </div>
 
             {/* Brand Name */}
