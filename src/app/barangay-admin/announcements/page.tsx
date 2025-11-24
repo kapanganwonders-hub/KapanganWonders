@@ -2,13 +2,14 @@
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase/config';
 import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 import { 
   collection, addDoc, getDocs, query, orderBy, where, doc, getDoc, deleteDoc, Timestamp 
 } from 'firebase/firestore';
-import { Megaphone, MapPin, Trash2, Construction, CloudRain, Map, Search, Info, AlertCircle } from 'lucide-react';
+import { Megaphone, MapPin, Trash2, Construction, CloudRain, Map, Search, Info, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
 
 interface TouristSpot {
@@ -39,10 +40,12 @@ interface Announcement {
 }
 
 export default function AnnouncementsPage() {
+  const searchParams = useSearchParams();
   const { currentUser, barangayAdminData } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [touristSpots, setTouristSpots] = useState<TouristSpot[]>([]);
   const [loadingSpots, setLoadingSpots] = useState(false);
@@ -84,7 +87,7 @@ export default function AnnouncementsPage() {
   }, [alert]);
 
   // Fetch announcements
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = React.useCallback(async () => {
     if (!currentUser?.uid) {
       setLoading(false);
       return;
@@ -131,9 +134,18 @@ export default function AnnouncementsPage() {
     } catch (err) {
       setAlert({ type: 'destructive', message: `Error fetching announcements: ${err instanceof Error ? err.message : String(err)}` });
     } finally { setLoading(false); }
-  };
+  }, [currentUser, db]);
 
-  useEffect(() => { fetchAnnouncements(); }, []);
+  useEffect(() => {
+    fetchAnnouncements();
+    
+    // Only set initialLoad to false after a short delay to ensure all effects have run
+    const timer = setTimeout(() => {
+      setInitialLoad(false);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [searchParams, initialLoad, barangayName, fetchAnnouncements]);
 
   // Fetch tourist spots for closure and update categories
   useEffect(() => {
@@ -153,7 +165,24 @@ export default function AnnouncementsPage() {
           name: doc.data().name || 'Unnamed Spot',
           barangay: doc.data().barangay,
         }));
+        
         setTouristSpots(spots);
+        
+        // If we have a spotId from URL and it's not already set in formData
+        const spotId = searchParams?.get('spotId');
+        const spotName = searchParams?.get('spotName');
+        
+        if (spotId && spotName && initialLoad) {
+          setShowForm(true);
+          setFormData(prev => ({
+            ...prev,
+            touristSpotId: spotId,
+            category: 'Closure - Maintenance',
+            content: `Temporarily closed until further notice.\n\nWe apologize for the inconvenience and appreciate your understanding.`,
+            title: `🚧 Maintenance Closure: ${spotName}`
+          }));
+          setInitialLoad(false);
+        }
       } catch (err) {
         setAlert({ type: 'destructive', message: `Error fetching tourist spots: ${err instanceof Error ? err.message : String(err)}` });
       } finally { setLoadingSpots(false); }
@@ -381,8 +410,16 @@ export default function AnnouncementsPage() {
                 <div className="flex-1">
                   <div className="flex justify-between items-start">
                     <h2 className="font-bold text-xl">{a.title}</h2>
-                    <button onClick={() => setAnnouncementToDelete({ id: a.id, title: a.title })} className="text-red-600 hover:text-red-800">
-                      <Trash2 className="w-5 h-5" />
+                    <button 
+                      onClick={() => setAnnouncementToDelete({ id: a.id, title: a.title })} 
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete announcement"
+                    >
+                      {a.createdAt && (new Date().getTime() - a.createdAt.toDate().getTime()) < 24 * 60 * 60 * 1000 ? (
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <Trash2 className="w-5 h-5" />
+                      )}
                     </button>
                   </div>
                   <p className="mt-2 text-gray-600">{a.content}</p>

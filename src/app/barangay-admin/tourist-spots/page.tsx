@@ -5,17 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { storage, uploadFile, deleteFile } from '@/lib/appwrite';
 import { db } from '@/firebase/config';
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc
-} from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, setDoc, DocumentReference } from 'firebase/firestore';
 import { MapPin, Plus, Edit, Trash2, X } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
 import ConfirmationDialog from '@/components/ui/confirmation-dialog';
@@ -67,7 +57,6 @@ export default function TouristSpotsPage() {
   const [editingSpot, setEditingSpot] = useState<string | null>(null);
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
   const [alertState, setAlertState] = useState<{ variant: 'success' | 'destructive' | 'warning' | 'info' | 'default'; message: string } | null>(null);
-  const [spotToDelete, setSpotToDelete] = useState<{ id: string; name: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'pending'>('active');
   const [viewingSpot, setViewingSpot] = useState<TouristSpot | null>(null);
 
@@ -168,6 +157,38 @@ export default function TouristSpotsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to update spot status
+  const updateSpotStatus = async (spotId: string, status: 'active' | 'inactive' | 'pending') => {
+    const spotRef = doc(db, 'touristSpots', spotId);
+    const spotDoc = await getDoc(spotRef);
+    
+    if (spotDoc.exists()) {
+      // Update the spot status if it exists in touristSpots
+      await updateDoc(spotRef, {
+        status,
+        updatedAt: new Date()
+      });
+    } else {
+      // If spot doesn't exist in touristSpots, check pendingSpots
+      const pendingSpotRef = doc(db, 'pendingSpots', spotId);
+      const pendingSpotDoc = await getDoc(pendingSpotRef);
+      
+      if (pendingSpotDoc.exists()) {
+        // Move from pendingSpots to touristSpots
+        await setDoc(doc(db, 'touristSpots', spotId), {
+          ...pendingSpotDoc.data(),
+          status,
+          updatedAt: new Date()
+        });
+        // Remove from pendingSpots
+        await deleteDoc(pendingSpotRef);
+      }
+    }
+    
+    // Refresh the spots list
+    await fetchSpots();
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -373,17 +394,17 @@ export default function TouristSpotsPage() {
       setImagePreview(null);
       setShowAddForm(false);
      setFormData({
-  name: '',
-  detailedDescription: '',
-  category: 'Natural',
-  barangay: formData.barangay, // Preserve the current barangay
-  address: '',
-  location: formData.location || '', // Preserve location if exists
-  contact: '',
-  entranceFee: '',
-  googleMapsLink: '',
-  entranceFees: formData.entranceFees // Preserve the entrance fees structure
-});
+       name: '',
+       detailedDescription: '',
+       category: 'Natural',
+       barangay: formData.barangay, // Preserve the current barangay
+       address: '',
+       location: formData.location || '', // Preserve location if exists
+       contact: '',
+       entranceFee: '',
+       googleMapsLink: '',
+       entranceFees: formData.entranceFees // Preserve the entrance fees structure
+     });
       setAlertState({ 
         variant: 'success', 
         message: 'Tourist spot updated successfully' 
@@ -401,48 +422,6 @@ export default function TouristSpotsPage() {
     }
   };
 
-  const handleDeleteSpot = async () => {
-    if (!spotToDelete) return;
-
-    try {
-      setLoading(true);
-      
-      // Get the spot data first to get the image ID
-      const spotDoc = await getDoc(doc(db, 'touristSpots', spotToDelete.id));
-      if (spotDoc.exists()) {
-        const spotData = spotDoc.data() as TouristSpot;
-        
-        // Delete the associated image from Appwrite Storage if it exists
-        if (spotData.imageId) {
-          try {
-            await deleteFile(spotData.imageId);
-          } catch (error) {
-            console.warn('Failed to delete image from storage:', error);
-            // Continue with spot deletion even if image deletion fails
-          }
-        }
-      }
-
-      // Delete the spot document from Firestore
-      await deleteDoc(doc(db, 'touristSpots', spotToDelete.id));
-      
-      setAlertState({
-        variant: 'success',
-        message: 'Tourist spot deleted successfully'
-      });
-      
-      await fetchSpots();
-    } catch (err) {
-      console.error('Error deleting spot:', err);
-      setAlertState({
-        variant: 'destructive',
-        message: err instanceof Error ? err.message : 'Failed to delete tourist spot'
-      });
-    } finally {
-      setSpotToDelete(null);
-      setLoading(false);
-    }
-  };
 
   // All hooks must be called at the top level, before any conditional returns
   const router = useRouter();
@@ -469,7 +448,8 @@ export default function TouristSpotsPage() {
   const handleCloseDetails = () => setSelectedSpot(null);
   
   const handleViewSpot = (spot: TouristSpot) => {
-    setViewingSpot(spot);
+    // Navigate to announcements page instead of showing spot details
+    router.push('/barangay-admin/announcements');
   };
   
   const closeViewModal = () => {
@@ -823,15 +803,6 @@ export default function TouristSpotsPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h2 className="text-xl font-bold text-gray-800">{spot.name}</h2>
-                        <div className="mt-1 flex items-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            spot.status === 'active' 
-                              ? 'bg-green-100 text-green-800 border border-green-200' 
-                              : 'bg-gray-100 text-gray-800 border border-gray-200'
-                          }`}>
-                            {spot.status}
-                          </span>
-                        </div>
                       </div>
                       <div className="flex gap-2">
                         {spot.status === 'pending' ? (
@@ -860,20 +831,79 @@ export default function TouristSpotsPage() {
                             <Edit size={18} />
                           </button>
                         )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (spot?.id && spot?.name) {
-                              setSpotToDelete({ id: spot.id, name: spot.name });
-                            } else {
-                              setAlertState({ variant: 'destructive', message: 'Cannot delete this spot. Missing required data.' });
-                            }
-                          }}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                          title="Delete"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {activeTab === 'active' && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                setLoading(true);
+                                
+                                // Navigate to announcements page with the spot ID
+                                router.push(`/barangay-admin/announcements?spotId=${spot.id}`);
+                              } catch (error) {
+                                console.error('Error handling spot reopening:', error);
+                                setAlertState({
+                                  variant: 'destructive',
+                                  message: 'Failed to process spot reopening. Please try again.'
+                                });
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                            title="Manage Announcement"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                          </button>
+                        )}
+                        {activeTab === 'pending' && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              // Move spot from pending to active
+                              try {
+                                setLoading(true);
+                                const spotRef = doc(db, 'pendingSpots', spot.id);
+                                const spotDoc = await getDoc(spotRef);
+                                
+                                if (spotDoc.exists()) {
+                                  const spotData = spotDoc.data();
+                                  // Add to touristSpots collection
+                                  await setDoc(doc(db, 'touristSpots', spot.id), {
+                                    ...spotData,
+                                    status: 'active',
+                                    updatedAt: new Date()
+                                  });
+                                  // Remove from pending
+                                  await deleteDoc(spotRef);
+                                  
+                                  setAlertState({
+                                    variant: 'success',
+                                    message: 'Spot approved and moved to active spots'
+                                  });
+                                  await fetchSpots();
+                                }
+                              } catch (error) {
+                                console.error('Error approving spot:', error);
+                                setAlertState({
+                                  variant: 'destructive',
+                                  message: 'Failed to approve spot. Please try again.'
+                                });
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                            title="Approve Spot"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
                     
@@ -903,16 +933,6 @@ export default function TouristSpotsPage() {
           </div>
         )}
       </div>
-      {/* Delete Confirmation Dialog */}
-      <ConfirmationDialog
-        isOpen={!!spotToDelete}
-        onClose={() => setSpotToDelete(null)}
-        onConfirm={handleDeleteSpot}
-        title="Delete Tourist Spot"
-        message={`Are you sure you want to delete "${spotToDelete?.name}"? This action cannot be undone.`}
-        confirmText="Delete Spot"
-        cancelText="Cancel"
-      />
 
       {/* View Spot Modal */}
       {viewingSpot && (
