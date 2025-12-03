@@ -1,30 +1,89 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
+import useEmblaCarousel from 'embla-carousel-react';
+import type { EmblaOptionsType } from 'embla-carousel';
+import Image from 'next/image';
+import { auth, db } from '@/lib/firebase';
 import { signInWithGoogle } from '@/lib/auth';
 import { ADMIN_EMAIL } from '@/lib/admin';
 import { checkIsBarangayAdmin } from '@/lib/barangayAdmin';
 import { checkIsPrivateSpotAdmin } from '@/lib/privateSpotAdmin';
 
+interface CarouselItem {
+  id: string;
+  image: string;
+  fileId?: string;
+}
+
 export default function SignIn() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [redirectTo, setRedirectTo] = useState('');
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
+  const [isCarouselLoading, setIsCarouselLoading] = useState(true);
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: true,
+    align: "start",
+    duration: 20,
+  } as EmblaOptionsType);
+
+  // Load carousel items from Firestore
+  const loadCarouselItems = useCallback(async () => {
+    try {
+      const docRef = doc(db, "carousel", "items");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists() && docSnap.data().items) {
+        setCarouselItems(docSnap.data().items);
+      } else {
+        // Fallback to default image if no carousel items found
+        setCarouselItems([{ id: '1', image: '/images/default-bg.jpg' }]);
+      }
+    } catch (error) {
+      console.error("Error loading carousel items:", error);
+      setCarouselItems([{ id: '1', image: '/images/default-bg.jpg' }]);
+    } finally {
+      setIsCarouselLoading(false);
+    }
+  }, []);
+
+  // Auto-advance carousel
+  useEffect(() => {
+    if (!emblaApi) return;
+
+    const autoScroll = () => {
+      if (emblaApi.canScrollNext()) {
+        emblaApi.scrollNext();
+      } else {
+        emblaApi.scrollTo(0);
+      }
+    };
+
+    const timer = setInterval(autoScroll, 5000);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [emblaApi]);
+
+  // Load carousel items on mount
+  useEffect(() => {
+    loadCarouselItems();
+  }, [loadCarouselItems]);
 
   // Check for redirectTo parameter in URL
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const redirectParam = params.get('redirectTo');
+    const redirectParam = searchParams?.get('redirectTo');
     if (redirectParam) {
       setRedirectTo(redirectParam);
     }
-  }, []);
+  }, [searchParams]);
 
   // ✅ Automatically redirect logged-in users
   useEffect(() => {
@@ -175,78 +234,136 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen bg-egg-white">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-b from-green-100 to-green-200 text-black py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-bold">Welcome Back</h1>
-          <p className="mt-3 text-lg">Sign in to access your account</p>
+    <div className="min-h-screen relative">
+      {/* Carousel Background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-black/30 z-10"></div>
+        <div className="embla overflow-hidden w-full h-full" ref={emblaRef}>
+          {isCarouselLoading ? (
+            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-green"></div>
+            </div>
+          ) : (
+            <div className="flex h-full">
+              {carouselItems.map((item, index) => (
+                <div key={item.id || index} className="flex-[0_0_100%] min-w-0 relative">
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={item.image || "/images/default-bg.jpg"}
+                      alt={`Carousel image ${index + 1}`}
+                      fill
+                      className="object-cover transition-transform duration-300"
+                      priority={index < 3}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Sign In Form */}
-      <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="text-center text-3xl font-bold text-primary-green">Sign in to your account</h2>
+      
+      {/* Hero Section */}
+      <div className="bg-black/30 backdrop-blur-sm pb-8">
+      <div className="max-w-7xl mx-auto p-6 bg-black/60 backdrop-blur-sm rounded-b-xl border-t-0 border-white/10 shadow-lg">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white font-poppins">Welcome Back</h1>
+          <p className="text-xl text-white/90 mt-4">Sign in to your Kapangan Wonders account</p>
         </div>
+      </div>
+    </div>
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-egg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-border-green">
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-primary-green">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-2 border border-border-green rounded-md focus:ring-primary-green focus:border-primary-green"
-                  placeholder="Enter your email"
-                />
-              </div>
+    {/* Form */}
+    <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative z-10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-black/30 backdrop-blur-sm py-8 px-4 shadow-lg sm:rounded-xl sm:px-10 border-2 border-white/30">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-white">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="block w-full px-3 py-2 bg-white/5 border border-white/30 rounded-md text-white placeholder-white/70 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Enter your email"
+              />
+            </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-primary-green">
-                  Password
-                </label>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-white">
+                Password
+              </label>
+              <div className="relative">
                 <input
                   id="password"
                   name="password"
                   type="password"
+                  autoComplete="current-password"
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="block w-full px-3 py-2 border border-border-green rounded-md focus:ring-primary-green focus:border-primary-green"
+                  className="block w-full px-3 py-2 bg-white/5 border border-white/30 rounded-md text-white placeholder-white/70 focus:ring-2 focus:ring-green-500 focus:border-transparent pr-10"
                   placeholder="Enter your password"
                 />
               </div>
+            </div>
 
-              {/* Error message box */}
-              {error && (
-                <div className="text-center bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-md text-sm">
-                  {error}
-                </div>
-              )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-white/30 bg-white/5 text-green-500 focus:ring-green-500"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-white/90">
+                  Remember me
+                </label>
+              </div>
 
+              <div className="text-sm">
+                <Link href="/forgot-password" className="font-medium text-green-300 hover:text-green-200">
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+
+            {error && <p className="text-red-200 text-center text-sm">{error}</p>}
+
+            <div>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-2 px-4 rounded-md bg-primary-green text-egg-white font-semibold hover:bg-accent-green transition disabled:opacity-50"
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                  isLoading ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </button>
-            </form>
+            </div>
+          </form>
 
-            {/* Google Sign In */}
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/20" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-transparent text-white/70">Or continue with</span>
+              </div>
+            </div>
+
             <div className="mt-6">
               <button
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="w-full inline-flex justify-center items-center py-2 px-4 border border-border-green rounded-md bg-egg-white text-sm font-medium text-primary-green hover:bg-light-green disabled:opacity-50"
+                className="w-full inline-flex justify-center items-center py-2.5 px-4 border border-white/20 rounded-lg bg-white/10 text-sm font-medium text-white hover:bg-white/20 transition-colors duration-200 disabled:opacity-50"
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -256,19 +373,27 @@ export default function SignIn() {
                 </svg>
                 <span>{isLoading ? 'Signing in...' : 'Sign in with Google'}</span>
               </button>
-              
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600">
-                  Don't have an account?{' '}
-                  <Link href="/signup" className="font-medium text-primary-green hover:text-accent-green">
-                    Sign up
-                  </Link>
-                </p>
-              </div>
+            </div>
+
+            <div className="mt-4 text-center">
+              <p className="text-sm text-white/90">
+                Don't have an account?{' '}
+                <Link 
+                  href={
+                    redirectTo 
+                      ? `/signup?redirectTo=${encodeURIComponent(redirectTo)}` 
+                      : '/signup'
+                  } 
+                  className="font-medium text-green-300 hover:text-green-200 transition-colors"
+                >
+                  Sign up
+                </Link>
+              </p>
             </div>
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

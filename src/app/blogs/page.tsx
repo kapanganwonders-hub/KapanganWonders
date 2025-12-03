@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase/config';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, Timestamp, orderBy, getDoc } from 'firebase/firestore';
@@ -10,6 +10,13 @@ import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import useEmblaCarousel from 'embla-carousel-react';
+
+interface CarouselItem {
+  id: string;
+  image: string;
+  fileId?: string;
+}
 
 interface Blog {
   id: string;
@@ -67,6 +74,28 @@ export default function Blogs() {
   const [showBlogModal, setShowBlogModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
+  const [isCarouselLoading, setIsCarouselLoading] = useState(true);
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: true,
+    align: "start",
+    duration: 20, // Slower scroll duration for better visibility
+  });
+
+  // Auto-scroll functionality
+  useEffect(() => {
+    if (!emblaApi || isCarouselLoading) return;
+    
+    const autoScroll = setInterval(() => {
+      if (emblaApi.canScrollNext()) {
+        emblaApi.scrollNext();
+      } else {
+        emblaApi.scrollTo(0);
+      }
+    }, 5000); // Change slide every 5 seconds
+    
+    return () => clearInterval(autoScroll);
+  }, [emblaApi, isCarouselLoading]);
 
   // Check if the current user is authorized to edit the blog
   const isAuthor = (blog: Blog) => {
@@ -226,15 +255,49 @@ export default function Blogs() {
   
  
 
-  // Load blogs on component mount
+  // Function to load carousel items
+  const loadCarouselItems = async () => {
+    try {
+      setIsCarouselLoading(true);
+      const carouselRef = collection(db, 'carousel');
+      const carouselDoc = await getDoc(doc(carouselRef, 'items'));
+      
+      if (carouselDoc.exists() && carouselDoc.data().items) {
+        const items = carouselDoc.data().items;
+        console.log('Loaded carousel items:', items);
+        setCarouselItems(items);
+      } else {
+        console.log('No carousel items found');
+        // Set default items if none found
+        setCarouselItems([{
+          id: 'default',
+          image: '/images/default-bg.jpg'
+        }]);
+      }
+    } catch (error) {
+      console.error('Error loading carousel items:', error);
+      // Set default items on error
+      setCarouselItems([{
+        id: 'default',
+        image: '/images/default-bg.jpg'
+      }]);
+    } finally {
+      setIsCarouselLoading(false);
+    }
+  };
+
+  // Load blogs and carousel on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        await fetchBlogs();
+        await Promise.all([
+          fetchBlogs(),
+          loadCarouselItems()
+        ]);
       } catch (error) {
-        console.error('Error loading blog data:', error);
-        toast.error('Failed to load blog data');
+        console.error('Error loading data:', error);
+        toast.error('Failed to load data');
       } finally {
         setLoading(false);
       }
@@ -531,57 +594,110 @@ export default function Blogs() {
   }
 
   return (
-    <div className="min-h-screen bg-egg-white">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-b from-green-100 to-green-200 text-black py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Kapangan Blogs</h1>
-          <p className="text-xl text-gray-800 max-w-3xl mx-auto">
-            Discover stories, news, and insights about the beautiful town of Kapangan
-          </p>
-          
-          {/* Category Filter */}
-          <div className="mt-8 max-w-3xl mx-auto">
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
-                    selectedCategory === category
-                      ? 'bg-primary-green text-egg-white'
-                      : 'bg-white/80 text-black hover:bg-white'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
+    <div className="min-h-screen bg-beige bg-opacity-90">
+      {/* Carousel Background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-black/20 z-10"></div>
+        <div className="embla overflow-hidden w-full h-full" ref={emblaRef}>
+          {isCarouselLoading ? (
+            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-green"></div>
             </div>
-          </div>
+          ) : (
+            <div className="embla__container flex h-full">
+              {carouselItems.length > 0 ? (
+                carouselItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="embla__slide flex-[0_0_100%] min-w-0 h-full"
+                  >
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={item.image || "/images/default-bg.jpg"}
+                        alt={`Carousel image ${index + 1}`}
+                        fill
+                        className="object-cover transition-transform duration-300"
+                        priority={index < 3}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = "/images/default-bg.jpg";
+                        }}
+                      />
+                      {/* Dark overlay for better text visibility */}
+                      <div className="absolute inset-0 bg-black/30"></div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-green-800 to-green-600 flex items-center justify-center">
+                  <p className="text-white">No images available</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Main Content */}
+      <div className="relative z-10 -mt-4">
+        {/* Semi-transparent overlay */}
+        <div className="fixed inset-0 -z-10 bg-black/30"></div>
+        
+        {/* Hero Section */}
+        <div className="bg-black/30 backdrop-blur-sm pt-4 pb-8">
+          <div className="max-w-7xl mx-auto p-6 bg-black/60 backdrop-blur-sm rounded-b-xl border-t-0 border-white/10 shadow-lg">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-white font-poppins">Kapangan Blogs</h1>
+              <p className="text-xl text-white/90 mt-4 max-w-3xl mx-auto">
+                Discover stories, news, and insights about the beautiful town of Kapangan
+              </p>
+            </div>
+            
+            {/* Category Filter */}
+            <div className="mt-8 max-w-3xl mx-auto">
+              <div className="flex flex-wrap justify-center gap-2">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
+                      selectedCategory === category
+                        ? 'bg-white text-primary-green font-semibold'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
 
-        {/* Blog Posts Grid */}
-        <div className="py-8">
-          {filteredBlogs.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Blog Posts Grid */}
+          <div className="py-8">
+            {filteredBlogs.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredBlogs.map((post) => (
                 <article 
                   key={post.id} 
-                  className="bg-egg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 border border-gray-100"
+                  className="bg-black/30 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden transition-all duration-300 border border-white/20"
                 >
                   {/* Blog Image */}
-                  <div className="h-48 bg-gradient-to-r from-primary-green to-accent-green overflow-hidden">
+                  <div className="h-48 relative overflow-hidden">
                     {post.imageUrl ? (
-                      <img 
-                        src={post.imageUrl} 
-                        alt={post.title}
-                        className="w-full h-full object-cover"
-                      />
+                      <>
+                        <img 
+                          src={post.imageUrl} 
+                          alt={post.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/30"></div>
+                      </>
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-green to-accent-green/80">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-green/80 to-accent-green/60">
                         <span className="text-white text-lg font-semibold">{post.category}</span>
                       </div>
                     )}
@@ -590,24 +706,24 @@ export default function Blogs() {
                   {/* Blog Content */}
                   <div className="p-6">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="bg-light-green/20 text-primary-green text-xs font-medium px-3 py-1 rounded-full">
+                      <span className="bg-white/10 text-white/90 text-xs font-medium px-3 py-1 rounded-full backdrop-blur-sm">
                         {post.category}
                       </span>
                     </div>
                     
-                    <h2 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2">
+                    <h2 className="text-xl font-bold text-white mb-3 line-clamp-2">
                       {post.title}
                     </h2>
                     
-                    <p className="text-gray-600 mb-4 line-clamp-3">
+                    <p className="text-white/80 mb-4 line-clamp-3">
                       {post.excerpt}
                     </p>
 
                     {/* Show location and Facebook URL for Where to Stay/Eat categories */}
                     {(post.category === 'Where to Stay' || post.category === 'Where to Eat') && (
-                      <div className="space-y-2 mb-4 text-sm">
+                      <div className="space-y-3 mb-4 text-sm">
                         {post.location && (
-                          <div className="flex items-start gap-2 text-gray-700">
+                          <div className="flex items-start gap-2 text-white/90">
                             <svg className="w-4 h-4 mt-0.5 text-primary-green flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -616,17 +732,17 @@ export default function Blogs() {
                           </div>
                         )}
                         {post.contactNumber && (
-                          <div className="flex items-center gap-2 text-gray-700">
+                          <div className="flex items-center gap-2 text-white/90">
                             <svg className="w-4 h-4 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                             </svg>
-                            <a href={`tel:${post.contactNumber}`} className="hover:text-primary-green">
+                            <a href={`tel:${post.contactNumber}`} className="hover:text-primary-green transition-colors duration-300">
                               {post.contactNumber}
                             </a>
                           </div>
                         )}
                         {post.facebookUrl && (
-                          <div className="flex items-center gap-2 text-gray-700">
+                          <div className="flex items-center gap-2 text-white/90">
                             <svg className="w-4 h-4 text-primary-green" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
                             </svg>
@@ -634,7 +750,7 @@ export default function Blogs() {
                               href={post.facebookUrl} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline"
+                              className="text-blue-400 hover:text-blue-300 transition-colors duration-300"
                             >
                               Visit Facebook Page
                             </a>
@@ -643,8 +759,8 @@ export default function Blogs() {
                       </div>
                     )}
                     
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <div className="flex items-center gap-2 text-sm text-white/80 mb-4">
                         <span>{post.authorName || (post.authorType === 'admin' ? 'Kapangan Tourism' : `Barangay ${post.barangay}`)}</span>
                         <span>•</span>
                         <span>
@@ -658,18 +774,20 @@ export default function Blogs() {
                         </span>
                       </div>
                       
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          openBlogModal(post);
-                        }}
-                        className="text-primary-green hover:text-accent-green font-medium text-sm flex items-center gap-1"
-                      >
-                        Read More
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            openBlogModal(post);
+                          }}
+                          className="w-full bg-white/10 hover:bg-white/20 text-white/90 text-sm font-medium flex items-center justify-center gap-1.5 px-4 py-2 rounded-md border border-white/20 hover:border-white/30 transition-all duration-300 hover:scale-[1.02]"
+                        >
+                          Read More
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                   
@@ -683,14 +801,14 @@ export default function Blogs() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
-              <BookOpen size={48} className="mx-auto text-gray-300 mb-4" />
-              <h3 className="text-xl font-medium text-gray-700 mb-2">
+            <div className="col-span-full text-center py-16 bg-white/90 backdrop-blur-sm rounded-xl border border-white/20 shadow-lg">
+              <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-xl font-medium text-gray-800 mb-2">
                 {selectedCategory !== 'All' 
                   ? `No blog posts found in category: ${selectedCategory}`
                   : 'No blog posts found'}
               </h3>
-              <p className="text-gray-500">
+              <p className="text-gray-600">
                 {selectedCategory !== 'All'
                   ? 'Try selecting a different category.'
                   : 'Check back later for new posts.'}
@@ -698,24 +816,35 @@ export default function Blogs() {
             </div>
           )}
         </div>
-
       </div>
 
       {/* Blog Detail Modal - Full Screen Overlay */}
       {showBlogModal && selectedBlog && (
-        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
-          {/* Modal Header */}
-          <div className="sticky top-0 bg-white z-20 border-b border-gray-200 p-4 flex justify-between items-center">
-            <button 
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto text-white">
+          {/* Back Button */}
+          <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-md border-b border-white/10 p-4">
+            <button
               onClick={closeBlogModal}
-              className="p-2 rounded-full hover:bg-gray-100"
+              className="flex items-center gap-2 text-white/90 hover:text-white transition-colors group"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
+              <span>Back to Blogs</span>
             </button>
-            <h2 className="text-xl font-semibold text-gray-800">
-              {editingBlog === selectedBlog.id ? 'Edit Blog' : ''}
+          </div>
+          
+          {/* Modal Header */}
+          <div className="sticky top-16 bg-black/60 backdrop-blur-sm z-20 p-4 border-b border-white/5">
+            <button 
+              onClick={closeBlogModal}
+              className="text-white/70 hover:text-white p-1 transition-colors hover:bg-white/10 rounded-full"
+              aria-label="Close"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-bold text-white">
+              {editingBlog === selectedBlog.id ? 'Edit Blog' : 'Blog Details'}
             </h2>
             <div className="w-10">
               {isAuthor(selectedBlog) && (searchParams?.get('from') === 'dashboard' || searchParams?.get('edit')) && (
@@ -747,8 +876,8 @@ export default function Blogs() {
                         disabled={isUploading}
                         className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                           isUploading
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : 'bg-primary-green text-egg-white hover:bg-green-700'
+                            ? 'bg-gray-300 text-gray-700 cursor-not-allowed'
+                            : 'bg-primary-green text-white hover:bg-green-700'
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -761,8 +890,8 @@ export default function Blogs() {
                         disabled={isUploading}
                         className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                           isUploading
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-gray-100 text-primary-green hover:bg-gray-200'
+                            ? 'bg-gray-100/20 text-gray-400 cursor-not-allowed'
+                            : 'bg-white/10 text-white hover:bg-white/20'
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -782,18 +911,18 @@ export default function Blogs() {
                           });
                         }
                       }}
-                      className="w-full mb-6 text-2xl font-bold text-gray-900 border border-border-green rounded px-3 py-2"
+                      className="w-full mb-6 text-2xl font-bold text-white bg-white/10 border border-white/20 rounded px-3 py-2 placeholder-white/50"
                     />
                   </>
                 ) : (
-                  <h1 className="text-2xl font-bold text-gray-900 mb-6">
+                  <h1 className="text-2xl font-bold text-white mb-6">
                     {selectedBlog?.title}
                   </h1>
                 )}
                 
                 {/* Featured Image */}
                 <div className="relative mb-6">
-                  <div className="w-full h-64 rounded-xl bg-gray-100 relative overflow-hidden">
+                  <div className="w-full h-64 rounded-xl bg-black/30 relative overflow-hidden">
                     {selectedBlog?.imageUrl ? (
                       <Image
                         src={selectedBlog.imageUrl}
@@ -809,7 +938,7 @@ export default function Blogs() {
                           if (parent) {
                             parent.classList.add('bg-gradient-to-br', 'from-primary-green', 'to-accent-green/80');
                             const categorySpan = document.createElement('span');
-                            categorySpan.className = 'text-white text-2xl font-semibold';
+                            categorySpan.className = 'text-white text-2xl font-semibold z-10';
                             categorySpan.textContent = selectedBlog.category || 'Image';
                             parent.appendChild(categorySpan);
                           }
@@ -822,8 +951,8 @@ export default function Blogs() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-green to-accent-green/80">
-                        <span className="text-white text-2xl font-semibold">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-green/70 to-accent-green/60">
+                        <span className="text-white text-2xl font-semibold z-10">
                           {selectedBlog?.category || 'No Image'}
                         </span>
                       </div>
@@ -832,7 +961,7 @@ export default function Blogs() {
                       <div className="absolute bottom-4 right-4 flex gap-2">
                         <label
                           htmlFor="blog-image-upload"
-                          className={`bg-white/90 hover:bg-white text-primary-green px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-colors shadow-md ${isUploading ? 'opacity-60 pointer-events-none' : ''}`}
+                          className={`bg-white hover:bg-white/90 text-primary-green px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-colors shadow-md ${isUploading ? 'opacity-60 pointer-events-none' : ''}`}
                         >
                           {isUploading ? 'Uploading...' : 'Change Image'}
                         </label>
@@ -861,22 +990,22 @@ export default function Blogs() {
                 </div>
                 
                 {/* Date and Category */}
-                <div className="flex items-center gap-3 text-sm text-gray-600 mb-4">
+                <div className="flex items-center gap-3 text-sm text-white/80 mb-4">
                   <span>{selectedBlog?.createdAt?.toDate ? selectedBlog.createdAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown date'}</span>
-                  <span className="text-gray-300">•</span>
-                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                  <span className="text-white/50">•</span>
+                  <span className="px-2 py-1 bg-white/10 text-white/90 rounded-full text-xs font-medium">
                     {selectedBlog?.category}
                   </span>
                 </div>
 
                 {/* Business Information - Both View and Edit Modes */}
                 {(selectedBlog?.category === 'Where to Stay' || selectedBlog?.category === 'Where to Eat') && (
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="mb-6 p-4 bg-white/10 rounded-lg">
                     <div className="space-y-3">
                       {editingBlog === selectedBlog?.id ? (
                         <>
                           <div>
-                            <label className="block text-sm font-medium text-gray-500 mb-1">Location</label>
+                            <label className="block text-sm font-medium text-white/80 mb-1">Location</label>
                             <input
                               type="text"
                               value={selectedBlog?.location || ''}
@@ -888,12 +1017,12 @@ export default function Blogs() {
                                   });
                                 }
                               }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-md text-sm text-white placeholder-white/50"
                               placeholder="Business location"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-500 mb-1">Contact Number</label>
+                            <label className="block text-sm font-medium text-white/80 mb-1">Contact Number</label>
                             <input
                               type="text"
                               value={selectedBlog?.contactNumber || ''}
@@ -905,12 +1034,12 @@ export default function Blogs() {
                                   });
                                 }
                               }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-md text-sm text-white placeholder-white/50"
                               placeholder="Contact number"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-500 mb-1">Facebook URL</label>
+                            <label className="block text-sm font-medium text-white/80 mb-1">Facebook URL</label>
                             <input
                               type="text"
                               value={selectedBlog?.facebookUrl || ''}
@@ -922,7 +1051,7 @@ export default function Blogs() {
                                   });
                                 }
                               }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-md text-sm text-white placeholder-white/50"
                               placeholder="Facebook page URL"
                             />
                           </div>
@@ -935,7 +1064,7 @@ export default function Blogs() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
-                              <span className="text-gray-700">{selectedBlog.location}</span>
+                              <span className="text-white/90">{selectedBlog.location}</span>
                             </div>
                           )}
                           {selectedBlog?.contactNumber && (
@@ -943,7 +1072,7 @@ export default function Blogs() {
                               <svg className="w-5 h-5 text-gray-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                               </svg>
-                              <a href={`tel:${selectedBlog.contactNumber}`} className="text-primary-green hover:underline">
+                              <a href={`tel:${selectedBlog.contactNumber}`} className="text-white hover:underline">
                                 {selectedBlog.contactNumber}
                               </a>
                             </div>
@@ -957,7 +1086,7 @@ export default function Blogs() {
                                 href={selectedBlog.facebookUrl.startsWith('http') ? selectedBlog.facebookUrl : `https://${selectedBlog.facebookUrl}`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-primary-green hover:underline"
+                                className="text-white hover:underline"
                               >
                                 {selectedBlog.facebookUrl.replace(/^https?:\/\//, '')}
                               </a>
@@ -971,14 +1100,14 @@ export default function Blogs() {
                 
                 {/* Author Info */}
                 <div className="flex items-center gap-4 pt-4 border-t border-gray-100 mt-6">
-                  <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                  <div className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center text-white/80">
                     {selectedBlog?.authorType === 'admin' ? 'A' : selectedBlog?.barangay?.charAt(0).toUpperCase() || 'B'}
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-white">
                       {selectedBlog?.authorType === 'admin' ? 'Kapangan Tourism' : `Barangay ${selectedBlog?.barangay || ''}`}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-white/70">
                       {selectedBlog?.authorType === 'admin' ? 'Administrator' : 'Barangay Admin'}
                     </p>
                   </div>
@@ -988,12 +1117,12 @@ export default function Blogs() {
             {/* Right Side - Content */}
             <div className="w-full md:w-3/5 flex flex-col overflow-y-auto p-6 md:p-8">
                 {/* Blog Content */}
-                <article className="prose max-w-none text-gray-700 leading-relaxed">
+                <article className="prose max-w-none text-white/90 leading-relaxed">
                   {editingBlog === selectedBlog?.id ? (
                       
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-500 mb-2">Excerpt</label>
+                          <label className="block text-sm font-medium text-white/80 mb-2">Excerpt</label>
                         <textarea
                           value={selectedBlog?.excerpt || ''}
                           onChange={(e) => {
@@ -1005,11 +1134,11 @@ export default function Blogs() {
                             }
                           }}
                           rows={3}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-white placeholder-white/50"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-2">Content</label>
+                        <label className="block text-sm font-medium text-white/80 mb-2">Content</label>
                         <textarea
                           value={selectedBlog?.content || ''}
                           onChange={(e) => {
@@ -1021,14 +1150,14 @@ export default function Blogs() {
                             }
                           }}
                           rows={12}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono"
+                          className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg font-mono text-white placeholder-white/50"
                         />
                       </div>
                     </div>
                   ) : (
                     <>
                       {selectedBlog?.excerpt && (
-                        <p className="text-lg text-gray-700 mb-8 leading-relaxed font-medium">
+                        <p className="text-lg text-white/90 mb-8 leading-relaxed font-medium">
                           {selectedBlog.excerpt}
                         </p>
                       )}
@@ -1036,10 +1165,10 @@ export default function Blogs() {
                         className="prose-lg max-w-none"
                         dangerouslySetInnerHTML={{ 
                           __html: selectedBlog?.content
-                            ?.replace(/\n\n/g, '</p><p class="my-6 text-gray-700 leading-relaxed">')
-                            ?.replace(/^##\s+(.*$)/gm, '</p><h2 class="text-2xl font-bold text-gray-900 mt-12 mb-6 pb-2">$1</h2><p>')
-                            ?.replace(/^###\s+(.*$)/gm, '</p><h3 class="text-xl font-semibold text-gray-900 mt-10 mb-4">$1</h3><p>')
-                            ?.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                            ?.replace(/\n\n/g, '</p><p class="my-6 text-white/90 leading-relaxed">')
+                            ?.replace(/^##\s+(.*$)/gm, '</p><h2 class="text-2xl font-bold text-white mt-12 mb-6 pb-2">$1</h2><p>')
+                            ?.replace(/^###\s+(.*$)/gm, '</p><h3 class="text-xl font-semibold text-white mt-10 mb-4">$1</h3><p>')
+                            ?.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
                             ?.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>') || ''
                         }}
                       />
@@ -1052,5 +1181,6 @@ export default function Blogs() {
       )}
 
     </div>
+  </div>
   );
 }

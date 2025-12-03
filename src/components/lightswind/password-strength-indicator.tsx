@@ -44,6 +44,9 @@ export interface PasswordStrengthIndicatorProps {
 
   /** Additional props for the input element */
   inputProps?: InputProps;
+  
+  /** Class name for the label */
+  labelClassName?: string;
 }
 
 // Password strength calculation based on common rules
@@ -102,6 +105,7 @@ export function PasswordStrengthIndicator({
   placeholder = "Enter your password",
   showVisibilityToggle = true,
   inputProps,
+  labelClassName = "text-white",
 }: PasswordStrengthIndicatorProps) {
   const [password, setPassword] = useState(value || "");
   const [showPassword, setShowPassword] = useState(false);
@@ -127,7 +131,7 @@ export function PasswordStrengthIndicator({
     <div className={cn("space-y-2", className)}>
       {label && (
         <div className="flex justify-between items-center">
-          <label htmlFor="password" className="text-sm font-medium text-gray-700">
+          <label htmlFor="password" className={cn("text-sm font-medium", labelClassName)}>
             {label}
           </label>
           {showScoreNumber && (

@@ -2,13 +2,14 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { useState, useEffect, useRef, ChangeEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { doc, updateDoc, setDoc, getFirestore, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, getFirestore, collection, getDocs, query, where, getDoc, initializeFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { uploadFile, deleteFile } from '@/lib/appwrite';
+import useEmblaCarousel from 'embla-carousel-react';
 
 interface Announcement {
   id: string;
@@ -73,9 +74,39 @@ interface TouristSpot {
   _tempImage?: File; // Temporary file object for upload preview
 }
 
+interface CarouselItem {
+  id: string;
+  image: string;
+  fileId?: string;
+}
+
 export default function TouristSpots() {
   const router = useRouter();
   const { isBarangayAdmin, barangayAdminData, currentUser, isPrivateSpotAdmin, privateSpotAdminData, isAdmin } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedBarangay, setSelectedBarangay] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: true,
+    align: "start",
+    duration: 20, // Slower scroll duration for better visibility
+  });
+
+  // Auto-scroll functionality
+  useEffect(() => {
+    if (!emblaApi) return;
+    
+    const autoScroll = setInterval(() => {
+      if (emblaApi.canScrollNext()) {
+        emblaApi.scrollNext();
+      } else {
+        emblaApi.scrollTo(0); // Reset to first slide if at the end
+      }
+    }, 5000); // Change slide every 5 seconds
+    
+    return () => clearInterval(autoScroll);
+  }, [emblaApi]);
   const [isMounted, setIsMounted] = useState(false);
   const [closureAnnouncements, setClosureAnnouncements] = useState<Announcement[]>([]);
   
@@ -93,12 +124,17 @@ export default function TouristSpots() {
   useEffect(() => {
     console.log('Component mounted');
     setIsMounted(true);
+    
+    // Reinitialize carousel when component mounts
+    if (emblaApi) {
+      emblaApi.reInit();
+    }
+    
     return () => {
       console.log('Component unmounted');
       setIsMounted(false);
     };
-  }, []);
-  const [selectedBarangay, setSelectedBarangay] = useState<string>('all');
+  }, [emblaApi]);
   const [selectedSpot, setSelectedSpot] = useState<TouristSpot | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -109,10 +145,20 @@ export default function TouristSpots() {
   const [cameFromAdmin, setCameFromAdmin] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Check if we came from admin panel
+  // Check URL parameters and set initial states
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setCameFromAdmin(params.get('fromAdmin') === 'true');
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setCameFromAdmin(params.get('fromAdmin') === 'true');
+      
+      // Set selectedBarangay from URL if it exists, otherwise default to 'all'
+      const barangayParam = params.get('barangay');
+      if (barangayParam && barangays.includes(barangayParam)) {
+        setSelectedBarangay(barangayParam);
+      } else {
+        setSelectedBarangay('all');
+      }
+    }
   }, []);
 
   const handleRemoveImage = () => {
@@ -632,6 +678,25 @@ export default function TouristSpots() {
     fetchSpots();
   }, [isBarangayAdmin, barangayAdminData?.barangay]);
 
+  // Initialize Firestore
+  const db = getFirestore();
+
+  // Load carousel items
+  useEffect(() => {
+    const loadCarouselItems = async () => {
+      try {
+        const docRef = doc(db, "carousel", "items");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().items) {
+          setCarouselItems(docSnap.data().items);
+        }
+      } catch (error) {
+        console.error("Error loading carousel items:", error);
+      }
+    };
+    loadCarouselItems();
+  }, []);
+
   // Get unique barangays from the fetched spots
   const barangays = ['all', ...Array.from(new Set(spots.map(spot => spot.barangay)))];
 
@@ -649,16 +714,22 @@ export default function TouristSpots() {
     return acc;
   }, {});
 
-  // Scroll to section when barangay is selected
-  const scrollToSection = (barangay: string) => {
+  // Handle barangay selection and update URL
+  const handleBarangaySelect = (barangay: string) => {
+    setSelectedBarangay(barangay);
+    // Update URL without page reload
+    const url = new URL(window.location.href);
     if (barangay === 'all') {
+      url.searchParams.delete('barangay');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
+      url.searchParams.set('barangay', barangay);
       const element = document.getElementById(`barangay-${barangay}`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
+    window.history.pushState({}, '', url.toString());
   };
 
   // Handle input changes for the form
@@ -728,21 +799,22 @@ export default function TouristSpots() {
   };
 
   const closeDetails = () => {
-    if (isAdmin) {
-      // Always go to main admin dashboard for admin users
-      router.push('/admin');
-    } else if (isEditing) {
-      // For non-admin users in edit mode
-      if (isPrivateSpotAdmin) {
+    if (isEditing) {
+      // If in edit mode, go back to the appropriate dashboard
+      if (isAdmin) {
+        router.push('/admin');
+      } else if (isPrivateSpotAdmin) {
         router.push('/private-spot-admin');
       } else if (isBarangayAdmin) {
         router.push('/barangay-admin');
       } else {
-        // Default fallback for regular users
         router.push('/tourist-spots');
       }
+    } else if (cameFromAdmin) {
+      // If came from admin, go back to admin
+      router.push('/admin');
     } else {
-      // Otherwise, just close the details view
+      // Otherwise, just close the details view and stay on the same page
       setSelectedSpot(null);
       setShowDetails(false);
     }
@@ -751,20 +823,20 @@ export default function TouristSpots() {
   // If showing details, render the detail page
   if (showDetails && selectedSpot && editedSpot) {
     return (
-      <div className="min-h-screen bg-egg-white">
+      <div className="min-h-screen bg-black/70 backdrop-blur-sm">
         {/* Header with back button */}
-        <div className="bg-light-green border-b border-border-green">
+        <div className="bg-black/50 backdrop-blur-sm border-b border-white/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <button
               onClick={closeDetails}
-              className="flex items-center gap-2 text-primary-green hover:text-accent-green font-medium transition-colors duration-300"
+              className="flex items-center gap-2 text-white hover:text-accent-yellow font-medium transition-colors duration-300 font-poppins"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
               </svg>
               {isEditing 
                 ? 'Back to Dashboard' 
-                : isAdmin 
+                : cameFromAdmin 
                   ? 'Back to Admin Dashboard' 
                   : 'Back to Tourist Spots'}
             </button>
@@ -772,7 +844,7 @@ export default function TouristSpots() {
         </div>
 
         {/* Detail Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-white">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Image and Info */}
             <div className="space-y-6">
@@ -1172,12 +1244,51 @@ export default function TouristSpots() {
 
   // Render the list view by default
   return (
-    <div className="min-h-screen bg-egg-white">
+    <div className="min-h-screen relative">
+      {/* Carousel Background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-black/20 z-10"></div>
+        <div className="embla overflow-hidden w-full h-full" ref={emblaRef}>
+          <div className="embla__container flex h-full">
+            {carouselItems.length > 0 ? (
+              carouselItems.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="embla__slide flex-[0_0_100%] min-w-0 h-full"
+                >
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={item.image || "/placeholder-image.jpg"}
+                      alt={`Carousel image ${index + 1}`}
+                      fill
+                      className={`object-cover transition-transform duration-300`}
+                      priority={index < 3}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = "/placeholder-image.jpg";
+                      }}
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-green-800 to-green-600 flex items-center justify-center">
+                <p className="text-white">No images available</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Semi-transparent overlay */}
+      <div className="fixed inset-0 -z-10 bg-black/30"></div>
+      
       {/* Hero Section */}
-      <div className="bg-light-green py-16">
+      <div className="bg-black/30 backdrop-blur-sm py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-bold text-gray-900">Tourist Spots</h1>
-          <p className="mt-4 text-xl text-gray-700 max-w-3xl mx-auto">
+          <h1 className="text-4xl font-bold text-white font-poppins">Tourist Spots</h1>
+          <p className="mt-4 text-xl text-white/90 max-w-3xl mx-auto font-poppins">
             Explore the beautiful attractions and hidden gems of Kapangan
           </p>
         </div>
@@ -1206,17 +1317,17 @@ export default function TouristSpots() {
 
         {/* Filter Navigation */}
         <div className="mb-8">
-          <div className="bg-light-green rounded-lg p-6 shadow-md">
-            <h2 className="text-2xl font-semibold text-primary-green mb-4">Barangay</h2>
+          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 shadow-md">
+            <h2 className="text-2xl font-semibold text-white font-poppins mb-4">Barangay</h2>
             <div className="flex flex-wrap gap-2">
               {barangays.map((barangay) => (
                 <button
                   key={barangay}
-                  onClick={() => setSelectedBarangay(barangay)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  onClick={() => handleBarangaySelect(barangay)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium font-poppins transition-all duration-300 ${
                     selectedBarangay === barangay
-                      ? 'bg-primary-green text-egg-white shadow-md scale-105'
-                      : 'bg-egg-white text-primary-green border border-border-green hover:bg-accent-green hover:text-egg-white hover:scale-105'
+                      ? 'bg-white text-primary-green shadow-md scale-105'
+                      : 'bg-white/20 text-white border border-white/30 hover:bg-white/30 hover:scale-105'
                   }`}
                 >
                   {barangay === 'all' ? 'All Barangays' : barangay}
@@ -1233,15 +1344,15 @@ export default function TouristSpots() {
             {Object.entries(groupedSpots).map(([barangay, spots]) => (
               <div key={barangay} id={`barangay-${barangay}`} className="scroll-mt-20">
                 <div className="mb-6">
-                  <h2 className="text-3xl font-bold text-primary-green mb-2">
+                  <h2 className="text-3xl font-bold text-white font-poppins mb-2">
                     {barangay}
                   </h2>
-                  <div className="h-1 w-20 bg-accent-green rounded-full"></div>
+                  <div className="h-1 w-20 bg-white rounded-full"></div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {spots.map((spot) => (
-                    <div key={spot.id} className={`bg-egg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 border ${spot.closed ? 'border-red-300' : 'border-border-green hover:shadow-xl hover:scale-105 group'}`}>
+                    <div key={spot.id} className={`bg-black/30 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden transition-all duration-300 border border-white/20 ${spot.closed ? 'border-red-300/50' : 'hover:shadow-xl hover:scale-105 group'}`}>
                       <div className="relative h-48 w-full">
                         {spot.image ? (
                           <>
@@ -1249,12 +1360,12 @@ export default function TouristSpots() {
                               src={spot.image}
                               alt={spot.name}
                               fill
-                              className={`object-cover transition-transform duration-300 ${spot.closed ? 'opacity-50' : 'group-hover:scale-110'}`}
+                              className={`object-cover transition-transform duration-300 ${spot.closed ? 'opacity-30' : 'group-hover:scale-110'}`}
                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                               unoptimized={spot.image.includes('appwrite.io')}
                             />
                             {spot.closed && (
-                              <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center p-4 text-center">
+                              <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-4 text-center">
                                 <div className="bg-red-500/90 text-white px-4 py-2 rounded-lg max-w-xs">
                                   <div className="font-medium text-sm">Temporarily Closed</div>
                                   {spot.businessName && (
@@ -1264,7 +1375,7 @@ export default function TouristSpots() {
                                   )}
                                 </div>
                                 {spot.closedReason && (
-                                  <div className="mt-2 text-white text-sm bg-black/40 px-3 py-1.5 rounded-lg max-w-md">
+                                  <div className="mt-2 text-white text-sm bg-black/50 px-3 py-1.5 rounded-lg max-w-md">
                                     {spot.closedReason}
                                   </div>
                                 )}
@@ -1272,22 +1383,22 @@ export default function TouristSpots() {
                             )}
                           </>
                         ) : (
-                          <div className={`w-full h-full bg-gray-100 flex items-center justify-center ${spot.closed ? 'opacity-50' : ''}`}>
-                            <span className={spot.closed ? 'text-gray-500' : 'text-gray-400'}>No image</span>
+                          <div className={`w-full h-full bg-black/20 flex items-center justify-center ${spot.closed ? 'opacity-50' : ''}`}>
+                            <span className="text-white/70">No image</span>
                           </div>
                         )}
-                        <div className={`absolute top-2 right-2 ${spot.closed ? 'bg-red-500/90' : 'bg-accent-green/90'} text-egg-white px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm`}>
+                        <div className={`absolute top-2 right-2 ${spot.closed ? 'bg-red-500/90' : 'bg-black/80'} text-white px-2 py-1 rounded-full text-xs font-medium`}>
                           {spot.closed ? 'Closed' : spot.category}
                         </div>
                       </div>
                       <div className="p-6">
-                        <h3 className="text-xl font-semibold text-primary-green mb-2 group-hover:text-accent-green transition-colors duration-300">
+                        <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-accent-yellow transition-colors duration-300">
                           {spot.name}
                         </h3>
-                        <p className={`text-sm ${spot.closed ? 'text-red-500' : 'text-accent-green'} font-medium mb-4`}>
+                        <p className={`text-sm ${spot.closed ? 'text-red-300' : 'text-white/80'} font-medium mb-4`}>
                           {spot.location}
                           {spot.closed && spot.closedUntil && (
-                            <span className="block text-xs mt-1">
+                            <span className="block text-xs mt-1 text-white/60">
                               Closed until: {new Date(spot.closedUntil).toLocaleDateString()}
                             </span>
                           )}
@@ -1299,14 +1410,14 @@ export default function TouristSpots() {
                               toast.error('This spot is temporarily closed' + (spot.closedReason ? `: ${spot.closedReason}` : ''));
                             } else {
                               setSelectedSpot(spot);
-                              setEditedSpot(spot);
+                              setEditedSpot({ ...spot });
                               setShowDetails(true);
                             }
                           }}
                           disabled={spot.closed}
-                          className={`w-full ${spot.closed ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary-green hover:bg-accent-green hover:scale-105 hover:shadow-lg'} text-egg-white px-4 py-2 rounded-lg font-medium transition-all duration-300 shadow-md`}
+                          className="w-full bg-white/20 hover:bg-white/30 text-white border border-white/30 py-2 px-4 rounded-md transition-all duration-300 hover:scale-[1.02]"
                         >
-                          {spot.closed ? 'Temporarily Unavailable' : 'View More'}
+                          View Details
                         </button>
                       </div>
                     </div>
