@@ -197,7 +197,7 @@ export default function HeroSection() {
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-white to-green-50 overflow-hidden border-b-8 border-green-100">
+    <div className="relative min-h-screen overflow-hidden">
       {showSuccess && (
         <div className="fixed bottom-4 right-4 z-50 w-80">
           <Alert variant="success" className="bg-white border-2 border-green-500">
@@ -206,6 +206,42 @@ export default function HeroSection() {
           </Alert>
         </div>
       )}
+      {/* Carousel Background */}
+      <div className="fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-black/30 z-10"></div>
+        <div className="embla overflow-hidden w-full h-full" ref={emblaRef}>
+          <div className="embla__container flex h-full">
+            {carouselItems.length > 0 ? (
+              carouselItems.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="embla__slide flex-[0_0_100%] min-w-0 h-full"
+                >
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={item.image || "/placeholder-image.jpg"}
+                      alt={`Carousel image ${index + 1}`}
+                      fill
+                      className="object-cover"
+                      priority={index < 3}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = "/placeholder-image.jpg";
+                      }}
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-green-800 to-green-600 flex items-center justify-center">
+                <p className="text-white">No images available. Add some images to the carousel.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Admin Controls */}
       {isAdmin && (
         <div className="flex justify-end mb-6 absolute top-4 right-4 z-20 space-x-2">
@@ -236,136 +272,60 @@ export default function HeroSection() {
           ) : (
             <button
               onClick={toggleEditMode}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+              className="inline-flex items-center px-6 py-2.5 border-2 border-white/20 bg-white/10 hover:bg-white/20 text-sm font-medium rounded-full text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transition-all duration-300 hover:shadow-lg"
             >
-              Manage Hero Section
+              {isEditMode ? 'Cancel' : 'Manage Hero Section'}
             </button>
           )}
         </div>
       )}
 
-      {/* Background circles */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -right-20 -top-20 w-64 h-64 bg-green-100 rounded-full opacity-20"></div>
-        <div className="absolute -left-40 top-1/3 w-80 h-80 bg-green-200 rounded-full opacity-10"></div>
-        <div className="absolute right-1/4 bottom-0 w-40 h-40 bg-green-300 rounded-full opacity-10"></div>
-      </div>
 
       {/* Content */}
-      <div className="relative w-full max-w-7xl mx-auto px-4 py-16 md:py-24 flex flex-col md:flex-row items-center">
-        {/* Left: Text Content (Desktop) */}
-        <div className="hidden md:block relative w-full md:w-5/12 pr-0 md:pr-12 mb-12 md:mb-0 bg-white/80 backdrop-blur-sm p-8 rounded-2xl border-2 border-green-100 shadow-lg">
-          <div className="relative group mb-6">
+      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-16">
+        <div className="w-full max-w-4xl mx-auto text-center text-white bg-black/40 backdrop-blur-sm rounded-2xl p-8 md:p-12 shadow-2xl">
+          <div className="relative group mb-8">
             {isEditingTitle ? (
-              <div className="w-full max-w-[90%]">
+              <div className="w-full max-w-2xl mx-auto">
                 <input
                   type="text"
                   value={editingTitle}
                   onChange={(e) => setEditingTitle(e.target.value)}
-                  className="text-3xl md:text-4xl font-bold text-green-900 mb-4 bg-transparent border-b-2 border-green-200 outline-none w-full focus:border-green-500 transition-colors duration-300"
+                  className="text-4xl md:text-6xl font-bold text-white mb-4 bg-transparent border-b-2 border-white/50 outline-none w-full focus:border-white transition-colors duration-300 text-center"
                   autoFocus
-                  style={{ maxWidth: '100%' }}
                 />
               </div>
             ) : (
-              <div className="flex items-center group">
-                <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-green-700 to-green-500 bg-clip-text text-transparent mb-6 break-words">
-                  {title}
-                </h1>
-              </div>
+              <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg px-4 py-2 rounded-lg inline-block">
+                {title}
+              </h1>
             )}
           </div>
 
-          <div className="relative group mb-8">
+          <div className="relative group mb-12">
             {isEditingDescription ? (
-              <div className="w-full">
+              <div className="w-full max-w-2xl mx-auto">
                 <textarea
                   value={editingDescription}
                   onChange={(e) => setEditingDescription(e.target.value)}
-                  className="text-lg text-gray-700 mb-4 w-full bg-transparent border-b-2 border-green-100 outline-none resize-none h-24 focus:border-green-500 transition-colors duration-300 p-1"
+                  className="text-lg md:text-xl text-white/90 mb-4 w-full bg-transparent border-b-2 border-white/50 outline-none resize-none h-24 focus:border-white transition-colors duration-300 p-1 text-center"
                 />
               </div>
             ) : (
-              <div className="w-full">
-                <p className="text-lg text-gray-700 mb-4 leading-relaxed">
-                  {description}
-                </p>
-              </div>
+              <p className="text-lg md:text-xl text-white/95 mb-8 leading-relaxed max-w-3xl mx-auto drop-shadow px-6 py-4 bg-black/30 rounded-xl">
+                {description}
+              </p>
             )}
           </div>
 
 
-          <Link
-            href="/tourist-spots"
-            className="inline-block bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-full font-semibold text-sm transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg mt-6"
-          >
-            Explore More Destinations
-          </Link>
-        </div>
-
-        {/* Carousel Section */}
-        <div className="w-full md:w-7/12 relative group z-10">
-
-          <div
-            className="embla overflow-hidden w-full rounded-3xl shadow-2xl mx-auto border-4 border-white ring-2 ring-green-100 relative"
-            style={{ maxWidth: "1200px" }}
-            ref={emblaRef}
-          >
-            <div className="embla__container flex">
-              {carouselItems.length > 0 ? (
-                carouselItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="embla__slide flex-[0_0_100%] min-w-0 group select-none"
-                  >
-                    <div className="relative h-80 md:h-96 w-full">
-                      <Image
-                        src={item.image || "/placeholder-image.jpg"}
-                        alt={`Carousel image ${index + 1}`}
-                        fill
-                        className="object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
-                        priority={index < 3}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null;
-                          target.src = "/placeholder-image.jpg";
-                        }}
-                      />
-                      {/* Mobile Overlay - Fixed Position */}
-                      <div className="md:hidden absolute bottom-0 left-0 right-0 z-10 text-white bg-gradient-to-t from-black/80 via-black/50 to-transparent rounded-b-2xl pointer-events-none p-6 pt-12">
-                        <div className="pointer-events-auto transform transition-transform duration-300 hover:scale-[1.01]">
-                          <h1 className="text-2xl font-bold mb-2 drop-shadow-md">{title}</h1>
-                          <p className="text-sm mb-4 line-clamp-2 drop-shadow-md">{description}</p>
-                          <Link
-                            href="/tourist-spots"
-                            className="inline-block bg-white text-green-700 px-6 py-2 rounded-full font-semibold text-sm transition-all duration-300 transform hover:scale-105 shadow-lg w-fit"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Explore More
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="w-full h-80 md:h-96 bg-gradient-to-br from-green-50 to-white rounded-2xl flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-green-200 p-8 text-center relative">
-                  <div className="md:hidden absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white to-transparent rounded-b-2xl">
-                    <h1 className="text-2xl font-bold text-gray-800 mb-2">{title}</h1>
-                    <p className="text-gray-600 mb-4">{description}</p>
-                    <Link
-                      href="/tourist-spots"
-                      className="inline-block bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-2 rounded-full font-semibold text-sm transition-all duration-300 transform hover:scale-105 shadow-md"
-                    >
-                      Explore More
-                    </Link>
-                  </div>
-                  <p className="mt-auto mb-8 md:my-0">No images available. Add some images to the carousel.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Navigation buttons removed as per request */}
+          <div className="mt-12">
+            <Link
+              href="/tourist-spots"
+              className="inline-block bg-white/90 hover:bg-white text-green-800 hover:text-green-900 px-8 py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl border-2 border-white/20"
+            >
+              Explore More Destinations
+            </Link>
           </div>
         </div>
       </div>

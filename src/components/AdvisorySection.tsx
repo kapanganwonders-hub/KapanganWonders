@@ -248,21 +248,21 @@ export default function AdvisorySection() {
 
   const getCategoryBadge = (category: string) => {
     const categoryMap: { [key: string]: string } = {
-      'Event Update': 'bg-blue-100 text-blue-800',
-      'Maintenance': 'bg-yellow-100 text-yellow-800',
-      'Closure': 'bg-red-100 text-red-800',
-      'Information': 'bg-gray-100 text-gray-800',
+      'Event Update': 'bg-blue-500/20 text-blue-200',
+      'Maintenance': 'bg-yellow-500/20 text-yellow-200',
+      'Closure': 'bg-red-500/20 text-red-200',
+      'Information': 'bg-white/10 text-white/80',
     };
     
     return (
-      <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${categoryMap[category] || 'bg-gray-100 text-gray-800'}`}>
+      <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${categoryMap[category] || 'bg-white/10 text-white/80'}`}>
         {category}
       </span>
     );
   };
 
   return (
-    <section className="py-12 relative overflow-hidden">
+    <section className="py-12 relative overflow-hidden font-['Poppins']">
       {notification && (
         <div className="fixed bottom-4 right-4 z-50 w-80">
           <Alert variant={notification.type}>
@@ -276,16 +276,14 @@ export default function AdvisorySection() {
           <div className="flex space-x-3">
             <button
               onClick={isEditingSection ? cancelEdit : handleEditSection}
-              className={`inline-flex items-center px-4 py-2 border ${
-                isEditingSection ? 'border-red-500 bg-red-600 hover:bg-red-700' : 'border-transparent bg-emerald-600 hover:bg-emerald-700'
-              } text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors`}
+              className={`inline-flex items-center px-6 py-2.5 border-2 ${isEditingSection ? 'border-red-400 bg-red-500/90 hover:bg-red-600' : 'border-white/20 bg-white/10 hover:bg-white/20'} text-sm font-medium rounded-full text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transition-all duration-300 hover:shadow-lg`}
             >
-{isEditingSection ? 'Cancel' : 'Manage Announcement Section'}
+              {isEditingSection ? 'Cancel' : 'Manage Announcement Section'}
             </button>
             {isEditingSection && (
               <button
                 onClick={saveSection}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors"
+                className="inline-flex items-center px-6 py-2.5 border-2 border-white/20 text-sm font-medium rounded-full text-white bg-green-500/90 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 transition-all duration-300 hover:shadow-lg ml-3"
               >
                 Save Changes
               </button>
@@ -294,17 +292,14 @@ export default function AdvisorySection() {
         </div>
       )}
       {/* Background Design */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 bg-black/30">
         {/* Subtle Background Pattern */}
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/30 to-green-50/30"></div>
+        <div className="absolute inset-0"></div>
         
         {/* Animated Background Elements */}
-        <div className="absolute top-0 left-0 w-72 h-72 bg-emerald-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
-        <div className="absolute top-1/4 right-10 w-96 h-96 bg-green-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slower"></div>
-        <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-lime-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-medium"></div>
-        
-        {/* Grid Pattern Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+        <div className="absolute top-0 left-0 w-72 h-72 bg-green-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
+        <div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slower"></div>
+        <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-medium"></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -315,14 +310,14 @@ export default function AdvisorySection() {
                 type="text"
                 value={sectionTitle}
                 onChange={(e) => setSectionTitle(e.target.value)}
-                className="text-4xl font-bold text-gray-900 mb-4 text-center bg-white/50 border-b-2 border-emerald-400 focus:outline-none focus:border-emerald-600 font-serif px-4 py-2 rounded-md"
+                className="text-4xl font-bold text-white mb-4 text-center bg-white/10 border-b-2 border-white/30 focus:outline-none focus:border-white/50 px-4 py-2 rounded-md w-full max-w-2xl mx-auto"
                 autoFocus
               />
             ) : (
-              <h2 className="text-4xl font-bold text-gray-900 mb-4 relative z-10 font-serif">
+              <h2 className="text-4xl font-bold text-white mb-4 relative z-10">
                 <span className="relative inline-block">
                   {sectionTitle}
-                  <span className="absolute bottom-1 left-0 w-full h-2 bg-emerald-100 -z-10 transform translate-y-1 rounded-full"></span>
+                  <span className="absolute bottom-1 left-0 w-full h-1 bg-white/30 -z-10 transform translate-y-1 rounded-full"></span>
                 </span>
               </h2>
             )}
@@ -333,18 +328,18 @@ export default function AdvisorySection() {
               type="text"
               value={sectionDesc}
               onChange={(e) => setSectionDesc(e.target.value)}
-              className="text-lg text-gray-700 max-w-2xl mx-auto font-sans bg-white/50 border border-emerald-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center w-full px-4 py-2"
+              className="text-lg text-white/90 max-w-2xl mx-auto bg-white/10 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/30 text-center w-full px-4 py-2 placeholder-white/50"
             />
           ) : (
-            <p className="text-lg text-gray-700 max-w-2xl mx-auto font-sans">
+            <p className="text-lg text-white/80 max-w-2xl mx-auto">
               {sectionDesc}
             </p>
           )}
         </div>
         
         {advisories.length === 0 ? (
-          <div className="text-center py-12 bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100">
-            <p className="text-gray-600">No announcements found.</p>
+          <div className="text-center py-12 bg-white/10 backdrop-blur-sm rounded-2xl shadow-sm border border-white/10">
+            <p className="text-white/80">No announcements found.</p>
           </div>
         ) : (
           <div className="relative">
@@ -355,12 +350,12 @@ export default function AdvisorySection() {
                     key={advisory.id} 
                     className="pl-4 flex-[0_0_90%] sm:flex-[0_0_70%] md:flex-[0_0_50%] lg:flex-[0_0_40%] transition-all duration-300"
                   >
-                    <div className="h-full bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 hover:border-emerald-100 group relative overflow-hidden">
+                    <div className="h-full bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/10 hover:border-white/20 group relative overflow-hidden">
                       {/* Glow effect */}
                       <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-400 to-green-600 rounded-2xl opacity-0 group-hover:opacity-20 blur-lg transition duration-300"></div>
                       <div className="flex-1">
                         <div className="flex justify-between items-start mb-4">
-                          <h4 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                          <h4 className="text-xl font-bold text-white group-hover:text-green-300 transition-colors">
                             {advisory.title}
                           </h4>
                           {advisory.category && (
@@ -370,31 +365,31 @@ export default function AdvisorySection() {
                           )}
                         </div>
                         
-                        <div className="flex items-center text-sm text-gray-600 mb-4">
-                          <svg className="w-4 h-4 mr-1.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="flex items-center text-sm text-white/80 mb-4">
+                          <svg className="w-4 h-4 mr-1.5 text-white/70" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                           </svg>
-                          <span className="text-gray-700 font-medium">{advisory.barangay || 'N/A'}</span>
+                          <span className="text-white/90 font-medium">{advisory.barangay || 'N/A'}</span>
                         </div>
 
-                        <div className="bg-white/50 p-4 rounded-xl mb-5 border border-gray-100">
-                          <p className="text-gray-700 whitespace-pre-line break-words leading-relaxed">
+                        <div className="bg-white/10 p-4 rounded-xl mb-5 border border-white/10">
+                          <p className="text-white/90 whitespace-pre-line break-words leading-relaxed">
                             {advisory.content}
                           </p>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row justify-between gap-4 text-sm border-t border-gray-100 pt-4">
+                        <div className="flex flex-col sm:flex-row justify-between gap-4 text-sm border-t border-white/10 pt-4">
                           <div className="flex-1">
-                            <p className="text-xs text-gray-500 font-medium">Posted By</p>
-                            <p className="text-gray-700 font-medium break-words">
+                            <p className="text-xs text-white/60 font-medium">Posted By</p>
+                            <p className="text-white/90 font-medium break-words">
                               {advisory.author === 'kapanganwonders@gmail.com' 
                                 ? 'Kapangan Municipality' 
                                 : advisory.privateSpotName || advisory.barangay || advisory.author || advisory.createdBy}
                             </p>
                           </div>
                           <div className="flex-1">
-                            <p className="text-xs text-gray-500 font-medium">Posted On</p>
-                            <p className="text-gray-700 font-medium">{advisory.createdAt}</p>
+                            <p className="text-xs text-white/60 font-medium">Posted On</p>
+                            <p className="text-white/90 font-medium">{advisory.createdAt}</p>
                           </div>
                         </div>
                       </div>
@@ -407,19 +402,19 @@ export default function AdvisorySection() {
             <button 
               onClick={scrollPrev}
               disabled={!prevBtnEnabled}
-              className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white/80 backdrop-blur-sm rounded-full p-2 shadow-lg hover:shadow-xl transition-all ${!prevBtnEnabled ? 'opacity-50 cursor-default' : 'hover:bg-white hover:scale-110'}`}
+              className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white/20 backdrop-blur-sm rounded-full p-3 shadow-lg hover:shadow-xl transition-all ${!prevBtnEnabled ? 'opacity-50 cursor-default' : 'hover:bg-white/30 hover:scale-110'}`}
               aria-label="Previous slide"
             >
-              <ChevronLeft className="w-5 h-5 text-emerald-600" />
+              <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             
             <button 
               onClick={scrollNext}
               disabled={!nextBtnEnabled}
-              className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white/80 backdrop-blur-sm rounded-full p-2 shadow-lg hover:shadow-xl transition-all ${!nextBtnEnabled ? 'opacity-50 cursor-default' : 'hover:bg-white hover:scale-110'}`}
+              className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white/20 backdrop-blur-sm rounded-full p-3 shadow-lg hover:shadow-xl transition-all ${!nextBtnEnabled ? 'opacity-50 cursor-default' : 'hover:bg-white/30 hover:scale-110'}`}
               aria-label="Next slide"
             >
-              <ChevronRight className="w-5 h-5 text-emerald-600" />
+              <ChevronRight className="w-5 h-5 text-white" />
             </button>
           </div>
         )}

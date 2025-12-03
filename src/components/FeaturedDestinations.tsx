@@ -301,7 +301,7 @@ const FeaturedDestinations = () => {
   };
 
   return (
-    <section className="py-12 relative overflow-hidden">
+    <section className="py-12 relative overflow-hidden font-['Poppins']">
       {/* Notification Alert */}
       {notification && (
         <div className="fixed bottom-4 right-4 z-50 w-80 animate-fade-in-up">
@@ -345,17 +345,14 @@ const FeaturedDestinations = () => {
         </div>
       )}
       {/* Background Design */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 bg-black/30">
         {/* Subtle Background Pattern */}
-        <div className="absolute inset-0 bg-gradient-to-br from-green-50/30 to-blue-50/30"></div>
+        <div className="absolute inset-0"></div>
         
         {/* Animated Background Elements */}
-        <div className="absolute top-0 left-0 w-72 h-72 bg-green-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
-        <div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slower"></div>
-        <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-medium"></div>
-        
-        {/* Grid Pattern Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+        <div className="absolute top-0 left-0 w-72 h-72 bg-green-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
+        <div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slower"></div>
+        <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-medium"></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -364,14 +361,14 @@ const FeaturedDestinations = () => {
             <div className="flex space-x-3">
               <button
                 onClick={isEditingSection ? cancelEdit : handleEditSection}
-                className={`inline-flex items-center px-4 py-2 border ${isEditingSection ? 'border-red-500 bg-red-600 hover:bg-red-700' : 'border-transparent bg-green-600 hover:bg-green-700'} text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors`}
+                className={`inline-flex items-center px-6 py-2.5 border-2 ${isEditingSection ? 'border-red-400 bg-red-500/90 hover:bg-red-600' : 'border-white/20 bg-white/10 hover:bg-white/20'} text-sm font-medium rounded-full text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transition-all duration-300 hover:shadow-lg`}
               >
                 {isEditingSection ? 'Cancel' : 'Manage Featured Spots Section'}
               </button>
               {isEditingSection && (
                 <button
                   onClick={saveSection}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors ml-2"
+                  className="inline-flex items-center px-6 py-2.5 border-2 border-white/20 text-sm font-medium rounded-full text-white bg-green-500/90 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 transition-all duration-300 hover:shadow-lg"
                 >
                   Save Changes
                 </button>
@@ -379,7 +376,7 @@ const FeaturedDestinations = () => {
               {isEditingSection && (
                 <button
                   onClick={() => setShowSpotsModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                  className="inline-flex items-center px-6 py-2.5 border-2 border-white/20 text-sm font-medium rounded-full text-white bg-blue-500/90 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-all duration-300 hover:shadow-lg"
                 >
                   Select Featured Spots
                 </button>
@@ -391,7 +388,7 @@ const FeaturedDestinations = () => {
           <div className="inline-block relative">
             {!isEditingTitle ? (
               <div className="relative group">
-                <h2 className="text-4xl font-bold text-gray-900 mb-4 relative z-10 font-serif">
+                <h2 className="text-4xl font-bold text-white mb-4 relative z-10">
                   {isEditingSection ? (
                     <input
                       type="text"
@@ -449,7 +446,7 @@ const FeaturedDestinations = () => {
             />
           ) : (
             <p 
-              className={`text-xl text-gray-600 max-w-3xl mx-auto relative z-10 ${isAdmin ? 'cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2' : ''}`}
+              className={`text-xl text-gray-200 max-w-3xl mx-auto relative z-10 ${isAdmin ? 'cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2' : ''}`}
               onClick={isAdmin ? () => setIsEditingDescription(true) : undefined}
             >
               {sectionDescription}
@@ -461,10 +458,10 @@ const FeaturedDestinations = () => {
           {destinations.map((destination) => (
             <div 
               key={destination.id} 
-              className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-400 transform hover:-translate-y-2 border border-gray-100 hover:border-green-200"
+              className="group bg-black/30 backdrop-blur-sm rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-400 transform hover:-translate-y-2 border border-white/20 hover:border-green-300/50"
             >
               <div className="relative h-56 w-full overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent z-10"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent z-10"></div>
                 {(() => {
                   const imageSrc = destination.image 
                     ? (destination.image.startsWith('http') || destination.image.startsWith('/') 
@@ -498,9 +495,7 @@ const FeaturedDestinations = () => {
                   );
                 })()}
                 <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
-                  <h3 className="text-xl font-bold text-white mb-1 group-hover:text-green-200 transition-colors">
-                    {destination.name}
-                  </h3>
+                  <h3 className="text-xl font-bold text-white mb-1">{destination.name}</h3>
                   <div className="flex items-center text-green-100 text-sm">
                     <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                       <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
@@ -514,13 +509,13 @@ const FeaturedDestinations = () => {
                   </span>
                 </div>
               </div>
-              <div className="p-4 bg-white">
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
+              <div className="p-4 bg-transparent">
+                <p className="text-white/80 text-sm mb-4 line-clamp-2 leading-relaxed">
                   {destination.description || `Experience the beauty of ${destination.name} in ${destination.location}. A must-visit destination for nature lovers.`}
                 </p>
                 <Link 
                   href="/tourist-spots"
-                  className="inline-flex items-center justify-center w-full text-center bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 transform hover:shadow-lg group-hover:scale-[1.02] text-sm"
+                  className="inline-flex items-center justify-center w-full text-center bg-white/10 hover:bg-white/20 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 transform hover:shadow-lg group-hover:scale-[1.02] text-sm border border-white/20 hover:border-white/40"
                 >
                   <span>Explore Now</span>
                   <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -535,10 +530,10 @@ const FeaturedDestinations = () => {
         <div className="text-center mt-12">
           <Link 
             href="/tourist-spots"
-            className="group relative inline-flex items-center justify-center px-6 py-3 overflow-hidden font-semibold text-green-700 transition-all duration-300 rounded-full border-2 border-green-500 hover:bg-green-500 hover:text-white text-sm"
+            className="group relative inline-flex items-center justify-center px-6 py-3 overflow-hidden font-semibold text-white transition-all duration-300 rounded-full border-2 border-white/30 hover:bg-white/20 hover:text-white text-sm"
           >
             <span className="relative z-10">View All Destinations</span>
-            <span className="absolute bottom-0 left-0 w-full h-0 bg-green-500 transition-all duration-300 group-hover:h-full -z-1"></span>
+            <span className="absolute bottom-0 left-0 w-full h-0 bg-white/20 transition-all duration-300 group-hover:h-full -z-1"></span>
             <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>

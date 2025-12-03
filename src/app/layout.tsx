@@ -29,13 +29,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${poppins.className} antialiased border-4 border-black min-h-screen flex flex-col`}>
+      <body className={`${poppins.className} antialiased border-4 border-black`}>
         <AuthProvider>
-          <Navigation />
-          <main className="flex-grow">
-            {children}
-          </main>
-          <Footer />
+          <div className="min-h-screen flex flex-col">
+            <Navigation />
+            <main className="flex-grow">
+              {children}
+            </main>
+            <Footer />
+          </div>
           <Toaster 
             position="bottom-right"
             toastOptions={{

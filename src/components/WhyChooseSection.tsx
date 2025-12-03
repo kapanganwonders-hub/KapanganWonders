@@ -297,14 +297,14 @@ const WhyChooseSection = () => {
         </div>
         <div className="relative z-10 text-center">
           <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-emerald-600 rounded-full mx-auto mb-3"></div>
-          <p className="text-gray-600">Loading content...</p>
+          <p className="text-white/80">Loading content...</p>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="relative py-20 min-h-[600px] flex items-center justify-center overflow-hidden bg-white">
+    <section className="relative py-20 min-h-[600px] flex items-center justify-center overflow-hidden font-['Poppins']">
       {notification && (
         <div className="fixed bottom-4 right-4 z-50 w-80">
           <Alert variant={notification.type}>
@@ -319,9 +319,7 @@ const WhyChooseSection = () => {
           <div className="flex space-x-3">
             <button
               onClick={isEditMode ? handleCancel : toggleEditMode}
-              className={`inline-flex items-center px-4 py-2 border ${
-                isEditMode ? 'border-red-500 bg-red-600 hover:bg-red-700' : 'border-transparent bg-emerald-600 hover:bg-emerald-700'
-              } text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors`}
+              className={`inline-flex items-center px-6 py-2.5 border-2 ${isEditMode ? 'border-red-400 bg-red-500/90 hover:bg-red-600' : 'border-white/20 bg-white/10 hover:bg-white/20'} text-sm font-medium rounded-full text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transition-all duration-300 hover:shadow-lg`}
             >
               {isEditMode ? (
                 <>
@@ -335,7 +333,7 @@ const WhyChooseSection = () => {
             {isEditMode && (
               <button
                 onClick={handleSaveChanges}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors"
+                className="inline-flex items-center px-6 py-2.5 border-2 border-white/20 text-sm font-medium rounded-full text-white bg-green-500/90 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 transition-all duration-300 hover:shadow-lg ml-3"
               >
                 <Save className="-ml-1 mr-2 h-5 w-5" />
                 Save Changes
@@ -345,12 +343,14 @@ const WhyChooseSection = () => {
         </div>
       )}
       {/* Animated Background Elements */}
-      <div className="absolute inset-0 z-0 opacity-10">
-        <div className="absolute top-10 left-10 w-64 h-64 bg-green-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
-        <div className="absolute bottom-10 right-10 w-64 h-64 bg-blue-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slower"></div>
+      <div className="absolute inset-0 z-0 bg-black/30">
+        {/* Animated Background Elements */}
+        <div className="absolute top-0 left-0 w-72 h-72 bg-green-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
+        <div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slower"></div>
+        <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-medium"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-gray-800">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-white">
         {/* Header Section */}
         <div className="text-center mb-16">
           {/* Title */}
@@ -366,10 +366,10 @@ const WhyChooseSection = () => {
                 onFocus={() => startEditing({ type: 'sectionTitle' })}
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
-                className="text-3xl md:text-4xl font-bold text-center w-full bg-white/50 border-b-2 border-emerald-500 focus:outline-none focus:ring-0 px-2 py-1 rounded-md font-serif"
+                className="text-3xl md:text-4xl font-bold text-center w-full bg-white/10 border-b-2 border-white/30 focus:outline-none focus:ring-0 px-2 py-1 rounded-md text-white"
               />
             ) : (
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-800 text-center font-serif">
+              <h2 className="text-3xl md:text-4xl font-bold text-white text-center">
                 {sectionTitle}
               </h2>
             )}
@@ -387,18 +387,18 @@ const WhyChooseSection = () => {
                 onFocus={() => startEditing({ type: 'sectionDescription' })}
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
-                className="text-lg text-gray-700 w-full bg-white/50 border border-emerald-300 rounded-md p-4 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center h-32"
+                className="text-lg text-white/90 w-full bg-white/10 border border-white/20 rounded-md p-4 focus:ring-2 focus:ring-white/50 focus:border-white/30 text-center h-32 placeholder-white/50"
                 placeholder="Enter section description..."
               />
             ) : (
-              <p className="text-lg text-gray-700 text-center">
+              <p className="text-lg text-white/80 text-center">
                 {sectionDescription}
               </p>
             )}
           </div>
 
           {/* Decorative Line */}
-          <div className="w-32 h-1 bg-gradient-to-r from-gray-400 to-gray-600 mx-auto mt-8 rounded-full"></div>
+          <div className="w-32 h-1 bg-gradient-to-r from-emerald-400 to-green-600 mx-auto mt-8 rounded-full"></div>
         </div>
 
         {/* Features Grid */}
@@ -406,17 +406,17 @@ const WhyChooseSection = () => {
           {features.map((feature, index) => (
             <div
               key={feature.id}
-              className={`group relative text-center p-8 bg-white rounded-2xl border-2 ${
-                isEditMode ? 'border-emerald-500' : 'border-gray-200 hover:border-gray-300'
+              className={`group relative text-center p-8 bg-white/10 backdrop-blur-sm rounded-2xl border-2 ${
+                isEditMode ? 'border-emerald-500' : 'border-white/10 hover:border-white/20'
               } transition-all duration-500 transform ${
-                isEditMode ? '' : 'hover:-translate-y-3 hover:scale-105 hover:shadow-lg'
+                isEditMode ? '' : 'hover:-translate-y-1 hover:shadow-lg'
               }`}
             >
               {/* Background Glow Effect */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-green-400/10 to-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-green-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
 
               {/* Floating Border Effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-green-100 to-blue-100 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-20"></div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-20"></div>
 
               {/* Feature Icon */}
               <div className="text-5xl mb-6 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
@@ -474,7 +474,7 @@ const WhyChooseSection = () => {
                     />
                   </div>
                 ) : (
-                  <h3 className="text-xl font-semibold text-gray-800">
+                  <h3 className="text-xl font-semibold text-white-800">
                     {feature.title}
                   </h3>
                 )}
@@ -503,19 +503,19 @@ const WhyChooseSection = () => {
                           setEditingField(null);
                         }
                       }}
-                      className="w-full h-24 bg-white/80 border border-emerald-300 rounded-md p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center text-sm"
+                      className="w-full h-24 bg-white/10 border border-white/20 rounded-md p-2 focus:ring-2 focus:ring-white/50 focus:border-white/30 text-center text-sm text-white/90 placeholder-white/50"
                       placeholder="Enter feature description..."
                     />
                   </div>
                 ) : (
-                  <p className="text-gray-600 text-sm leading-relaxed">
+                  <p className="text-white/80 text-sm leading-relaxed">
                     {feature.description}
                   </p>
                 )}
               </div>
 
               {/* Hover Indicator */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-white/30 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:w-16"></div>
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-white/50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:w-16"></div>
             </div>
           ))}
         </div>
@@ -524,18 +524,25 @@ const WhyChooseSection = () => {
       {/* Custom Animations */}
       <style jsx>{`
         @keyframes pulse-slow {
-          0%, 100% { opacity: 0.1; }
-          50% { opacity: 0.2; }
+          0%, 100% { opacity: 0.05; }
+          50% { opacity: 0.1; }
         }
         @keyframes pulse-slower {
-          0%, 100% { opacity: 0.05; }
-          50% { opacity: 0.15; }
+          0%, 100% { opacity: 0.03; }
+          50% { opacity: 0.08; }
+        }
+        @keyframes pulse-medium {
+          0%, 100% { opacity: 0.04; }
+          50% { opacity: 0.09; }
         }
         .animate-pulse-slow {
           animation: pulse-slow 8s ease-in-out infinite;
         }
         .animate-pulse-slower {
           animation: pulse-slower 12s ease-in-out infinite;
+        }
+        .animate-pulse-medium {
+          animation: pulse-medium 10s ease-in-out infinite;
         }
       `}</style>
     </section>

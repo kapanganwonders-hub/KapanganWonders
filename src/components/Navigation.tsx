@@ -8,7 +8,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 /* --- Tailwind helper classes --- */
 const navLink =
-  'relative text-gray-700 hover:text-green-600 px-4 py-2 rounded-md text-sm font-medium transition-all duration-500 hover:scale-105 transform group';
+  'relative text-white hover:text-green-200 px-4 py-2 rounded-md text-sm font-medium transition-all duration-500 hover:scale-105 transform group';
 
 const authLink = {
   border: 'relative px-4 py-1.5 text-sm font-medium text-green-700 hover:text-green-800 rounded-lg border-2 border-green-200 hover:border-green-300 transition-all duration-500 hover:scale-105',
@@ -52,7 +52,7 @@ export default function Navigation() {
   }, [currentUser, isAdmin, pathname, router]);
 
   return (
-    <nav className="bg-gradient-to-b from-green-200 to-green-300 text-black shadow-lg sticky top-0 z-50 border-b border-gray-200/50 hover:border-green-200/50 transition-all duration-500">
+    <nav className="bg-black text-white sticky top-0 z-50 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left - Dual Logos and Brand Name */}
@@ -63,7 +63,7 @@ export default function Navigation() {
                 src="/assets/logo-1.svg"
                 onError={(e) => (e.currentTarget.src = '/assets/default-logo.png')}
                 alt="Kapangan Logo 1"
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white shadow-lg object-cover transition-all duration-500 group-hover:scale-110 group-hover:border-green-200 group-hover:shadow-xl"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white/80 shadow-lg object-cover transition-all duration-500 group-hover:scale-110 group-hover:border-green-200 group-hover:shadow-xl"
                 width={48}
                 height={48}
               />
@@ -76,7 +76,7 @@ export default function Navigation() {
                 src="/assets/logo-3.svg"
                 onError={(e) => (e.currentTarget.src = '/assets/default-logo.png')}
                 alt="Kapangan Logo 2"
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white shadow-lg object-cover transition-all duration-500 group-hover:scale-110 group-hover:border-green-200 group-hover:shadow-xl"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white/80 shadow-lg object-cover transition-all duration-500 group-hover:scale-110 group-hover:border-green-200 group-hover:shadow-xl"
                 width={48}
                 height={48}
               />
@@ -86,7 +86,7 @@ export default function Navigation() {
             {/* Brand Name */}
             <Link
               href="/"
-              className="text-xl sm:text-2xl font-bold text-gray-800 hover:text-green-600 transition-all duration-500 ml-1 sm:ml-2 relative group"
+              className="text-xl sm:text-2xl font-bold text-white hover:text-green-200 transition-all duration-500 ml-1 sm:ml-2 relative group"
             >
               <span className="relative z-10">Kapangan Wonders</span>
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-green-500 to-blue-500 group-hover:w-full transition-all duration-500"></span>
@@ -125,7 +125,7 @@ export default function Navigation() {
                   src={currentUser.photoURL || '/assets/default-avatar.png'}
                   onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
                   alt="Profile"
-                  className="w-9 h-9 rounded-full border-2 border-gray-300 group-hover:border-green-400 transition-all duration-500 relative z-10 group-hover:scale-110 group-hover:shadow-lg"
+                  className="w-9 h-9 rounded-full border-2 border-white/80 group-hover:border-green-200 transition-all duration-500 relative z-10 group-hover:scale-110 group-hover:shadow-lg"
                 />
                 <div className="absolute -inset-1 bg-gradient-to-r from-green-400/30 to-blue-400/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
               </button>
@@ -145,7 +145,7 @@ export default function Navigation() {
           <div className="md:hidden flex items-center">
             <button
               onClick={toggleMenu}
-              className="w-10 h-10 text-gray-700 hover:text-green-600 p-2 rounded-xl transition-all duration-500 hover:bg-green-50 group relative"
+              className="w-10 h-10 text-white hover:text-green-200 p-2 rounded-xl transition-all duration-500 hover:bg-white/10 group relative"
             >
               <svg className="h-6 w-6 transition-transform duration-500 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -179,17 +179,17 @@ export default function Navigation() {
               <div className="px-5 py-4 border-b border-gray-200/50 flex items-center justify-between">
                 <Link
                   href="/"
-                  className="text-xl font-bold text-gray-800 hover:text-green-600 transition-colors duration-300"
+                  className="text-xl font-bold text-white hover:text-green-200 transition-colors duration-300"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Kapangan Wonders
                 </Link>
                 <button 
                   onClick={() => setIsMenuOpen(false)}
-                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full hover:bg-white/10 transition-colors"
                   aria-label="Close menu"
                 >
-                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
