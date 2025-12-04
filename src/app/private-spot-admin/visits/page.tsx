@@ -18,7 +18,8 @@ export default function PrivateSpotVisitsPage() {
   // Filter visits by businessId to show only this private spot's visits
   const filterByPrivateSpot = (visit: any) => {
     if (!privateSpotAdminData?.uid) return false;
-    return visit.businessId === privateSpotAdminData.uid;
+    // only require that the visit is marked private
+    return !!visit.isPrivate;
   };
 
   return (

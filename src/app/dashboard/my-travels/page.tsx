@@ -48,6 +48,7 @@ export default function MyTravelsPage() {
     barangays: '', // comma separated
     spots: '', // comma separated
     date: '', // YYYY-MM-DD
+    isPrivate: false, // <-- added flag
   });
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -139,6 +140,7 @@ export default function MyTravelsPage() {
           ? visit.spots.join(', ')
           : visit.spots || '',
       date: visit.date || '',
+      isPrivate: !!visit.isPrivate, // <-- preserve existing flag if present
     });
 
     // populate single-selection states (pick first if multiple)
@@ -171,7 +173,7 @@ export default function MyTravelsPage() {
     setSelectedSpotId('');
   };
 
-  const handleEditChange = (key: string, value: string) => {
+  const handleEditChange = (key: string, value: any) => {
     setEditForm((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -199,6 +201,12 @@ export default function MyTravelsPage() {
             .map((s) => s.trim())
             .filter(Boolean);
 
+      // Determine isPrivate: prefer selection-derived flag, otherwise infer from first spot name
+      const isPrivateToSave =
+        typeof editForm.isPrivate === 'boolean'
+          ? editForm.isPrivate
+          : (spotsToSave[0] || '').toLowerCase() === 'badol camping grounds';
+
       await updateDoc(visitRef, {
         fullName: editForm.fullName,
         visitorType: editForm.visitorType,
@@ -208,6 +216,7 @@ export default function MyTravelsPage() {
         barangays: barangaysToSave,
         spots: spotsToSave,
         date: editForm.date,
+        isPrivate: !!isPrivateToSave, // <-- save the computed flag
       });
       alert('Visit updated successfully.');
       closeEditModal();
@@ -228,8 +237,13 @@ export default function MyTravelsPage() {
 
   const selectSpot = (id: string) => {
     setSelectedSpotId(id);
-    const name = allSpots.find((s) => s.id === id)?.name || id;
+    const spot = allSpots.find((s) => s.id === id);
+    const name = spot?.name || id;
+    // set the spot name in the text field
     handleEditChange('spots', name);
+    // determine isPrivate immediately based on selected spot name
+    const isPrivateFlag = String(name).trim().toLowerCase() === 'badol camping grounds';
+    handleEditChange('isPrivate', isPrivateFlag);
   };
 
   if (loading)
