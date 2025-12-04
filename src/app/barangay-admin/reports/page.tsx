@@ -21,6 +21,49 @@ export default function ReportsPage() {
   const [role, setRole] = useState<'barangay' | 'private' | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // period state: weekly, monthly, quarterly, yearly, or all
+  const [period, setPeriod] = useState<'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'all'>('monthly');
+
+  // helper: compute start date for the chosen period
+  const getRangeStart = (p: typeof period) => {
+    const now = new Date();
+    switch (p) {
+      case 'weekly': {
+        const d = new Date(now);
+        d.setDate(now.getDate() - 7);
+        return d;
+      }
+      case 'monthly': {
+        const d = new Date(now);
+        d.setMonth(now.getMonth() - 1);
+        return d;
+      }
+      case 'quarterly': {
+        const d = new Date(now);
+        d.setMonth(now.getMonth() - 3);
+        return d;
+      }
+      case 'yearly': {
+        const d = new Date(now);
+        d.setFullYear(now.getFullYear() - 1);
+        return d;
+      }
+      case 'all':
+      default:
+        return new Date(0);
+    }
+  };
+
+  // memoized filtered visits based on selected period
+  const periodFiltered = (() => {
+    const start = getRangeStart(period);
+    return visits.filter((v) => {
+      const d = v.completedAt?.toDate ? v.completedAt.toDate() : v.date ? new Date(v.date) : null;
+      if (!d) return false;
+      return d >= start;
+    });
+  })();
+
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) return setLoading(false);
@@ -78,26 +121,24 @@ export default function ReportsPage() {
 
   // 🔹 PDF EXPORT FUNCTION — UPDATED
   const handleDownloadPDF = () => {
-    if (visits.length === 0) {
-      alert('No completed visit reports available to download.');
+    if (periodFiltered.length === 0) {
+      alert('No completed visit reports available for the selected period to download.');
       return;
     }
 
     const doc = new jsPDF();
-
     doc.setFontSize(18);
-    doc.text(`${placeName} – Completed Visits Report`, 14, 15);
+    const periodLabel = period === 'all' ? 'All' : period.charAt(0).toUpperCase() + period.slice(1);
+    doc.text(`${placeName} – ${periodLabel} Completed Visits Report`, 14, 15);
 
-    const tableRows = visits.map((v) => {
+    const tableRows = periodFiltered.map((v) => {
       const completedAt = v.completedAt?.toDate ? v.completedAt.toDate() : null;
       return [
         v.fullName || 'N/A',
         v.email || 'N/A',
         v.spots?.join(', ') || '—',
         v.companions?.length || 0,
-        completedAt
-          ? completedAt.toLocaleDateString('en-PH')
-          : '—',
+        completedAt ? completedAt.toLocaleDateString('en-PH') : '—',
         completedAt
           ? completedAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })
           : '—',
@@ -110,7 +151,7 @@ export default function ReportsPage() {
       body: tableRows,
     });
 
-    doc.save(`${placeName}_Completed_Visits.pdf`);
+    doc.save(`${placeName}_${period}_Completed_Visits.pdf`);
   };
 
   if (loading) {
@@ -125,35 +166,49 @@ export default function ReportsPage() {
         </h1>
       </div>
 
-      {/* 🔽 PDF BUTTON — UPDATED */}
-      <button
-        onClick={handleDownloadPDF}
-        disabled={visits.length === 0} // 🔥 disable if empty
-        className={`mb-4 px-4 py-2 rounded text-white ${
-          visits.length === 0
-            ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-green-600 hover:bg-green-700'
-        }`}
-      >
-        📄 Download PDF
-      </button>
+      {/* Period selector + PDF button */}
+      <div className="flex items-center gap-4 mb-4">
+        <div className="inline-flex rounded-md shadow-sm" role="tablist" aria-label="Period">
+          {(['weekly','monthly','quarterly','yearly','all'] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md focus:outline-none ${
+                period === p ? 'bg-green-600 text-white' : 'bg-white border text-gray-700'
+              }`}
+              role="tab"
+              aria-selected={period === p}
+            >
+              {p === 'all' ? 'All' : p.charAt(0).toUpperCase() + p.slice(1)}
+            </button>
+          ))}
+        </div>
 
-      {visits.length === 0 ? (
+        <button
+          onClick={handleDownloadPDF}
+          disabled={periodFiltered.length === 0}
+          className={`ml-auto mb-4 px-4 py-2 rounded text-white ${
+            periodFiltered.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+          }`}
+        >
+          📄 Download PDF ({period === 'all' ? 'All' : period})
+        </button>
+      </div>
+
+      {periodFiltered.length === 0 ? (
         <p className="text-gray-500 text-center mt-10">
-          No completed visits found for this {role === 'barangay' ? 'barangay' : 'spot'}.
+          No completed visits found for this {role === 'barangay' ? 'barangay' : 'spot'} in the selected period ({period === 'all' ? 'All' : period}).
         </p>
       ) : (
         <ul className="divide-y divide-gray-200 bg-white rounded-xl shadow">
-          {visits
+          {periodFiltered
             .sort(
               (a, b) =>
                 new Date(b.completedAt?.toDate?.() || b.date).getTime() -
                 new Date(a.completedAt?.toDate?.() || a.date).getTime()
             )
             .map((visit) => {
-              const completedAt = visit.completedAt?.toDate
-                ? visit.completedAt.toDate()
-                : null;
+              const completedAt = visit.completedAt?.toDate ? visit.completedAt.toDate() : null;
 
               return (
                 <motion.li
@@ -184,18 +239,11 @@ export default function ReportsPage() {
 
                     <div className="mt-3 sm:mt-0 text-sm text-gray-500 flex flex-col items-end">
                       <span className="flex items-center gap-1">
-                        <Calendar size={14} /> 
-                        {completedAt
-                          ? completedAt.toLocaleDateString('en-PH')
-                          : '—'}
+                        <Calendar size={14} />
+                        {completedAt ? completedAt.toLocaleDateString('en-PH') : '—'}
                       </span>
                       <span>
-                        {completedAt
-                          ? completedAt.toLocaleTimeString('en-PH', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : '—'}
+                        {completedAt ? completedAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </span>
                     </div>
                   </div>

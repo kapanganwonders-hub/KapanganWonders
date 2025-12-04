@@ -172,9 +172,9 @@ export default function ScheduleVisitPage() {
     visitorType: string;
     barangays: string[];
     spots: Spot[];
-    companions: string[];
     date: Date | null;
     agree: boolean;
+    contactNumber: string;
   }
 
   const [form, setForm] = useState<FormData>({
@@ -184,9 +184,9 @@ export default function ScheduleVisitPage() {
     visitorType: '',
     barangays: [],
     spots: [],
-    companions: [''],
     date: null,
     agree: false,
+    contactNumber: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -200,31 +200,30 @@ export default function ScheduleVisitPage() {
   const [spotsByBarangay, setSpotsByBarangay] = useState<Record<string, Spot[]>>({});
   const [isLoadingSpots, setIsLoadingSpots] = useState(true);
 
+  // replace existing handler that allowed multiple barangays
   const handleBarangayChange = (barangay: string) => {
-    const newBarangays = form.barangays.includes(barangay)
-      ? form.barangays.filter((b) => b !== barangay)
-      : [...form.barangays, barangay];
-    setForm({ ...form, barangays: newBarangays, spots: [] });
+    // If clicked the already selected barangay, clear selection
+    if (form.barangays[0] === barangay) {
+      setForm({ ...form, barangays: [], spots: [] });
+    } else {
+      // Select only this barangay and clear any selected spots
+      setForm({ ...form, barangays: [barangay], spots: [] });
+    }
   };
 
+  // replace existing handler that allowed multiple spots
   const handleSpotChange = (spotId: string, spotName: string, isChecked: boolean, businessId: string | null = null) => {
-    setForm(prev => ({
-      ...prev,
-      spots: isChecked 
-        ? [...prev.spots, { id: spotId, name: spotName, businessId }] 
-        : prev.spots.filter(spot => spot.id !== spotId)
-    }));
+    if (isChecked) {
+      // Select only this spot
+      setForm(prev => ({
+        ...prev,
+        spots: [{ id: spotId, name: spotName, businessId }]
+      }));
+    } else {
+      // Clear spot selection
+      setForm(prev => ({ ...prev, spots: [] }));
+    }
   };
-
-  const handleCompanionChange = (index: number, value: string) => {
-    const updated = [...form.companions];
-    updated[index] = value;
-    setForm({ ...form, companions: updated });
-  };
-
-  const addCompanion = () => setForm({ ...form, companions: [...form.companions, ''] });
-  const removeCompanion = (index: number) =>
-    setForm({ ...form, companions: form.companions.filter((_, i) => i !== index) });
 
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -260,11 +259,12 @@ export default function ScheduleVisitPage() {
         userId: user.uid,
         fullName: form.fullName,
         email: form.email,
+        contactNumber: form.contactNumber,
         age: form.age,
         visitorType: form.visitorType,
         barangays: form.barangays,
-        spots: publicSpots.map(spot => spot.name), // 🔥 Save names directly
-        companions: form.companions.filter(c => c.trim() !== ''),
+        spots: publicSpots.map(spot => spot.name),
+        companions: [], // companions removed from form, keep empty array for schema
         date: formattedDate,
         agree: form.agree,
         status: 'pending',
@@ -281,11 +281,12 @@ export default function ScheduleVisitPage() {
         userId: user.uid,
         fullName: form.fullName,
         email: form.email,
+        contactNumber: form.contactNumber,
         age: form.age,
         visitorType: form.visitorType,
         barangays: form.barangays,
-        spots: spots.map(spot => spot.name), // 🔥 Save names directly
-        companions: form.companions.filter(c => c.trim() !== ''),
+        spots: spots.map(spot => spot.name),
+        companions: [], // companions removed from form
         date: formattedDate,
         agree: form.agree,
         status: 'pending',
@@ -332,18 +333,35 @@ export default function ScheduleVisitPage() {
             <h2 className="text-xl font-semibold text-green-700 mb-4 border-l-4 border-green-400 pl-2">
               Personal Information
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-1">
-                <label className="block text-gray-600 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={form.fullName}
-                  className="border border-gray-300 rounded-md w-full p-2.5 focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                  onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                />
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-600 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.fullName}
+                    className="border border-gray-300 rounded-md w-full p-2.5 focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 mb-1">Visitor Type</label>
+                  <select
+                    required
+                    value={form.visitorType}
+                    className="border border-gray-300 rounded-md w-full p-2.5 bg-white focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                    onChange={(e) => setForm({ ...form, visitorType: e.target.value })}
+                  >
+                    <option value="">Select type</option>
+                    <option value="domestic">Domestic</option>
+                    <option value="foreign">Foreign</option>
+                  </select>
+                </div>
               </div>
-              <div className="md:col-span-1">
+
+              <div>
                 <label className="block text-gray-600 mb-1">Email</label>
                 <input
                   type="email"
@@ -353,7 +371,8 @@ export default function ScheduleVisitPage() {
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
               </div>
-              <div className="md:col-span-1">
+
+              <div>
                 <label className="block text-gray-600 mb-1">Age</label>
                 <input
                   type="number"
@@ -365,60 +384,17 @@ export default function ScheduleVisitPage() {
                 />
               </div>
 
-              {/*  Visitor Type */}
-              <div className="md:col-span-1">
-                <label className="block text-gray-600 mb-1">Visitor Type</label>
-                <select
+              <div>
+                <label className="block text-gray-600 mb-1">Contact Number</label>
+                <input
+                  type="tel"
                   required
-                  value={form.visitorType}
-                  className="border border-gray-300 rounded-md w-full p-2.5 bg-white focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                  onChange={(e) => setForm({ ...form, visitorType: e.target.value })}
-                >
-                  <option value="">Select type</option>
-                  <option value="domestic">Domestic</option>
-                  <option value="foreign">Foreign</option>
-                </select>
+                  value={form.contactNumber}
+                  className="border border-gray-300 rounded-md w-full p-2.5 focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                  onChange={(e) => setForm({ ...form, contactNumber: e.target.value })}
+                />
               </div>
             </div>
-          </section>
-
-          {/* Rest of your code remains unchanged */}
-          {/* ... Companions, Destination, Visit Details, Submit button, Success modal ... */}
-
-          {/* Companions */}
-          <section>
-            <h2 className="text-xl font-semibold text-green-700 mb-4 border-l-4 border-green-400 pl-2">
-              Companions
-            </h2>
-            <div className="space-y-2">
-              {form.companions.map((companion, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder={`Companion ${index + 1}`}
-                    className="border border-gray-300 rounded-md w-full p-2.5 focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                    value={companion}
-                    onChange={(e) => handleCompanionChange(index, e.target.value)}
-                  />
-                  {index > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => removeCompanion(index)}
-                      className="text-red-500 hover:text-red-700 text-lg"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={addCompanion}
-              className="mt-3 text-green-600 hover:text-green-700 text-sm font-medium"
-            >
-              + Add another companion
-            </button>
           </section>
 
           {/* Destination Selection */}
@@ -440,7 +416,8 @@ export default function ScheduleVisitPage() {
                   >
                     <input
                       type="checkbox"
-                      checked={form.barangays.includes(barangay)}
+                      // show as checked only if this barangay is the single selected one
+                      checked={form.barangays[0] === barangay}
                       onChange={() => handleBarangayChange(barangay)}
                       className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                     />
@@ -465,7 +442,8 @@ export default function ScheduleVisitPage() {
                         <input
                           type="checkbox"
                           id={`spot-${spot.id}`}
-                          checked={form.spots.some(s => s.id === spot.id)}
+                          // checked only if this spot is the single selected one
+                          checked={form.spots.length > 0 && form.spots[0].id === spot.id}
                           onChange={(e) => handleSpotChange(spot.id, spot.name, e.target.checked, spot.businessId || null)}
                           className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
