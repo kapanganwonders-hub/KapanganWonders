@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Trash } from 'lucide-react';
+import { Trash, Calendar, MapPin, User, Download } from 'lucide-react';
+import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -11,7 +12,6 @@ interface Visit {
   id: string;
   fullName?: string;
   email?: string;
-  companions?: string[];
   status?: string;
   completedAt?: any;
   visitorType?: string;
@@ -22,6 +22,16 @@ interface Visit {
 export default function ReportsPage() {
   const [completedVisits, setCompletedVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // period state: weekly, monthly, quarterly, yearly, or all
+  const [period, setPeriod] = useState<'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'all'>('monthly');
+
+  // barangay filter (deduped, title-cased)
+  const [selectedBarangay, setSelectedBarangay] = useState<string>('all');
+
+  // pagination state: 5 per page
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     const fetchCompletedVisits = async () => {
@@ -51,46 +61,156 @@ export default function ReportsPage() {
     fetchCompletedVisits();
   }, []);
 
-  // ⬇ UPDATED: Includes Barangay & Spot
+  // helper to produce Title Case from raw barangay strings
+  const toTitle = (s: string) =>
+    s
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ''))
+      .join(' ');
+
+  // derive unique barangay options (case-insensitive dedupe; display Title Case)
+  const barangayOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    completedVisits.forEach((v) =>
+      v.barangays?.forEach((b) => {
+        const key = b.trim().toLowerCase();
+        if (!map.has(key)) map.set(key, toTitle(b));
+      })
+    );
+    return ['all', ...Array.from(map.values()).sort((a, b) => a.localeCompare(b))];
+  }, [completedVisits]);
+
+  // helper: compute start date for the chosen period
+  const getRangeStart = (p: typeof period) => {
+    const now = new Date();
+    switch (p) {
+      case 'weekly': {
+        const d = new Date(now);
+        d.setDate(now.getDate() - 7);
+        return d;
+      }
+      case 'monthly': {
+        const d = new Date(now);
+        d.setMonth(now.getMonth() - 1);
+        return d;
+      }
+      case 'quarterly': {
+        const d = new Date(now);
+        d.setMonth(now.getMonth() - 3);
+        return d;
+      }
+      case 'yearly': {
+        const d = new Date(now);
+        d.setFullYear(now.getFullYear() - 1);
+        return d;
+      }
+      case 'all':
+      default:
+        return new Date(0);
+    }
+  };
+
+  // period + barangay filtered visits
+  const periodFiltered = useMemo(() => {
+    const start = getRangeStart(period);
+    const barangayKey = selectedBarangay === 'all' ? null : selectedBarangay.toLowerCase();
+    return completedVisits.filter((v) => {
+      const raw = v.completedAt?.toDate?.() || v.completedAt || null;
+      const d = raw ? new Date(raw) : null;
+      if (!d) return false;
+      if (d < start) return false;
+      if (barangayKey) {
+        return (v.barangays || []).some((b) => b.trim().toLowerCase() === barangayKey);
+      }
+      return true;
+    });
+  }, [completedVisits, period, selectedBarangay]);
+
+  // reset page when period or barangay filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [period, selectedBarangay]);
+
+  // pagination calculations
+  const totalPages = Math.max(1, Math.ceil(periodFiltered.length / itemsPerPage));
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const paginated = useMemo(() => {
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    return periodFiltered.slice(startIdx, startIdx + itemsPerPage);
+  }, [periodFiltered, currentPage]);
+
+  const formatDate = (d: any) =>
+    d ? new Date(d?.toDate?.() || d).toLocaleDateString('en-PH') : '—';
+  const formatTime = (d: any) =>
+    d ? new Date(d?.toDate?.() || d).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—';
+
+  // PDF export — companions removed
   const handleDownloadPDF = () => {
-    if (completedVisits.length === 0) {
-      alert('No completed visit reports available to download.');
+    if (periodFiltered.length === 0) {
+      alert('No completed visit reports available for the selected period to download.');
       return;
     }
 
     const doc = new jsPDF();
     doc.setFontSize(18);
-    doc.text('Kapangan Wonders - Completed Visits Report', 14, 15);
+    const periodLabel = period === 'all' ? 'All' : period.charAt(0).toUpperCase() + period.slice(1);
+    const barangayLabel = selectedBarangay === 'all' ? 'All Barangays' : toTitle(selectedBarangay);
+    doc.text(`${barangayLabel} – ${periodLabel} Completed Visits Report`, 14, 15);
 
-    const tableRows = completedVisits.map((v) => [
-      v.fullName || 'N/A',
-      v.email || 'N/A',
-      v.visitorType || 'Unknown',
-      v.barangays?.join(', ') || 'N/A',
-      v.spots?.join(', ') || 'N/A',
-      v.companions?.length || 0,
-      v.completedAt
-        ? new Date(v.completedAt?.toDate?.() || v.completedAt).toLocaleString()
-        : 'N/A',
-    ]);
+    const tableRows = periodFiltered.map((v) => {
+      const completedAt = v.completedAt?.toDate ? v.completedAt.toDate() : null;
+      return [
+        v.fullName || 'N/A',
+        v.email || 'N/A',
+        v.spots?.join(', ') || '—',
+        completedAt ? completedAt.toLocaleDateString('en-PH') : '—',
+        completedAt ? completedAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—',
+      ];
+    });
 
     autoTable(doc, {
       startY: 25,
-      head: [
-        [
-          'Name',
-          'Email',
-          'Visitor Type',
-          'Barangay',
-          'Spot',
-          'Companions',
-          'Completed At',
-        ],
-      ],
+      head: [['Name', 'Email', 'Spots', 'Date', 'Time']],
       body: tableRows,
     });
 
-    doc.save('Completed_Visits_Report.pdf');
+    doc.save(`${barangayLabel}_${period}_Completed_Visits.pdf`);
+  };
+
+  // CSV export — companions removed
+  const handleExportCSV = () => {
+    if (periodFiltered.length === 0) {
+      alert('No records to export.');
+      return;
+    }
+
+    const barangayLabel = selectedBarangay === 'all' ? 'All_Barangays' : toTitle(selectedBarangay).replace(/\s+/g, '_');
+    const headers = ['Name', 'Email', 'Spots', 'Date', 'Time'];
+    const rows = periodFiltered.map((v) => {
+      const completedAt = v.completedAt?.toDate ? v.completedAt.toDate() : null;
+      return [
+        `"${(v.fullName || '').replace(/"/g, '""')}"`,
+        `"${(v.email || '').replace(/"/g, '""')}"`,
+        `"${(v.spots || []).join(', ')}"`,
+        `"${completedAt ? completedAt.toLocaleDateString('en-PH') : ''}"`,
+        `"${completedAt ? completedAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : ''}"`,
+      ].join(',');
+    });
+    const csv = [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${barangayLabel}_${period}_Completed_Visits.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   const handleDelete = async (id: string) => {
@@ -99,79 +219,119 @@ export default function ReportsPage() {
     setCompletedVisits((prev) => prev.filter((v) => v.id !== id));
   };
 
-  if (loading)
-    return <p className="text-center mt-10">Loading completed visits...</p>;
+  if (loading) return <p className="text-center mt-10 text-gray-600">Loading visit reports...</p>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold text-green-700 mb-6">
-        ✅ Completed Visits
-      </h1>
+    <div className="p-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h1 className="text-3xl font-bold text-green-700">
+          Completed Visits
+        </h1>
+      </div>
 
-      <button
-        onClick={handleDownloadPDF}
-        disabled={completedVisits.length === 0}
-        className={`mb-4 px-4 py-2 rounded text-white ${
-          completedVisits.length === 0
-            ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-green-600 hover:bg-green-700'
-        }`}
-      >
-        📄 Download PDF
-      </button>
+      {/* Controls: period selector, barangay selector, exports */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+        <div className="inline-flex rounded-md shadow-sm" role="tablist" aria-label="Period">
+          {(['weekly','monthly','quarterly','yearly','all'] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md focus:outline-none ${
+                period === p ? 'bg-green-600 text-white' : 'bg-white border text-gray-700'
+              }`}
+              role="tab"
+              aria-selected={period === p}
+            >
+              {p === 'all' ? 'All' : p.charAt(0).toUpperCase() + p.slice(1)}
+            </button>
+          ))}
+        </div>
 
-      <div className="overflow-x-auto rounded-lg shadow">
-        <table className="min-w-full bg-white border border-gray-200">
-          <thead className="bg-green-600 text-white">
-            <tr>
-              <th className="p-3 text-left">Name</th>
-              <th className="p-3 text-left">Email</th>
-              <th className="p-3 text-left">Visitor Type</th>
-              <th className="p-3 text-left">Barangay</th>
-              <th className="p-3 text-left">Spot</th>
-              <th className="p-3 text-left">Companions</th>
-              <th className="p-3 text-left">Date & Time Completed</th>
-              <th className="p-3 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {completedVisits.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center py-6 text-gray-500">
-                  No completed visits found.
-                </td>
-              </tr>
-            ) : (
-              completedVisits.map((visit) => (
-                <tr key={visit.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3">{visit.fullName || 'N/A'}</td>
-                  <td className="p-3">{visit.email || 'N/A'}</td>
-                  <td className="p-3 capitalize">
-                    {visit.visitorType || 'Unknown'}
-                  </td>
-                  <td className="p-3">
-                    {visit.barangays?.join(', ') || (
-                      <span className="text-gray-500 italic">N/A</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {visit.spots?.join(', ') || (
-                      <span className="text-gray-500 italic">N/A</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {visit.companions?.length
-                      ? `${visit.companions.length} companion(s)`
-                      : 'No companions'}
-                  </td>
-                  <td className="p-3">
-                    {visit.completedAt
-                      ? new Date(
-                          visit.completedAt?.toDate?.() || visit.completedAt
-                        ).toLocaleString()
-                      : 'N/A'}
-                  </td>
-                  <td className="p-3 text-center">
+        <select
+          value={selectedBarangay}
+          onChange={(e) => setSelectedBarangay(e.target.value)}
+          className="px-3 py-2 border rounded ml-2"
+        >
+          {barangayOptions.map((b) => (
+            <option key={b} value={b === 'all' ? 'all' : b.toLowerCase()}>
+              {b === 'all' ? 'All Barangays' : b}
+            </option>
+          ))}
+        </select>
+
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={handleDownloadPDF}
+            disabled={periodFiltered.length === 0}
+            className={`px-4 py-2 rounded text-white ${
+              periodFiltered.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+            }`}
+          >
+            <Download size={16} className="inline-block mr-2" /> PDF ({period === 'all' ? 'All' : period})
+          </button>
+
+          <button
+            onClick={handleExportCSV}
+            disabled={periodFiltered.length === 0}
+            className={`px-4 py-2 rounded text-white ${
+              periodFiltered.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            <Download size={16} className="inline-block mr-2" /> CSV ({period === 'all' ? 'All' : period})
+          </button>
+        </div>
+      </div>
+
+      {periodFiltered.length === 0 ? (
+        <p className="text-gray-500 text-center mt-10">
+          No completed visits found for the selected period.
+        </p>
+      ) : (
+        <ul className="divide-y divide-gray-200 bg-white rounded-xl shadow">
+          {paginated
+            .slice()
+            .sort(
+              (a, b) =>
+                new Date(b.completedAt?.toDate?.() || b.completedAt || 0).getTime() -
+                new Date(a.completedAt?.toDate?.() || a.completedAt || 0).getTime()
+            )
+            .map((visit) => {
+              const completedAt = visit.completedAt?.toDate ? visit.completedAt.toDate() : visit.completedAt ? new Date(visit.completedAt) : null;
+
+              return (
+                <motion.li
+                  key={visit.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-5 hover:bg-gray-50 transition flex justify-between items-start"
+                >
+                  <div>
+                    <h2 className="font-semibold text-green-700 text-lg">{visit.fullName || 'N/A'}</h2>
+
+                    <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                      <User size={14} /> {visit.email || 'N/A'}
+                    </p>
+
+                    <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                      <MapPin size={14} /> Spots: {visit.spots?.join(', ') || '—'}
+                    </p>
+
+                    <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                      {/* display barangays if present */}
+                      <span className="font-medium">Barangay:</span>{' '}
+                      {visit.barangays?.map((b) => toTitle(b)).join(', ') || '—'}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="text-sm text-gray-500 flex flex-col items-end">
+                      <span className="flex items-center gap-1">
+                        <Calendar size={14} />
+                        {completedAt ? completedAt.toLocaleDateString('en-PH') : '—'}
+                      </span>
+                      <span>{completedAt ? completedAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                    </div>
+
                     <button
                       onClick={() => handleDelete(visit.id)}
                       className="text-red-500 hover:text-red-700"
@@ -179,13 +339,52 @@ export default function ReportsPage() {
                     >
                       <Trash size={18} />
                     </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                </motion.li>
+              );
+            })}
+        </ul>
+      )}
+
+      {/* Pagination controls (5 per page) */}
+      {periodFiltered.length > itemsPerPage && (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-gray-600">
+            Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, periodFiltered.length)} of {periodFiltered.length} results
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className={`px-2 py-1 border rounded ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              « First
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`px-2 py-1 border rounded ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              ‹ Prev
+            </button>
+            <span className="px-3">{currentPage} / {totalPages}</span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-2 py-1 border rounded ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              Next ›
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className={`px-2 py-1 border rounded ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              Last »
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

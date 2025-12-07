@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, User, Users } from 'lucide-react';
+import { Calendar, MapPin, User, Users, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -134,6 +134,52 @@ export default function ReportsPage() {
     doc.save(`${placeName}_${period}_Completed_Visits.pdf`);
   };
 
+  // 🔹 CSV EXPORT FUNCTION — NEW
+  const handleDownloadCSV = () => {
+    if (periodFiltered.length === 0) {
+      alert('No completed visit reports available for the selected period to download.');
+      return;
+    }
+
+    const rows = [
+      ['Name', 'Email', 'Spots', 'Companions', 'Date', 'Time'],
+      ...periodFiltered.map((v) => {
+        const completedAt = v.completedAt?.toDate ? v.completedAt.toDate() : null;
+        const date = completedAt ? completedAt.toLocaleDateString('en-PH') : '';
+        const time = completedAt ? completedAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '';
+        return [
+          v.fullName || 'N/A',
+          v.email || 'N/A',
+          v.spots?.join(', ') || '',
+          Array.isArray(v.companions) ? v.companions.join(', ') : (v.companions || ''),
+          date,
+          time,
+        ];
+      }),
+    ];
+
+    const csvContent = rows
+      .map((r) =>
+        r
+          .map((cell) => {
+            const s = String(cell ?? '');
+            return `"${s.replace(/"/g, '""')}"`;
+          })
+          .join(',')
+      )
+      .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${placeName}_${period}_Completed_Visits.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return <p className="text-center mt-10 text-gray-600">Loading visit reports...</p>;
   }
@@ -164,6 +210,7 @@ export default function ReportsPage() {
           ))}
         </div>
 
+        {/* PDF BUTTON — use Download icon and push buttons right */}
         <button
           onClick={handleDownloadPDF}
           disabled={periodFiltered.length === 0}
@@ -171,7 +218,18 @@ export default function ReportsPage() {
             periodFiltered.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
           }`}
         >
-          📄 Download PDF ({period === 'all' ? 'All' : period})
+          <Download size={16} className="inline-block mr-2" /> PDF ({period === 'all' ? 'All' : period})
+        </button>
+
+        {/* CSV BUTTON — placed to the right of PDF, uses same download symbol */}
+        <button
+          onClick={handleDownloadCSV}
+          disabled={periodFiltered.length === 0}
+          className={`mb-4 ml-2 px-4 py-2 rounded text-white ${
+            periodFiltered.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          <Download size={16} className="inline-block mr-2" /> CSV ({period === 'all' ? 'All' : period})
         </button>
       </div>
 

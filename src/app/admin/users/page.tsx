@@ -49,6 +49,7 @@ export default function UsersManagement() {
 
   const [users, setUsers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('All');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showBarangayDropdown, setShowBarangayDropdown] = useState(true);
   const [newUser, setNewUser] = useState({
@@ -405,6 +406,19 @@ export default function UsersManagement() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <div className="w-48">
+              <label className="sr-only">Filter by role</label>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="block w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="All">All Roles</option>
+                <option value="Tourist">Tourist</option>
+                <option value="Barangay Admin">Barangay Admin</option>
+                <option value="Private Spot Owner">Private Spot Owner</option>
+              </select>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -419,12 +433,14 @@ export default function UsersManagement() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {users
-                  .filter(
-                    (u) =>
+                  .filter((u) => {
+                    const matchesSearch =
                       u.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-                  )
-                  .map((user) => (
+                      u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesRole = roleFilter === 'All' || u.role === roleFilter;
+                    return matchesSearch && matchesRole;
+                  })
+                   .map((user) => (
                     <tr key={user.id}>
                       <td className="px-6 py-4 flex items-center space-x-3">
                         <img
