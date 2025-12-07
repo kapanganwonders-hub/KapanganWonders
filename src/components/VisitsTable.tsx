@@ -124,15 +124,41 @@ export default function VisitsTable({ role, filterFn }: VisitsTableProps) {
   }, [filterFn]);
 
   // ✅ Approve a visit
-  const handleApprove = async (id: string) => {
-    try {
-      await updateDoc(doc(db, 'visits', id), { status: 'Approved' });
-      alert('✅ Visit approved successfully.');
-    } catch (error) {
-      console.error('Error approving visit:', error);
-      alert('Failed to approve visit.');
+ const handleApprove = async (id: string) => {
+  try {
+    const ref = doc(db, "visits", id);
+    const snap = await getDoc(ref);
+    const data = snap.data();
+
+    if (!data || !data.email) {
+      alert("⚠ No email found for this user.");
+      return;
     }
-  };
+
+    // 1. Approve visit
+    await updateDoc(ref, { status: "Approved" });
+
+    // 2. Send QR to user's email
+    await fetch("/api/send-qr-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: data.email,
+        fullName: data.fullName,
+        visitId: id,
+        barangays: data.barangays || [],
+        spotNames: data.spotNames || data.spots || [],
+        date: data.date,
+      }),
+    });
+
+    alert("✅ Visit approved & email sent!");
+  } catch (error) {
+    console.error("Approve+Email error:", error);
+    alert("Failed to approve or send email.");
+  }
+};
+
 
   // 🗑️ Delete a visit
   const handleDelete = async (id: string) => {
