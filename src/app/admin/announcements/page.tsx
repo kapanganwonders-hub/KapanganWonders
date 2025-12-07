@@ -182,6 +182,61 @@ export default function AnnouncementsPage() {
     }));
   };
 
+  // Added: send emails to tourists after creating an announcement
+  const sendAnnouncementEmails = async (subject: string, message: string, barangayFilter?: string) => {
+    try {
+      // Fetch all users and collect emails, but only for tourists.
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const emailsSet = new Set<string>();
+
+      usersSnapshot.forEach(u => {
+        const data = u.data() as any;
+        if (!data) return;
+
+        // Determine role field (flexible to common variations)
+        const role = (data.role || data.userType || data.accountType || '').toString().toLowerCase();
+
+        // Only include tourists
+        if (role !== 'tourist') return;
+
+        // Optional barangay filter (if user has barangay field)
+        if (barangayFilter && data.barangay && data.barangay !== barangayFilter) return;
+
+        // Only include users with a valid email string
+        const email = typeof data.email === 'string' ? data.email.trim() : '';
+        if (!email) return;
+
+        emailsSet.add(email);
+      });
+
+      const emails = Array.from(emailsSet);
+      if (emails.length === 0) {
+        setAlert({ type: 'info', message: 'No tourist recipient emails found to send announcement.' });
+        return { success: false, message: 'No recipients' };
+      }
+
+      // Call server API to send email
+      const res = await fetch('/api/send-announcement-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, message, emails })
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        const msg = result?.error || 'Failed to send announcement emails';
+        setAlert({ type: 'destructive', message: msg });
+        return { success: false, message: msg };
+      }
+
+      setAlert({ type: 'success', message: 'Emails sent to tourists successfully.' });
+      return { success: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setAlert({ type: 'destructive', message: `Email send failed: ${msg}` });
+      return { success: false, message: msg };
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,6 +287,11 @@ export default function AnnouncementsPage() {
       
       setShowForm(false);
       await fetchAnnouncements(); // Wait for refresh to complete
+
+      // Send emails to users (tourists)
+      // Use announcement title as subject and content as message. You can adapt formatting as needed.
+      await sendAnnouncementEmails(announcementData.title, announcementData.content, announcementData.barangay);
+
       setAlert({ type: 'success', message: 'Announcement created successfully!' });
     } catch (error) {
       console.error('Error submitting announcement:', error);
