@@ -821,9 +821,10 @@ export default function TouristSpots() {
   };
 
   // If showing details, render the detail page
-  if (showDetails && selectedSpot && editedSpot) {
+    if (showDetails && selectedSpot && editedSpot) {
     return (
-      <div className="min-h-screen bg-black/70 backdrop-blur-sm">
+      <div className="min-h-screen bg-black/70 backdrop-blur-sm modal-black" style={{ color: '#000' }}>
+        <style>{`.modal-black, .modal-black * { color: #000 !important; }`}</style>
         {/* Header with back button */}
         <div className="bg-black/50 backdrop-blur-sm border-b border-white/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -1087,20 +1088,32 @@ export default function TouristSpots() {
                             />
                           </div>
                         ))}
+
+                        {/* Helper note for editors: explain tour guide optionality */}
+                        <p className="text-sm text-black mt-2">
+                          Note: The tour guide is optional. If visitors choose to avail a tour guide, charge the additional amount under "Tour Guide Fee" above.
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-2">
                         {selectedSpot.entranceFees ? (
-                          Object.entries(selectedSpot.entranceFees).map(([feeType, fee]) => (
-                            fee && (
-                              <div key={feeType} className="flex justify-between">
-                                <span className="text-primary-green/70">{fee.label || feeType}:</span>
-                                <span className="font-medium">
-                                  {fee.amount > 0 ? `₱${fee.amount.toFixed(2)}` : 'Free'}
-                                </span>
-                              </div>
-                            )
-                          ))
+                          <>
+                            {Object.entries(selectedSpot.entranceFees).map(([feeType, fee]) => (
+                              fee && (
+                                <div key={feeType} className="flex justify-between">
+                                  <span className="text-primary-green/70">{fee.label || feeType}:</span>
+                                  <span className="font-medium">
+                                    {fee.amount > 0 ? `₱${fee.amount.toFixed(2)}` : 'Free'}
+                                  </span>
+                                </div>
+                              )
+                            ))}
+
+                            {/* Informational note for visitors in the details modal */}
+                            <p className="text-sm text-black mt-2">
+                              Note: Tour guide is optional. If you want to avail a tour guide, an additional fee will apply — see the "Tour Guide Fee" above.
+                            </p>
+                          </>
                         ) : (
                           <p className="text-primary-green/70 italic">No entrance fee information available</p>
                         )}
