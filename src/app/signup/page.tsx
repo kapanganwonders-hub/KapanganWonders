@@ -12,8 +12,9 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   signOut as firebaseSignOut,
+  fetchSignInMethodsForEmail,
 } from 'firebase/auth';
-import { signInWithGoogle } from '@/lib/auth';
+import { signInWithGoogle, fetchGoogleProfile } from '@/lib/auth';
 import { PasswordStrengthIndicator, type StrengthLevel } from "@/components/lightswind/password-strength-indicator"
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -39,6 +40,7 @@ export default function SignUp() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [verifiedGoogleEmail, setVerifiedGoogleEmail] = useState<string | null>(null);
   
   // Carousel state
   const [carouselItems, setCarouselItems] = useState<Array<{id: string; image: string; fileId?: string}>>([]);
@@ -124,6 +126,8 @@ export default function SignUp() {
     
     // Clear error when user types
     if (error) setError('');
+    // If user edits the email after prefilling, clear the verified flag
+    if (name === 'email' && verifiedGoogleEmail) setVerifiedGoogleEmail(null);
   };
 
   // 📩 Email/password signup
@@ -139,6 +143,17 @@ export default function SignUp() {
     if (formData.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
       setError('This email is reserved for the Kapangan Wonders administrator.');
       return;
+    }
+
+    // If the user entered a Gmail address, require Google sign-in verification.
+    // Allow signup only when the user has previously fetched/verified the Gmail via the Google icon.
+    const emailLower = formData.email.toLowerCase();
+    if (emailLower.endsWith('@gmail.com') || emailLower.endsWith('@googlemail.com')) {
+      if (verifiedGoogleEmail !== emailLower) {
+        setError('For Gmail addresses please use the Google icon to verify your Gmail before creating a password account.');
+        setIsLoading(false);
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -180,7 +195,21 @@ export default function SignUp() {
       let message = 'An error occurred during signup. Please try again.';
 
       if (err?.code === 'auth/email-already-in-use') {
-        message = 'This email is already registered. Please sign in instead.';
+        // The email exists in Firebase Auth (could be Google, password, etc.)
+        // Query sign-in methods to give the user a clearer action.
+        try {
+          const methods = await fetchSignInMethodsForEmail(auth, formData.email);
+          if (methods && methods.includes('google.com')) {
+            message = 'This email is registered using Google. Please use Sign up with Google (the Google button) to continue.';
+          } else if (methods && methods.includes('password')) {
+            message = 'This email is already registered. Please sign in or reset your password.';
+          } else {
+            message = 'This email is already registered. Please sign in instead.';
+          }
+        } catch (e) {
+          console.error('Error fetching sign-in methods:', e);
+          message = 'This email is already registered. Please sign in instead.';
+        }
       } else if (err?.code === 'auth/invalid-email') {
         message = 'Invalid email format.';
       } else if (err?.code === 'auth/weak-password') {
@@ -257,6 +286,37 @@ export default function SignUp() {
     } catch (err) {
       console.error('Google sign-in error:', err);
       setError('Google sign-in failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch Google profile (prefill email) without creating a user
+  const handleFetchGoogleEmail = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const res: any = await fetchGoogleProfile();
+      if (!res || !res.success) {
+        setError(res?.error || 'Failed to fetch Google account. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      const gmail = (res.profile?.email || '').toLowerCase();
+      if (!gmail) {
+        setError('Google account did not return an email.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Prefill the email input and mark it as verified
+      setFormData((prev) => ({ ...prev, email: gmail }));
+      setVerifiedGoogleEmail(gmail);
+    } catch (err) {
+      console.error('Error fetching Google profile:', err);
+      setError('Failed to fetch Google profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -342,15 +402,39 @@ export default function SignUp() {
                 <label htmlFor="email" className="block text-sm font-medium text-white">
                   Email address
                 </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-2 bg-white/5 border border-white rounded-md text-white placeholder-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    readOnly
+                    placeholder="Choose your Gmail here"
+                    value={formData.email}
+                    onChange={handleChange}
+                    onClick={() => { if (!isLoading) handleFetchGoogleEmail(); }}
+                    onFocus={() => { if (!isLoading) handleFetchGoogleEmail(); }}
+                    className="block w-full pr-10 px-3 py-2 bg-white/5 border border-white rounded-md text-white placeholder-white/70 focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleFetchGoogleEmail}
+                    disabled={isLoading}
+                    aria-label="Choose Gmail account"
+                    title="Click to choose your Gmail and prefill the email field"
+                    className="absolute right-1 p-1 rounded-md bg-white/5 hover:bg-white/10 flex items-center justify-center"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                  </button>
+                </div>
+                {verifiedGoogleEmail && verifiedGoogleEmail === formData.email.toLowerCase() && (
+                  <p className="text-xs text-green-300 mt-1">Google account verified for this email</p>
+                )}
               </div>
 
               <div className="mt-2">

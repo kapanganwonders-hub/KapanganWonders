@@ -66,6 +66,73 @@ export const signInWithGoogle = async () => {
 };
 
 /* =========================
+   🔹 FETCH GOOGLE PROFILE (prefill only, NO firestore writes)
+   - Signs in with Google via popup, returns the basic profile (email, name)
+   - Immediately signs the user out so they remain on the signup flow
+   - Useful for prefilling the email input to confirm the user controls the Gmail account
+========================= */
+export const fetchGoogleProfile = async () => {
+  // Use a temporary secondary app/auth to avoid changing the primary app's auth
+  // state. This prevents onAuthStateChanged listeners (which may read Firestore)
+  // from firing and encountering insufficient permissions during this quick
+  // profile fetch.
+  let secondaryApp;
+  try {
+    secondaryApp = initializeApp(auth.app.options, `secondary-fetch-${Date.now()}`);
+    const { getAuth, signInWithPopup: signInPopup, signOut: signOutAuth, deleteUser: deleteUserFn } = await import('firebase/auth');
+    const secondaryAuth = getAuth(secondaryApp);
+
+    const result = await signInPopup(secondaryAuth, googleProvider);
+    const user = result.user;
+
+    const profile = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+    };
+
+    // Delete the temporary user created in Auth by the popup (if any),
+    // then sign out and delete the secondary app. This avoids leaving a
+    // phantom user in Firebase Authentication which would later cause
+    // "email already in use" errors.
+    try {
+      if (user) {
+        try {
+          await deleteUserFn(user);
+        } catch (delErr) {
+          console.warn('Deleting temporary secondary user failed (non-fatal):', delErr);
+        }
+      }
+    } catch (e) {
+      console.warn('Temporary user deletion check failed (non-fatal):', e);
+    }
+
+    try {
+      await signOutAuth(secondaryAuth);
+    } catch (e) {
+      console.warn('Secondary sign-out failed (non-fatal):', e);
+    }
+    try {
+      await deleteApp(secondaryApp);
+    } catch (e) {
+      console.warn('Secondary app deletion failed (non-fatal):', e);
+    }
+
+    return { success: true, profile };
+  } catch (error) {
+    console.error('Fetch Google profile error:', error);
+    // Clean up secondary app if it exists
+    try {
+      if (secondaryApp) await deleteApp(secondaryApp);
+    } catch (e) {
+      console.warn('Cleanup secondary app failed (non-fatal):', e);
+    }
+    return { success: false, error: error.message || 'Failed to fetch Google profile' };
+  }
+};
+
+/* =========================
    🔹 EMAIL SIGN-UP (Tourists)
 ========================= */
 export const signUpWithEmail = async (email, password, displayName) => {
