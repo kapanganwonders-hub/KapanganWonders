@@ -225,91 +225,107 @@ export default function ScheduleVisitPage() {
     }
   };
 
+  // Add age category helper
+  const getAgeCategory = (ageStr: string) => {
+    const age = parseInt(ageStr, 10);
+    if (Number.isNaN(age)) return '';
+    if (age < 18) return 'Child';
+    if (age >= 60) return 'Senior Citizen';
+    return 'Adult';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!user) {
-    alert('Please sign in first.');
-    return;
-  }
-
-  if (!form.date) {
-    alert('Please select a date for your visit.');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const formattedDate = form.date.toISOString().split('T')[0];
-
-    // Separate private and public spots
-    const privateSpots = form.spots.filter(spot => spot.businessId);
-    const publicSpots = form.spots.filter(spot => !spot.businessId);
-
-    // Group private spots by businessId
-    const privateSpotsByBusiness = privateSpots.reduce<Record<string, Spot[]>>((acc, spot) => {
-      if (!spot.businessId) return acc;
-      if (!acc[spot.businessId]) acc[spot.businessId] = [];
-      acc[spot.businessId].push(spot);
-      return acc;
-    }, {});
-
-    // Public visit
-    if (publicSpots.length > 0) {
-      await addDoc(collection(db, 'visits'), {
-        userId: user.uid,
-        fullName: form.fullName,
-        email: form.email,
-        contactNumber: form.contactNumber,
-        age: form.age,
-        visitorType: form.visitorType,
-        barangays: form.barangays,
-        spots: publicSpots.map(spot => spot.name),
-        companions: [], // companions removed from form, keep empty array for schema
-        date: formattedDate,
-        agree: form.agree,
-        status: 'pending',
-        isPrivate: false,
-        createdAt: serverTimestamp(),
-      });
+    e.preventDefault();
+    if (!user) {
+      alert('Please sign in first.');
+      return;
     }
 
-    // Private visits
-    for (const [businessId, spots] of Object.entries(privateSpotsByBusiness)) {
-      if (spots.length === 0) continue;
-
-      await addDoc(collection(db, 'visits'), {
-        userId: user.uid,
-        fullName: form.fullName,
-        email: form.email,
-        contactNumber: form.contactNumber,
-        age: form.age,
-        visitorType: form.visitorType,
-        barangays: form.barangays,
-        spots: spots.map(spot => spot.name),
-        companions: [], // companions removed from form
-        date: formattedDate,
-        agree: form.agree,
-        status: 'pending',
-        isPrivate: true,
-        businessId: businessId,
-        businessName: spots[0].businessId || '',
-        createdAt: serverTimestamp(),
-      });
+    if (!form.date) {
+      alert('Please select a date for your visit.');
+      return;
     }
 
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-      router.push('/dashboard/my-travels');
-    }, 2000);
+    // Validate age is numeric and within 1..99
+    const ageNum = parseInt(form.age, 10);
+    if (Number.isNaN(ageNum) || ageNum < 1 || ageNum > 99) {
+      alert('Please enter a valid age between 1 and 99.');
+      return;
+    }
 
-  } catch (error) {
-    console.error('Error saving visit:', error);
-    alert('Failed to save visit. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      const formattedDate = form.date.toISOString().split('T')[0];
+
+      // Separate private and public spots
+      const privateSpots = form.spots.filter(spot => spot.businessId);
+      const publicSpots = form.spots.filter(spot => !spot.businessId);
+
+      // Group private spots by businessId
+      const privateSpotsByBusiness = privateSpots.reduce<Record<string, Spot[]>>((acc, spot) => {
+        if (!spot.businessId) return acc;
+        if (!acc[spot.businessId]) acc[spot.businessId] = [];
+        acc[spot.businessId].push(spot);
+        return acc;
+      }, {});
+
+      // Public visit
+      if (publicSpots.length > 0) {
+        await addDoc(collection(db, 'visits'), {
+          userId: user.uid,
+          fullName: form.fullName,
+          email: form.email,
+          contactNumber: form.contactNumber,
+          age: form.age,
+          visitorType: form.visitorType,
+          barangays: form.barangays,
+          spots: publicSpots.map(spot => spot.name),
+          companions: [], // companions removed from form, keep empty array for schema
+          date: formattedDate,
+          agree: form.agree,
+          status: 'pending',
+          isPrivate: false,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      // Private visits
+      for (const [businessId, spots] of Object.entries(privateSpotsByBusiness)) {
+        if (spots.length === 0) continue;
+
+        await addDoc(collection(db, 'visits'), {
+          userId: user.uid,
+          fullName: form.fullName,
+          email: form.email,
+          contactNumber: form.contactNumber,
+          age: form.age,
+          visitorType: form.visitorType,
+          barangays: form.barangays,
+          spots: spots.map(spot => spot.name),
+          companions: [], // companions removed from form
+          date: formattedDate,
+          agree: form.agree,
+          status: 'pending',
+          isPrivate: true,
+          businessId: businessId,
+          businessName: spots[0].businessId || '',
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        router.push('/dashboard/my-travels');
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error saving visit:', error);
+      alert('Failed to save visit. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const availableSpots = form.barangays.flatMap((b) => spotsByBarangay[b] || []);
@@ -376,12 +392,26 @@ export default function ScheduleVisitPage() {
                 <label className="block text-gray-600 mb-1">Age</label>
                 <input
                   type="number"
-                  min="1"
+                  min={1}
+                  max={99}
                   required
                   value={form.age}
                   className="border border-gray-300 rounded-md w-full p-2.5 focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                  onChange={(e) => setForm({ ...form, age: e.target.value })}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      setForm({ ...form, age: '' });
+                      return;
+                    }
+                    // allow only digits and clamp to 1..99
+                    const digits = raw.replace(/\D/g, '');
+                    const num = Math.max(1, Math.min(99, parseInt(digits || '0', 10) || 1));
+                    setForm({ ...form, age: String(num) });
+                  }}
                 />
+                <p className="text-sm text-gray-500 mt-1">
+                  {form.age ? `${getAgeCategory(form.age)} (${form.age} years old)` : 'Enter an age between 1 and 99.'}
+                </p>
               </div>
 
               <div>
@@ -436,8 +466,9 @@ export default function ScheduleVisitPage() {
               <div className="mt-4">
                 <h3 className="text-lg font-medium text-gray-700 mb-3">Select specific spots (optional):</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {form.barangays.flatMap(barangay => 
-                    spotsByBarangay[barangay]?.map(spot => (
+                  {form.barangays.flatMap((barangay) => {
+                    const list = spotsByBarangay[barangay] || [];
+                    return list.map((spot) => (
                       <div key={spot.id} className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -451,8 +482,8 @@ export default function ScheduleVisitPage() {
                           {spot.name}
                         </label>
                       </div>
-                    ))
-                  )}
+                    ));
+                  })}
                 </div>
               </div>
             )}

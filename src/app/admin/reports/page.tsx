@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Trash, Calendar, MapPin, User, Download } from 'lucide-react';
+import { Calendar, MapPin, User, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -213,12 +213,6 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this completed visit?')) return;
-    await deleteDoc(doc(db, 'visits', id));
-    setCompletedVisits((prev) => prev.filter((v) => v.id !== id));
-  };
-
   if (loading) return <p className="text-center mt-10 text-gray-600">Loading visit reports...</p>;
 
   return (
@@ -332,13 +326,7 @@ export default function ReportsPage() {
                       <span>{completedAt ? completedAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
                     </div>
 
-                    <button
-                      onClick={() => handleDelete(visit.id)}
-                      className="text-red-500 hover:text-red-700"
-                      title="Delete record"
-                    >
-                      <Trash size={18} />
-                    </button>
+                    {/* delete button removed */}
                   </div>
                 </motion.li>
               );
