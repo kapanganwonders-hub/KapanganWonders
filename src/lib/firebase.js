@@ -46,6 +46,9 @@ if (typeof window !== 'undefined') {
 const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
+// Force the account chooser so the popup does NOT auto-select an account
+// (prompt: 'select_account' ensures the user explicitly chooses which Google account)
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // ✅ Export everything needed across the app
 export {

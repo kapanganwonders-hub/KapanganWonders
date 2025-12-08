@@ -409,12 +409,11 @@ export default function SignUp() {
                     type="email"
                     required
                     readOnly
-                    placeholder="Choose your Gmail here"
+                    placeholder="Click to choose your Gmail and prefill this field"
                     value={formData.email}
                     onChange={handleChange}
                     onClick={() => { if (!isLoading) handleFetchGoogleEmail(); }}
-                    onFocus={() => { if (!isLoading) handleFetchGoogleEmail(); }}
-                    className="block w-full pr-10 px-3 py-2 bg-white/5 border border-white rounded-md text-white placeholder-white/70 focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
+                    className="block w-full pr-10 px-3 py-2 bg-white/5 border border-white rounded-md text-white text-sm placeholder-white/70 placeholder:text-xs placeholder:truncate focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer overflow-hidden"
                   />
                   <button
                     type="button"
@@ -432,9 +431,7 @@ export default function SignUp() {
                     </svg>
                   </button>
                 </div>
-                {verifiedGoogleEmail && verifiedGoogleEmail === formData.email.toLowerCase() && (
-                  <p className="text-xs text-green-300 mt-1">Google account verified for this email</p>
-                )}
+
               </div>
 
               <div className="mt-2">
