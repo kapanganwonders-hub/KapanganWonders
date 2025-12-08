@@ -826,7 +826,7 @@ export default function TouristSpots() {
       <div className="min-h-screen bg-black/70 backdrop-blur-sm modal-black" style={{ color: '#000' }}>
         <style>{`.modal-black, .modal-black * { color: #000 !important; }`}</style>
         {/* Header with back button */}
-        <div className="bg-black/50 backdrop-blur-sm border-b border-white/20">
+        <div className="bg-white/50 backdrop-blur-sm border-b border-white/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <button
               onClick={closeDetails}
@@ -846,6 +846,15 @@ export default function TouristSpots() {
 
         {/* Detail Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-white">
+          {/* Inline Back button (also navigates depending on edit/admin state) */}
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={closeDetails}
+              className="text-sm text-white/90 bg-transparent hover:underline"
+            >
+              Back
+            </button>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Image and Info */}
             <div className="space-y-6">
@@ -858,7 +867,7 @@ export default function TouristSpots() {
                         src={URL.createObjectURL(editedSpot._tempImage)}
                         alt={selectedSpot.name}
                         fill
-                        className="object-cover"
+                        className="object-fill"
                         sizes="(max-width: 1024px) 100vw, 50vw"
                         onLoad={(e) => {
                           // Revoke the object URL to avoid memory leaks
@@ -872,7 +881,7 @@ export default function TouristSpots() {
                         src={selectedSpot.image}
                         alt={selectedSpot.name}
                         fill
-                        className="object-cover"
+                        className="object-fill"
                         sizes="(max-width: 1024px) 100vw, 50vw"
                         unoptimized={selectedSpot.image.includes('appwrite.io')}
                       />
@@ -1274,7 +1283,7 @@ export default function TouristSpots() {
                       src={item.image || "/placeholder-image.jpg"}
                       alt={`Carousel image ${index + 1}`}
                       fill
-                      className={`object-cover transition-transform duration-300`}
+                      className={`object-fill transition-transform duration-300`}
                       priority={index < 3}
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -1373,7 +1382,7 @@ export default function TouristSpots() {
                               src={spot.image}
                               alt={spot.name}
                               fill
-                              className={`object-cover transition-transform duration-300 ${spot.closed ? 'opacity-30' : 'group-hover:scale-110'}`}
+                              className={`object-fill transition-transform duration-300 ${spot.closed ? 'opacity-30' : 'group-hover:scale-110'}`}
                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                               unoptimized={spot.image.includes('appwrite.io')}
                             />
