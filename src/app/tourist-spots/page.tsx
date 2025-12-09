@@ -10,6 +10,7 @@ import { getAuth } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { uploadFile, deleteFile } from '@/lib/appwrite';
 import useEmblaCarousel from 'embla-carousel-react';
+import { Share2, Check } from 'lucide-react';
 
 interface Announcement {
   id: string;
@@ -143,6 +144,7 @@ export default function TouristSpots() {
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [cameFromAdmin, setCameFromAdmin] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check URL parameters and set initial states
@@ -820,6 +822,26 @@ export default function TouristSpots() {
     }
   };
 
+  const handleShareSpot = async () => {
+    if (!selectedSpot) return;
+    
+    try {
+      const spotUrl = `${window.location.origin}/tourist-spots?id=${selectedSpot.id}`;
+      await navigator.clipboard.writeText(spotUrl);
+      
+      setLinkCopied(true);
+      toast.success('Link copied to clipboard!');
+      
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setLinkCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      toast.error('Failed to copy link');
+    }
+  };
+
   // If showing details, render the detail page
     if (showDetails && selectedSpot && editedSpot) {
     return (
@@ -827,7 +849,7 @@ export default function TouristSpots() {
         <style>{`.modal-black, .modal-black * { color: #000 !important; }`}</style>
         {/* Header with back button */}
         <div className="bg-white/50 backdrop-blur-sm border-b border-white/20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <button
               onClick={closeDetails}
               className="flex items-center gap-2 text-white hover:text-accent-yellow font-medium transition-colors duration-300 font-poppins"
@@ -841,6 +863,26 @@ export default function TouristSpots() {
                   ? 'Back to Admin Dashboard' 
                   : 'Back to Tourist Spots'}
             </button>
+            {!isEditing && (
+              <button
+                onClick={handleShareSpot}
+                className={`p-2 rounded-full transition-all duration-300 flex items-center gap-2 ${
+                  linkCopied
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'hover:bg-white/10 text-white/70 hover:text-white'
+                }`}
+                title="Copy link to clipboard"
+              >
+                {linkCopied ? (
+                  <>
+                    <Check className="w-5 h-5" />
+                    <span className="text-xs sm:text-sm font-medium">Copied!</span>
+                  </>
+                ) : (
+                  <Share2 className="w-5 h-5" />
+                )}
+              </button>
+            )}
           </div>
         </div>
 

@@ -222,7 +222,7 @@ export default function HeroSection() {
                       src={item.image || "/placeholder-image.jpg"}
                       alt={`Carousel image ${index + 1}`}
                       fill
-                      className="object-cover"
+                      className="object-fill"
                       priority={index < 3}
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;

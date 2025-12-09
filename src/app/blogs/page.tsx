@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase/config';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, Timestamp, orderBy, getDoc } from 'firebase/firestore';
-import { BookOpen, Plus, Edit, Trash2, Save, X, Calendar, Eye, ArrowLeft } from 'lucide-react';
+import { BookOpen, Plus, Edit, Trash2, Save, X, Calendar, Eye, ArrowLeft, Share2, Check } from 'lucide-react';
 import { uploadFile, deleteFile } from '@/lib/appwrite';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
@@ -72,6 +72,7 @@ export default function Blogs() {
   // State for blog view modal
   const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
   const [showBlogModal, setShowBlogModal] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
@@ -557,6 +558,26 @@ export default function Blogs() {
     }
   };
 
+  const handleShareBlog = async () => {
+    if (!selectedBlog) return;
+    
+    try {
+      const blogUrl = `${window.location.origin}/blogs?id=${selectedBlog.id}`;
+      await navigator.clipboard.writeText(blogUrl);
+      
+      setLinkCopied(true);
+      toast.success('Link copied to clipboard!');
+      
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setLinkCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      toast.error('Failed to copy link');
+    }
+  };
+
   const startEdit = (blog: Blog) => {
     if (!blog || (!isBarangayAdmin && !isPrivateSpotAdmin && currentUser?.email !== 'kapanganwonders@gmail.com')) {
       console.log('Not authorized to edit this blog');
@@ -689,10 +710,13 @@ export default function Blogs() {
                   <div className="h-48 relative overflow-hidden">
                     {post.imageUrl ? (
                       <>
-                        <img 
+                        <Image
                           src={post.imageUrl} 
                           alt={post.title}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          priority={false}
                         />
                         <div className="absolute inset-0 bg-black/30"></div>
                       </>
@@ -835,17 +859,39 @@ export default function Blogs() {
           </div>
           
           {/* Modal Header */}
-          <div className="sticky top-16 bg-black/60 backdrop-blur-sm z-20 p-4 border-b border-white/5">
-            <button 
-              onClick={closeBlogModal}
-              className="text-white/70 hover:text-white p-1 transition-colors hover:bg-white/10 rounded-full"
-              aria-label="Close"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <h2 className="text-2xl font-bold text-white">
-              {editingBlog === selectedBlog.id ? 'Edit Blog' : 'Blog Details'}
-            </h2>
+          <div className="sticky top-16 bg-black/60 backdrop-blur-sm z-20 p-3 sm:p-4 border-b border-white/5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">
+                {editingBlog === selectedBlog.id ? 'Edit Blog' : 'Blog Details'}
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleShareBlog}
+                  className={`p-2 rounded-full transition-all duration-300 flex items-center gap-2 ${
+                    linkCopied
+                      ? 'bg-green-500/20 text-green-400'
+                      : 'hover:bg-white/10 text-white/70 hover:text-white'
+                  }`}
+                  title="Copy link to clipboard"
+                >
+                  {linkCopied ? (
+                    <>
+                      <Check className="w-5 h-5" />
+                      <span className="text-xs sm:text-sm font-medium">Copied!</span>
+                    </>
+                  ) : (
+                    <Share2 className="w-5 h-5" />
+                  )}
+                </button>
+                <button 
+                  onClick={closeBlogModal}
+                  className="text-white/70 hover:text-white p-1 transition-colors hover:bg-white/10 rounded-full"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+              </div>
+            </div>
             <div className="w-10">
               {isAuthor(selectedBlog) && (searchParams?.get('from') === 'dashboard' || searchParams?.get('edit')) && (
                 <button
@@ -865,9 +911,9 @@ export default function Blogs() {
           </div>
           
           {/* Main Content */}
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
             {/* Left Side - Title, Image, and Basic Info */}
-            <div className="w-full md:w-2/5 flex flex-col overflow-y-auto p-6 md:p-8 border-r border-gray-200">
+            <div className="w-full md:w-2/5 flex flex-col overflow-y-auto p-4 sm:p-6 md:p-8 border-r border-gray-200">
                 {editingBlog === selectedBlog?.id ? (
                   <>
                     <div className="flex justify-end gap-2 mb-6">
@@ -922,7 +968,7 @@ export default function Blogs() {
                 
                 {/* Featured Image */}
                 <div className="relative mb-6">
-                  <div className="w-full h-64 rounded-xl bg-black/30 relative overflow-hidden">
+                  <div className="w-full h-40 sm:h-56 md:h-64 rounded-xl bg-black/30 relative overflow-hidden">
                     {selectedBlog?.imageUrl ? (
                       <Image
                         src={selectedBlog.imageUrl}
@@ -1115,7 +1161,7 @@ export default function Blogs() {
                 
               </div>
             {/* Right Side - Content */}
-            <div className="w-full md:w-3/5 flex flex-col overflow-y-auto p-6 md:p-8">
+            <div className="w-full md:w-3/5 flex flex-col overflow-y-auto p-4 sm:p-6 md:p-8">
                 {/* Blog Content */}
                 <article className="prose max-w-none text-white/90 leading-relaxed">
                   {editingBlog === selectedBlog?.id ? (
