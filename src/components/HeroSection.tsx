@@ -208,7 +208,7 @@ export default function HeroSection() {
       )}
       {/* Carousel Background */}
       <div className="fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-black/30 z-10"></div>
+        <div className="absolute inset-0 bg-black/70 z-10"></div>
         <div className="embla overflow-hidden w-full h-full" ref={emblaRef}>
           <div className="embla__container flex h-full">
             {carouselItems.length > 0 ? (

@@ -618,7 +618,7 @@ export default function Blogs() {
     <div className="min-h-screen bg-beige bg-opacity-90">
       {/* Carousel Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-black/20 z-10"></div>
+        <div className="absolute inset-0 bg-black/70 z-10"></div>
         <div className="embla overflow-hidden w-full h-full" ref={emblaRef}>
           {isCarouselLoading ? (
             <div className="w-full h-full bg-gray-100 flex items-center justify-center">

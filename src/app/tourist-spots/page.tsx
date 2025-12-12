@@ -1311,7 +1311,7 @@ export default function TouristSpots() {
     <div className="min-h-screen relative">
       {/* Carousel Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-black/20 z-10"></div>
+        <div className="absolute inset-0 bg-black/70 z-10"></div>
         <div className="embla overflow-hidden w-full h-full" ref={emblaRef}>
           <div className="embla__container flex h-full">
             {carouselItems.length > 0 ? (
