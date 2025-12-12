@@ -1091,7 +1091,7 @@ export default function TouristSpots() {
 
                   {/* Entrance Fees Section Moved Here */}
                   <div className="mt-4">
-                    <h3 className="font-semibold text-primary-green mb-2">Entrance Fees</h3>
+                    <h3 className="font-semibold text-primary-green mb-2">Entrance Fees (per day)</h3>
                     {isEditing ? (
                       <div className="space-y-3">
                         {['adults', 'seniors', 'pwd', 'kids', 'children', 'environmental', 'tourGuide'].map((feeType) => (
