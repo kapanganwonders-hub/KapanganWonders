@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import { uploadFile, deleteFile } from '@/lib/appwrite';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Share2, Check } from 'lucide-react';
+import ShareModal from '@/components/ShareModal';
 
 interface Announcement {
   id: string;
@@ -145,6 +146,7 @@ export default function TouristSpots() {
   const [isUploading, setIsUploading] = useState(false);
   const [cameFromAdmin, setCameFromAdmin] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check URL parameters and set initial states
@@ -822,24 +824,9 @@ export default function TouristSpots() {
     }
   };
 
-  const handleShareSpot = async () => {
+  const handleShareSpot = () => {
     if (!selectedSpot) return;
-    
-    try {
-      const spotUrl = `${window.location.origin}/tourist-spots?id=${selectedSpot.id}`;
-      await navigator.clipboard.writeText(spotUrl);
-      
-      setLinkCopied(true);
-      toast.success('Link copied to clipboard!');
-      
-      // Reset the copied state after 2 seconds
-      setTimeout(() => {
-        setLinkCopied(false);
-      }, 2000);
-    } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      toast.error('Failed to copy link');
-    }
+    setShowShareModal(true);
   };
 
   // If showing details, render the detail page
@@ -871,16 +858,9 @@ export default function TouristSpots() {
                     ? 'bg-green-500/20 text-white'
                     : 'hover:bg-white/10 text-white hover:text-white'
                 }`}
-                title="Copy link to clipboard"
+                title="Share"
               >
-                {linkCopied ? (
-                  <>
-                    <Check className="w-5 h-5" />
-                    <span className="text-xs sm:text-sm font-medium">Copied!</span>
-                  </>
-                ) : (
-                  <Share2 className="w-5 h-5" />
-                )}
+                <Share2 className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -1293,6 +1273,17 @@ export default function TouristSpots() {
             )}
           </div>
         </div>
+
+        {/* Share Modal */}
+        {selectedSpot && (
+          <ShareModal
+            isOpen={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            spotName={selectedSpot.name}
+            spotImage={selectedSpot.image}
+            spotUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/tourist-spots?id=${selectedSpot.id}`}
+          />
+        )}
       </div>
     );
   }
@@ -1503,6 +1494,17 @@ export default function TouristSpots() {
         )}
 
       </div>
+
+      {/* Share Modal */}
+      {selectedSpot && (
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          spotName={selectedSpot.name}
+          spotImage={selectedSpot.image}
+          spotUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/tourist-spots?id=${selectedSpot.id}`}
+        />
+      )}
     </div>
   );
 }

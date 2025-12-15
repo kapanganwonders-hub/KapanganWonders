@@ -11,6 +11,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import useEmblaCarousel from 'embla-carousel-react';
+import ShareModal from '@/components/ShareModal';
 
 interface CarouselItem {
   id: string;
@@ -73,6 +74,7 @@ export default function Blogs() {
   const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
   const [showBlogModal, setShowBlogModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
@@ -558,24 +560,9 @@ export default function Blogs() {
     }
   };
 
-  const handleShareBlog = async () => {
+  const handleShareBlog = () => {
     if (!selectedBlog) return;
-    
-    try {
-      const blogUrl = `${window.location.origin}/blogs?id=${selectedBlog.id}`;
-      await navigator.clipboard.writeText(blogUrl);
-      
-      setLinkCopied(true);
-      toast.success('Link copied to clipboard!');
-      
-      // Reset the copied state after 2 seconds
-      setTimeout(() => {
-        setLinkCopied(false);
-      }, 2000);
-    } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      toast.error('Failed to copy link');
-    }
+    setShowShareModal(true);
   };
 
   const startEdit = (blog: Blog) => {
@@ -867,21 +854,10 @@ export default function Blogs() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleShareBlog}
-                  className={`p-2 rounded-full transition-all duration-300 flex items-center gap-2 ${
-                    linkCopied
-                      ? 'bg-green-500/20 text-green-400'
-                      : 'hover:bg-white/10 text-white/70 hover:text-white'
-                  }`}
-                  title="Copy link to clipboard"
+                  className="p-2 rounded-full transition-all duration-300 hover:bg-white/10 text-white/70 hover:text-white"
+                  title="Share"
                 >
-                  {linkCopied ? (
-                    <>
-                      <Check className="w-5 h-5" />
-                      <span className="text-xs sm:text-sm font-medium">Copied!</span>
-                    </>
-                  ) : (
-                    <Share2 className="w-5 h-5" />
-                  )}
+                  <Share2 className="w-5 h-5" />
                 </button>
                 <button 
                   onClick={closeBlogModal}
@@ -1224,6 +1200,17 @@ export default function Blogs() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Share Modal */}
+      {selectedBlog && (
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          spotName={selectedBlog.title}
+          spotImage={selectedBlog.imageUrl || ''}
+          spotUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/blogs?id=${selectedBlog.id}`}
+        />
       )}
 
     </div>
