@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { storage, uploadFile, deleteFile } from '@/lib/appwrite';
 import { db } from '@/firebase/config';
 import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, setDoc, DocumentReference } from 'firebase/firestore';
-import { MapPin, Plus, Edit, Trash2, X } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2, X, Megaphone } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/lightswind/alert";
 import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 
@@ -841,22 +841,19 @@ export default function TouristSpotsPage() {
                                 // Navigate to announcements page with the spot ID
                                 router.push(`/barangay-admin/announcements?spotId=${spot.id}`);
                               } catch (error) {
-                                console.error('Error handling spot reopening:', error);
+                                console.error('Error navigating to announcements:', error);
                                 setAlertState({
                                   variant: 'destructive',
-                                  message: 'Failed to process spot reopening. Please try again.'
+                                  message: 'Failed to open announcements. Please try again.'
                                 });
                               } finally {
                                 setLoading(false);
                               }
                             }}
                             className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
-                            title="Manage Announcement"
+                            title="Announcements"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                            </svg>
+                            <Megaphone size={18} />
                           </button>
                         )}
                         {activeTab === 'pending' && (
