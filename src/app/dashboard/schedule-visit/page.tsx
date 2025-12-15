@@ -359,7 +359,11 @@ export default function ScheduleVisitPage() {
                     required
                     value={form.fullName}
                     className="border border-gray-300 rounded-md w-full p-2.5 focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                    onChange={(e) => {
+                      // Allow only letters and spaces (remove numbers and symbols)
+                      const value = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                      setForm({ ...form, fullName: value });
+                    }}
                   />
                 </div>
                 <div>
@@ -421,7 +425,11 @@ export default function ScheduleVisitPage() {
                   required
                   value={form.contactNumber}
                   className="border border-gray-300 rounded-md w-full p-2.5 focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                  onChange={(e) => setForm({ ...form, contactNumber: e.target.value })}
+                  onChange={(e) => {
+                    // Allow only numbers and symbols (remove letters)
+                    const value = e.target.value.replace(/[a-zA-Z]/g, '');
+                    setForm({ ...form, contactNumber: value });
+                  }}
                 />
               </div>
             </div>
