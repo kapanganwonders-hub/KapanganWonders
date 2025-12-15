@@ -345,7 +345,7 @@ const FeaturedDestinations = () => {
         </div>
       )}
       {/* Background Design */}
-      <div className="absolute inset-0 z-0 bg-black/30">
+      <div className="absolute inset-0 z-0 bg-black/50">
         {/* Subtle Background Pattern */}
         <div className="absolute inset-0"></div>
         
@@ -355,7 +355,7 @@ const FeaturedDestinations = () => {
         <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-medium"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-2 border-green-500 rounded-2xl bg-black/40 p-6 md:p-8 overflow-hidden">
         {isAdmin && (
           <div className="flex justify-end mb-6">
             <div className="flex space-x-3">
@@ -403,7 +403,6 @@ const FeaturedDestinations = () => {
                       onClick={isAdmin ? () => setIsEditingTitle(true) : undefined}
                     >
                       {sectionTitle}
-                      <span className="absolute bottom-1 left-0 w-full h-2 bg-green-100 -z-10 transform translate-y-1 rounded-full"></span>
                     </span>
                   )}
                 </h2>
@@ -422,7 +421,7 @@ const FeaturedDestinations = () => {
               </div>
             )}
           </div>
-          <div className="w-24 h-1 bg-gradient-to-r from-green-400 to-green-600 mx-auto my-4 rounded-full"></div>
+          
           
           {isEditingSection ? (
             <div className="mb-8">
@@ -458,7 +457,7 @@ const FeaturedDestinations = () => {
           {destinations.map((destination) => (
             <div 
               key={destination.id} 
-              className="group bg-black/30 backdrop-blur-sm rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-400 transform hover:-translate-y-2 border border-white/20 hover:border-green-300/50"
+              className="group bg-black/40 backdrop-blur-sm rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-400 transform hover:-translate-y-2 border-2 border-green-500"
             >
               <div className="relative h-56 w-full overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent z-10"></div>
@@ -510,12 +509,12 @@ const FeaturedDestinations = () => {
                 </div>
               </div>
               <div className="p-4 bg-transparent">
-                <p className="text-white/80 text-sm mb-4 line-clamp-2 leading-relaxed">
+                <p className="text-gray-200 text-sm mb-4 line-clamp-2 leading-relaxed">
                   {destination.description || `Experience the beauty of ${destination.name} in ${destination.location}. A must-visit destination for nature lovers.`}
                 </p>
                 <Link 
                   href="/tourist-spots"
-                  className="inline-flex items-center justify-center w-full text-center bg-white/10 hover:bg-white/20 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 transform hover:shadow-lg group-hover:scale-[1.02] text-sm border border-white/20 hover:border-white/40"
+                  className="inline-flex items-center justify-center w-full text-center bg-green-900 hover:bg-green-800 text-gray-100 font-medium py-2 px-4 rounded-lg transition-all duration-300 transform hover:shadow-lg group-hover:scale-[1.02] text-sm border-2 border-green-500"
                 >
                   <span>Explore Now</span>
                   <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -530,10 +529,9 @@ const FeaturedDestinations = () => {
         <div className="text-center mt-12">
           <Link 
             href="/tourist-spots"
-            className="group relative inline-flex items-center justify-center px-6 py-3 overflow-hidden font-semibold text-white transition-all duration-300 rounded-full border-2 border-white/30 hover:bg-white/20 hover:text-white text-sm"
+            className="group relative inline-flex items-center justify-center px-6 py-3 overflow-hidden font-semibold text-gray-100 transition-all duration-300 rounded-full border-2 border-green-500 bg-green-900 hover:bg-green-800 text-sm"
           >
             <span className="relative z-10">View All Destinations</span>
-            <span className="absolute bottom-0 left-0 w-full h-0 bg-white/20 transition-all duration-300 group-hover:h-full -z-1"></span>
             <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>

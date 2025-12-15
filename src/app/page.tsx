@@ -19,70 +19,33 @@ export default function Home() {
       <div className="relative w-full">
 
         {/* Hero Section */}
-        <section
-          className="border-b border-black"
-          style={{
-            // optional gradient overlay on top of repeating image
-            background: "linear-gradient(to bottom right, rgba(255,255,255,0.8), rgba(220,255,220,0.8)), url('/bg.jpg')",
-            backgroundRepeat: "repeat",
-            backgroundPosition: "top left",
-          }}
-        >
+        <section>
           <HeroSection />
         </section>
 
         {/* Featured Destinations */}
-        <section
-          id="featured"
-          className="py-12 border-b border-black"
-          style={{
-            background: "linear-gradient(to bottom right, rgba(255,255,255,0.8), rgba(220,255,220,0.8)), url('/bg.jpg')",
-            backgroundRepeat: "repeat",
-            backgroundPosition: "top left",
-          }}
-        >
+        <section id="featured" className="py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <FeaturedDestinations />
           </div>
         </section>
 
         {/* Advisory Section */}
-        <section
-          className="py-12 border-b border-black"
-          style={{
-            background: "linear-gradient(to bottom right, rgba(255,255,255,0.8), rgba(220,255,220,0.8)), url('/bg.jpg')",
-            backgroundRepeat: "repeat",
-            backgroundPosition: "top left",
-          }}
-        >
+        <section className="py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <AdvisorySection />
           </div>
         </section>
 
         {/* Why Choose Section */}
-        <section
-          className="py-12 border-b border-black"
-          style={{
-            background: "linear-gradient(to bottom right, rgba(255,255,255,0.8), rgba(220,255,220,0.8)), url('/bg.jpg')",
-            backgroundRepeat: "repeat",
-            backgroundPosition: "top left",
-          }}
-        >
+        <section className="py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <WhyChooseSection />
           </div>
         </section>
 
         {/* How It Works */}
-        <section
-          className="py-12 border-b border-black"
-          style={{
-            background: "linear-gradient(to bottom right, rgba(255,255,255,0.8), rgba(220,255,220,0.8)), url('/bg.jpg')",
-            backgroundRepeat: "repeat",
-            backgroundPosition: "top left",
-          }}
-        >
+        <section className="py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <HowItWorks />
           </div>

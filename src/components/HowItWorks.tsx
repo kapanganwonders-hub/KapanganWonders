@@ -257,7 +257,7 @@ const HowItWorks = () => {
   if (isLoading) {
     return (
       <section className="relative py-20 min-h-[600px] flex items-center justify-center overflow-hidden font-['Poppins']">
-        <div className="absolute inset-0 z-0 bg-black/30">
+        <div className="absolute inset-0 z-0 bg-black/50">
           <div className="absolute top-0 left-0 w-72 h-72 bg-green-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
           <div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slower"></div>
           <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-medium"></div>
@@ -265,7 +265,7 @@ const HowItWorks = () => {
         
         <div className="relative z-10 text-center">
           <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-white rounded-full mx-auto mb-3"></div>
-          <p className="text-white/80">Loading content...</p>
+          <p className="text-gray-200">Loading content...</p>
         </div>
       </section>
     );
@@ -274,7 +274,7 @@ const HowItWorks = () => {
   return (
     <section className="relative py-20 min-h-[600px] flex items-center justify-center overflow-hidden font-['Poppins']">
       {/* Animated Background Elements */}
-      <div className="absolute inset-0 z-0 bg-black/30">
+      <div className="absolute inset-0 z-0 bg-black/50">
         <div className="absolute top-0 left-0 w-72 h-72 bg-green-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
         <div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slower"></div>
         <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-medium"></div>
@@ -308,7 +308,7 @@ const HowItWorks = () => {
             {isEditMode && (
               <button
                 onClick={handleSaveChanges}
-                className="inline-flex items-center px-6 py-2.5 border-2 border-white/20 text-sm font-medium rounded-full text-white bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transition-all duration-300 hover:shadow-lg ml-3"
+                className="inline-flex items-center px-6 py-2.5 border-2 border-green-500 text-sm font-medium rounded-full text-gray-100 bg-green-900 hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 hover:shadow-lg ml-3"
               >
                 <Save className="-ml-1 mr-2 h-5 w-5" />
                 Save Changes
@@ -317,7 +317,7 @@ const HowItWorks = () => {
           </div>
         </div>
       )}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-white">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-white border-2 border-green-500 rounded-2xl bg-black/40 p-6 md:p-8 overflow-hidden">
         {/* Header Section */}
         <div className="text-center mb-16">
           <div className="inline-block relative w-full">
@@ -330,12 +330,11 @@ const HowItWorks = () => {
                   className="text-3xl md:text-4xl font-bold text-center w-full bg-white/10 backdrop-blur-sm border-b-2 border-white/30 focus:outline-none focus:ring-0 px-2 py-1 rounded-md text-white"
                 />
               ) : (
-                <h2 className="text-3xl md:text-4xl font-bold text-white text-center">
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-100 text-center">
                   {sectionTitle}
                 </h2>
               )}
             </div>
-            <div className="w-32 h-1 bg-gradient-to-r from-emerald-400 to-green-600 mx-auto mt-8 rounded-full"></div>
           
           <div className="relative max-w-2xl mx-auto">
             {editingField === "sectionDescription" ? (
@@ -357,7 +356,7 @@ const HowItWorks = () => {
                     className="w-full h-24 p-2 border border-emerald-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/50"
                   />
                 ) : (
-                  <p className="text-lg text-white/80 text-center mb-12">{sectionDescription}</p>
+                  <p className="text-lg text-gray-200 text-center mb-12">{sectionDescription}</p>
                 )}
               </div>
             )}
@@ -370,7 +369,7 @@ const HowItWorks = () => {
           {steps.map((step, index) => (
             <div 
               key={step.id} 
-              className="group relative text-center p-8 bg-white/10 backdrop-blur-sm rounded-2xl border-2 border-white/10 hover:border-white/20 transition-all duration-500 transform hover:-translate-y-1 hover:shadow-lg"
+              className="group relative text-center p-8 bg-black/40 backdrop-blur-sm rounded-2xl border-2 border-green-500 transition-all duration-500 transform hover:-translate-y-1 hover:shadow-lg"
             >
               {/* Connecting Line  */}
               {index < steps.length - 1 && (
@@ -441,7 +440,7 @@ const HowItWorks = () => {
                       placeholder="Enter step title..."
                     />
                   ) : (
-                    <h3 className="text-xl font-semibold text-white text-center">
+                    <h3 className="text-xl font-semibold text-gray-100 text-center">
                       {step.title}
                     </h3>
                   )}
@@ -470,7 +469,7 @@ const HowItWorks = () => {
                     />
                   ) : (
                     <div className="relative">
-                      <p className="text-white/80">{step.description}</p>
+                      <p className="text-gray-200">{step.description}</p>
                     </div>
                   )}
                 </div>

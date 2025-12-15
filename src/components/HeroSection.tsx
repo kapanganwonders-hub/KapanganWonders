@@ -283,7 +283,7 @@ export default function HeroSection() {
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-4xl mx-auto text-center text-white bg-black/40 backdrop-blur-sm rounded-2xl p-8 md:p-12 shadow-2xl">
+        <div className="w-full max-w-4xl mx-auto text-center text-gray-200 bg-black/50 backdrop-blur-sm rounded-2xl p-8 md:p-12 shadow-2xl border-2 border-green-500">
           <div className="relative group mb-8">
             {isEditingTitle ? (
               <div className="w-full max-w-2xl mx-auto">
@@ -291,12 +291,12 @@ export default function HeroSection() {
                   type="text"
                   value={editingTitle}
                   onChange={(e) => setEditingTitle(e.target.value)}
-                  className="text-4xl md:text-6xl font-bold text-white mb-4 bg-transparent border-b-2 border-white/50 outline-none w-full focus:border-white transition-colors duration-300 text-center"
+                  className="text-4xl md:text-6xl font-bold text-gray-100 mb-4 bg-transparent border-b-2 border-green-500/60 outline-none w-full focus:border-green-500 transition-colors duration-300 text-center"
                   autoFocus
                 />
               </div>
             ) : (
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg px-4 py-2 rounded-lg inline-block">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg px-4 py-2 rounded-lg inline-block text-gray-100">
                 {title}
               </h1>
             )}
@@ -308,11 +308,11 @@ export default function HeroSection() {
                 <textarea
                   value={editingDescription}
                   onChange={(e) => setEditingDescription(e.target.value)}
-                  className="text-lg md:text-xl text-white/90 mb-4 w-full bg-transparent border-b-2 border-white/50 outline-none resize-none h-24 focus:border-white transition-colors duration-300 p-1 text-center"
+                  className="text-lg md:text-xl text-gray-200 mb-4 w-full bg-transparent border-b-2 border-green-500/60 outline-none resize-none h-24 focus:border-green-500 transition-colors duration-300 p-1 text-center"
                 />
               </div>
             ) : (
-              <p className="text-lg md:text-xl text-white/95 mb-8 leading-relaxed max-w-3xl mx-auto drop-shadow px-6 py-4 bg-black/30 rounded-xl">
+              <p className="text-lg md:text-xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto drop-shadow px-6 py-4 bg-black/40 rounded-xl border border-green-500/70">
                 {description}
               </p>
             )}
@@ -322,7 +322,7 @@ export default function HeroSection() {
           <div className="mt-12">
             <Link
               href="/tourist-spots"
-              className="inline-block bg-white/90 hover:bg-white text-green-800 hover:text-green-900 px-8 py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl border-2 border-white/20"
+              className="inline-block bg-green-900 hover:bg-green-800 text-gray-100 px-8 py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl border-2 border-green-500"
             >
               Explore More Destinations
             </Link>

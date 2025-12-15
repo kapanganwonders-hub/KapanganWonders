@@ -615,7 +615,7 @@ export default function Blogs() {
   }
 
   return (
-    <div className="min-h-screen bg-beige bg-opacity-90">
+    <div className="min-h-screen relative">
       {/* Carousel Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-black/70 z-10"></div>
@@ -667,7 +667,7 @@ export default function Blogs() {
         
         {/* Hero Section */}
         <div className="bg-black/30 backdrop-blur-sm pt-4 pb-8">
-          <div className="max-w-7xl mx-auto p-6 bg-black/60 backdrop-blur-sm rounded-b-xl border-t-0 border-white/10 shadow-lg">
+          <div className="max-w-7xl mx-auto p-6 bg-black/70 backdrop-blur-sm rounded-b-xl border-2 border-green-500 shadow-lg">
             <div className="text-center">
               <h1 className="text-4xl font-bold text-white font-poppins">Kapangan Blogs</h1>
               <p className="text-xl text-white/90 mt-4 max-w-3xl mx-auto">
@@ -704,7 +704,7 @@ export default function Blogs() {
               {filteredBlogs.map((post) => (
                 <article 
                   key={post.id} 
-                  className="bg-black/30 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden transition-all duration-300 border border-white/20"
+                  className="bg-black/40 backdrop-blur-md rounded-xl shadow-lg overflow-hidden transition-all duration-300 border-2 border-green-500 hover:shadow-green-500/20 hover:scale-[1.02]"
                 >
                   {/* Blog Image */}
                   <div className="h-48 relative overflow-hidden">
@@ -804,7 +804,7 @@ export default function Blogs() {
                             e.preventDefault();
                             openBlogModal(post);
                           }}
-                          className="w-full bg-white/10 hover:bg-white/20 text-white/90 text-sm font-medium flex items-center justify-center gap-1.5 px-4 py-2 rounded-md border border-white/20 hover:border-white/30 transition-all duration-300 hover:scale-[1.02]"
+                          className="w-full bg-black/40 hover:bg-black/60 text-white text-sm font-medium flex items-center justify-center gap-1.5 px-4 py-2 rounded-md border-2 border-green-500 transition-all duration-300 hover:scale-[1.02] hover:shadow-green-500/30"
                         >
                           Read More
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -825,14 +825,14 @@ export default function Blogs() {
               ))}
             </div>
           ) : (
-            <div className="col-span-full text-center py-16 bg-white/90 backdrop-blur-sm rounded-xl border border-white/20 shadow-lg">
-              <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
-              <h3 className="text-xl font-medium text-gray-800 mb-2">
+            <div className="col-span-full text-center py-16 bg-black/50 backdrop-blur-sm rounded-xl border-2 border-green-500 shadow-lg text-white">
+              <BookOpen size={48} className="mx-auto text-green-400 mb-4" />
+              <h3 className="text-xl font-medium text-white mb-2">
                 {selectedCategory !== 'All' 
                   ? `No blog posts found in category: ${selectedCategory}`
                   : 'No blog posts found'}
               </h3>
-              <p className="text-gray-600">
+              <p className="text-white/80">
                 {selectedCategory !== 'All'
                   ? 'Try selecting a different category.'
                   : 'Check back later for new posts.'}

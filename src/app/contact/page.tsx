@@ -218,7 +218,7 @@ const handleContactInfoChange = (index: number, field: keyof ContactInfo, value:
         
         {/* Hero Section */}
         <div className="bg-black/30 backdrop-blur-sm pt-4 pb-8">
-          <div className="max-w-7xl mx-auto p-6 bg-black/60 backdrop-blur-sm rounded-b-xl border-t-0 border-white/10 shadow-lg">
+          <div className="max-w-7xl mx-auto p-6 bg-black/70 backdrop-blur-sm rounded-b-xl border-2 border-green-500 shadow-lg">
             <div className="text-center">
               <h1 className="text-4xl font-bold text-white font-poppins">Contact Us</h1>
               <p className="text-xl text-white/90 mt-4 max-w-3xl mx-auto">
@@ -296,7 +296,7 @@ const handleContactInfoChange = (index: number, field: keyof ContactInfo, value:
       
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Left Column - Our Office */}
-          <div className="bg-black/30 backdrop-blur-sm p-5 sm:p-6 md:p-8 rounded-xl border border-white/10 shadow-lg">
+          <div className="bg-black/40 backdrop-blur-md p-5 sm:p-6 md:p-8 rounded-xl border-2 border-green-500 shadow-lg">
               <div className="flex items-center mb-6 sm:mb-8">
                 <div className="bg-white/10 p-3 rounded-full mr-4 backdrop-blur-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -352,7 +352,7 @@ const handleContactInfoChange = (index: number, field: keyof ContactInfo, value:
           </div>
 
           {/* Right Column - Getting to Kapangan */}
-          <div className="bg-black/30 backdrop-blur-sm p-5 sm:p-6 md:p-8 rounded-xl border border-white/10 shadow-lg">
+          <div className="bg-black/40 backdrop-blur-md p-5 sm:p-6 md:p-8 rounded-xl border-2 border-green-500 shadow-lg">
               <div className="flex items-center mb-6 sm:mb-8">
                 <div className="bg-white/10 p-3 rounded-full mr-4 backdrop-blur-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

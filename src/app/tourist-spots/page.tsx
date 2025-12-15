@@ -845,10 +845,10 @@ export default function TouristSpots() {
   // If showing details, render the detail page
     if (showDetails && selectedSpot && editedSpot) {
     return (
-      <div className="min-h-screen bg-black/70 backdrop-blur-sm modal-black" style={{ color: '#000' }}>
-        <style>{`.modal-black, .modal-black * { color: #000 !important; }`}</style>
+      <div className="min-h-screen bg-black backdrop-blur-sm modal-black">
+        <style>{`.modal-black, .modal-black * { color: #fff !important; }`}</style>
         {/* Header with back button */}
-        <div className="bg-white/50 backdrop-blur-sm border-b border-white/20">
+        <div className="bg-black backdrop-blur-sm border-b-2 border-green-500">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <button
               onClick={closeDetails}
@@ -868,8 +868,8 @@ export default function TouristSpots() {
                 onClick={handleShareSpot}
                 className={`p-2 rounded-full transition-all duration-300 flex items-center gap-2 ${
                   linkCopied
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'hover:bg-white/10 text-white/70 hover:text-white'
+                    ? 'bg-green-500/20 text-white'
+                    : 'hover:bg-white/10 text-white hover:text-white'
                 }`}
                 title="Copy link to clipboard"
               >
@@ -888,15 +888,6 @@ export default function TouristSpots() {
 
         {/* Detail Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-white">
-          {/* Inline Back button (also navigates depending on edit/admin state) */}
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={closeDetails}
-              className="text-sm text-white/90 bg-transparent hover:underline"
-            >
-              Back
-            </button>
-          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Image and Info */}
             <div className="space-y-6">
@@ -930,14 +921,14 @@ export default function TouristSpots() {
                     )}
                   </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <div className="w-full h-full flex items-center justify-center text-white">
                     <span>No image available</span>
                   </div>
                 )}
                 {isEditing && (
                   <div className="absolute bottom-4 right-4 flex gap-2">
                     <label 
-                      className="bg-white/90 hover:bg-white text-primary-green px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-colors shadow-md"
+                      className="bg-green-900 hover:bg-green-800 text-white px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-colors shadow-md border-2 border-green-500"
                       htmlFor="spot-image-upload"
                     >
                       {isUploading ? 'Uploading...' : 'Change Image'}
@@ -947,7 +938,7 @@ export default function TouristSpots() {
                         type="button"
                         onClick={handleRemoveImage}
                         disabled={isUploading}
-                        className="bg-red-500/90 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium disabled:opacity-50 transition-colors shadow-md"
+                        className="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-md text-sm font-medium disabled:opacity-50 transition-colors shadow-md border-2 border-red-400"
                       >
                         Remove
                       </button>
@@ -964,7 +955,7 @@ export default function TouristSpots() {
                   </div>
                 )}
               </div>
-              <div className="bg-light-green rounded-lg p-6">
+              <div className="bg-black border-2 border-green-500 rounded-lg p-6">
                 <div className="flex justify-between items-start">
                   {isEditing ? (
                     <div className="w-full">
@@ -973,19 +964,19 @@ export default function TouristSpots() {
                         name="name"
                         value={isPrivateSpotAdmin ? (privateSpotAdminData?.privateSpotName || editedSpot.name) : editedSpot.name}
                         onChange={handleInputChange}
-                        className={`text-3xl font-bold text-primary-green bg-egg-white border border-border-green rounded px-3 py-1 w-full ${
-                          isPrivateSpotAdmin ? 'bg-gray-100 cursor-not-allowed' : ''
+                        className={`text-3xl font-bold text-white bg-black border-2 border-green-500 rounded px-3 py-1 w-full ${
+                          isPrivateSpotAdmin ? 'bg-gray-800 cursor-not-allowed' : ''
                         }`}
                         readOnly={isPrivateSpotAdmin}
                       />
                       {isPrivateSpotAdmin && (
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-white/80 mt-1">
                           The name is set to your private spot name and cannot be changed
                         </p>
                       )}
                     </div>
                   ) : (
-                    <h1 className="text-3xl font-bold text-primary-green">{selectedSpot.name}</h1>
+                    <h1 className="text-3xl font-bold text-white">{selectedSpot.name}</h1>
                   )}
                   
                   {(isBarangayAdmin && barangayAdminData?.barangay === selectedSpot.barangay || isPrivateSpotAdmin) && isEditing && (
@@ -993,7 +984,7 @@ export default function TouristSpots() {
                       <button
                         onClick={handleSave}
                         disabled={loading}
-                        className={`flex items-center gap-2 bg-primary-green text-egg-white px-4 py-1.5 rounded text-sm font-medium hover:bg-opacity-90 transition-colors ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`flex items-center gap-2 bg-green-900 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-green-800 transition-colors border-2 border-green-500 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                       >
                         {loading ? (
                           <>
@@ -1010,7 +1001,7 @@ export default function TouristSpots() {
                       <button
                         onClick={handleCancelEdit}
                         disabled={loading}
-                        className="bg-gray-200 text-primary-green px-4 py-1.5 rounded text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-green-900 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-2 border-green-500"
                       >
                         Cancel
                       </button>
@@ -1021,13 +1012,13 @@ export default function TouristSpots() {
                 <div className="space-y-4">
                   {/* Category */}
                   <div>
-                    <h3 className="font-semibold text-primary-green mb-1">Category</h3>
+                    <h3 className="font-semibold text-white mb-1">Category</h3>
                     {isEditing ? (
                       <select
                         name="category"
                         value={editedSpot.category}
                         onChange={handleInputChange}
-                        className="w-full p-2 border border-border-green rounded text-primary-green"
+                        className="w-full p-2 border-2 border-green-500 rounded text-white bg-black"
                       >
                         <option value="Agricultural Heritage">Agricultural Heritage</option>
                         <option value="Natural Attractions">Natural Attractions</option>
@@ -1050,29 +1041,29 @@ export default function TouristSpots() {
 
                   {/* Location */}
                   <div>
-                    <h3 className="font-semibold text-primary-green mb-1">Location</h3>
+                    <h3 className="font-semibold text-white mb-1">Location</h3>
                     {isEditing ? (
                       <input
                         type="text"
                         name="location"
                         value={editedSpot.location}
                         onChange={handleInputChange}
-                        className="w-full p-2 border border-border-green rounded text-primary-green"
+                        className="w-full p-2 border-2 border-green-500 rounded text-white bg-black"
                       />
                     ) : (
-                      <p className="text-primary-green/70">{selectedSpot.location}</p>
+                      <p className="text-white">{selectedSpot.location}</p>
                     )}
                   </div>
 
                   {/* Barangay - Not editable */}
                   <div>
-                    <h3 className="font-semibold text-primary-green mb-1">Barangay</h3>
-                    <p className="text-primary-green/70">{selectedSpot.barangay}</p>
+                    <h3 className="font-semibold text-white mb-1">Barangay</h3>
+                    <p className="text-white">{selectedSpot.barangay}</p>
                   </div>
 
                   {/* Contact */}
                   <div>
-                    <h3 className="font-semibold text-primary-green mb-1">Contact</h3>
+                    <h3 className="font-semibold text-white mb-1">Contact</h3>
                     {isEditing ? (
                       <input
                         type="text"
@@ -1080,23 +1071,23 @@ export default function TouristSpots() {
                         value={editedSpot.contact || ''}
                         onChange={handleInputChange}
                         placeholder="Contact information"
-                        className="w-full p-2 border border-border-green rounded text-primary-green"
+                        className="w-full p-2 border-2 border-green-500 rounded text-white bg-black"
                       />
                     ) : selectedSpot.contact ? (
-                      <p className="text-primary-green/70">{selectedSpot.contact}</p>
+                      <p className="text-white">{selectedSpot.contact}</p>
                     ) : (
-                      <p className="text-primary-green/70 italic">No contact information available</p>
+                      <p className="text-white italic">No contact information available</p>
                     )}
                   </div>
 
                   {/* Entrance Fees Section Moved Here */}
                   <div className="mt-4">
-                    <h3 className="font-semibold text-primary-green mb-2">Entrance Fees (per day)</h3>
+                    <h3 className="font-semibold text-white mb-2">Entrance Fees (per day)</h3>
                     {isEditing ? (
                       <div className="space-y-3">
                         {['adults', 'seniors', 'pwd', 'kids', 'children', 'environmental', 'tourGuide'].map((feeType) => (
                           <div key={feeType} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                            <div className="p-2 border border-border-green rounded text-primary-green w-full bg-gray-50">
+                            <div className="p-2 border-2 border-green-500 rounded text-white w-full bg-black">
                               {{
                                 'adults': 'Adults (18–59 years)',
                                 'seniors': 'Seniors (60+ years)',
@@ -1122,7 +1113,7 @@ export default function TouristSpots() {
                               placeholder="0"
                               onChange={handleInputChange}
                               min="0"
-                              className="p-2 border border-border-green rounded text-primary-green w-full"
+                              className="p-2 border-2 border-green-500 rounded text-white w-full bg-black"
                             />
                             <input
                               type="hidden"
@@ -1141,7 +1132,7 @@ export default function TouristSpots() {
                         ))}
 
                         {/* Helper note for editors: explain tour guide optionality */}
-                        <p className="text-sm text-black mt-2">
+                        <p className="text-sm text-white mt-2">
                           Note: The tour guide is optional. If visitors choose to avail a tour guide, charge the additional amount under "Tour Guide Fee" above.
                         </p>
                       </div>
@@ -1152,8 +1143,8 @@ export default function TouristSpots() {
                             {Object.entries(selectedSpot.entranceFees).map(([feeType, fee]) => (
                               fee && (
                                 <div key={feeType} className="flex justify-between">
-                                  <span className="text-primary-green/70">{fee.label || feeType}:</span>
-                                  <span className="font-medium">
+                                  <span className="text-white">{fee.label || feeType}:</span>
+                                  <span className="font-medium text-white">
                                     {fee.amount > 0 ? `₱${fee.amount.toFixed(2)}` : 'Free'}
                                   </span>
                                 </div>
@@ -1161,12 +1152,12 @@ export default function TouristSpots() {
                             ))}
 
                             {/* Informational note for visitors in the details modal */}
-                            <p className="text-sm text-black mt-2">
+                            <p className="text-sm text-white/80 mt-2">
                               Note: Tour guide is optional. If you want to avail a tour guide, an additional fee will apply — see the "Tour Guide Fee" above.
                             </p>
                           </>
                         ) : (
-                          <p className="text-primary-green/70 italic">No entrance fee information available</p>
+                          <p className="text-white italic">No entrance fee information available</p>
                         )}
                       </div>
                     )}
@@ -1178,26 +1169,26 @@ export default function TouristSpots() {
             {/* Right Column - Description and Map */}
             <div className="space-y-6">
               {/* Description */}
-              <div className="bg-egg-white border border-border-green rounded-lg p-6 shadow-md">
-                <h2 className="text-2xl font-semibold text-primary-green mb-4">Description</h2>
+              <div className="bg-black border-2 border-green-500 rounded-lg p-6 shadow-md">
+                <h2 className="text-2xl font-semibold text-white mb-4">Description</h2>
                 {isEditing ? (
                   <textarea
                     name="detailedDescription"
                     value={editedSpot.detailedDescription || editedSpot.description}
                     onChange={handleInputChange}
                     rows={8}
-                    className="w-full p-3 border border-border-green rounded text-primary-green/70 leading-relaxed"
+                    className="w-full p-3 border-2 border-green-500 rounded text-white bg-black leading-relaxed"
                   />
                 ) : (
-                  <p className="text-primary-green/70 leading-relaxed">
+                  <p className="text-white leading-relaxed">
                     {selectedSpot.detailedDescription || selectedSpot.description}
                   </p>
                 )}
               </div>
 
               {/* Google Maps Link */}
-              <div className="bg-egg-white border border-border-green rounded-lg p-6 shadow-md">
-                <h2 className="text-2xl font-semibold text-primary-green mb-4">Google Maps Link</h2>
+              <div className="bg-black border-2 border-green-500 rounded-lg p-6 shadow-md">
+                <h2 className="text-2xl font-semibold text-white mb-4">Google Maps Link</h2>
                 {isEditing ? (
                   <input
                     type="url"
@@ -1205,14 +1196,14 @@ export default function TouristSpots() {
                     value={editedSpot.googleMapsLink || ''}
                     onChange={handleInputChange}
                     placeholder="https://maps.google.com/..."
-                    className="w-full p-2 border border-border-green rounded text-primary-green"
+                    className="w-full p-2 border-2 border-green-500 rounded text-white bg-black"
                   />
                 ) : selectedSpot.googleMapsLink ? (
                   <a
                     href={selectedSpot.googleMapsLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-accent-green hover:underline inline-flex items-center gap-1"
+                    className="text-white hover:text-green-200 hover:underline inline-flex items-center gap-1"
                   >
                     <span>View on Google Maps</span>
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -1221,14 +1212,14 @@ export default function TouristSpots() {
                     Open in Google Maps
                   </a>
                 ) : (
-                  <p className="text-primary-green/70 italic">No Google Maps link available</p>
+                  <p className="text-white italic">No Google Maps link available</p>
                 )}
               </div>
               
               {/* Google Maps Embed */}
               {selectedSpot.googleMapsLink && !isEditing && (
-                <div className="bg-egg-white border border-border-green rounded-lg p-6 shadow-md">
-                  <h2 className="text-2xl font-semibold text-primary-green mb-4">Location Map</h2>
+                <div className="bg-black border-2 border-green-500 rounded-lg p-6 shadow-md">
+                  <h2 className="text-2xl font-semibold text-white mb-4">Location Map</h2>
                   <div className="relative w-full h-96 rounded-lg overflow-hidden">
                     <iframe
                       src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d122344.74121741697!2d120.51233228135519!3d16.613054265539382!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3391beeacea4804b%3A0x70049a733cf9916b!2sKapangan%2C%20Benguet!5e0!3m2!1sen!2sph!4v1758168375066!5m2!1sen!2sph"
@@ -1246,7 +1237,7 @@ export default function TouristSpots() {
                       href={selectedSpot.googleMapsLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-accent-green hover:text-primary-green font-medium transition-colors duration-300"
+                      className="inline-flex items-center gap-2 text-white hover:text-green-200 font-medium transition-colors duration-300"
                     >
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -1349,10 +1340,10 @@ export default function TouristSpots() {
       <div className="fixed inset-0 -z-10 bg-black/30"></div>
       
       {/* Hero Section */}
-      <div className="bg-black/30 backdrop-blur-sm py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-bold text-white font-poppins">Tourist Spots</h1>
-          <p className="mt-4 text-xl text-white/90 max-w-3xl mx-auto font-poppins">
+      <div className="bg-black/50 backdrop-blur-sm py-16">
+        <div className="max-w-7xl mx-auto p-6 text-center bg-black/70 backdrop-blur-sm rounded-b-xl border-t-0 border-2 border-green-500 shadow-lg">
+          <h1 className="text-4xl font-bold text-gray-100 font-poppins">Tourist Spots</h1>
+          <p className="mt-4 text-xl text-gray-200 max-w-3xl mx-auto font-poppins">
             Explore the beautiful attractions and hidden gems of Kapangan
           </p>
         </div>
@@ -1381,8 +1372,8 @@ export default function TouristSpots() {
 
         {/* Filter Navigation */}
         <div className="mb-8">
-          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 shadow-md">
-            <h2 className="text-2xl font-semibold text-white font-poppins mb-4">Barangay</h2>
+          <div className="bg-black/40 backdrop-blur-sm rounded-lg p-6 shadow-md border-2 border-green-500">
+            <h2 className="text-2xl font-semibold text-gray-100 font-poppins mb-4">Barangay</h2>
             <div className="flex flex-wrap gap-2">
               {barangays.map((barangay) => (
                 <button
@@ -1390,8 +1381,8 @@ export default function TouristSpots() {
                   onClick={() => handleBarangaySelect(barangay)}
                   className={`px-4 py-2 rounded-full text-sm font-medium font-poppins transition-all duration-300 ${
                     selectedBarangay === barangay
-                      ? 'bg-white text-primary-green shadow-md scale-105'
-                      : 'bg-white/20 text-white border border-white/30 hover:bg-white/30 hover:scale-105'
+                      ? 'bg-green-900 text-gray-100 shadow-md scale-105 border-2 border-green-500'
+                      : 'bg-white/20 text-white border-2 border-white/30 hover:bg-white/30 hover:scale-105'
                   }`}
                 >
                   {barangay === 'all' ? 'All Barangays' : barangay}
@@ -1408,15 +1399,20 @@ export default function TouristSpots() {
             {Object.entries(groupedSpots).map(([barangay, spots]) => (
               <div key={barangay} id={`barangay-${barangay}`} className="scroll-mt-20">
                 <div className="mb-6">
-                  <h2 className="text-3xl font-bold text-white font-poppins mb-2">
+                  <h2 className="text-3xl font-bold text-gray-100 font-poppins mb-2">
                     {barangay}
                   </h2>
-                  <div className="h-1 w-20 bg-white rounded-full"></div>
+                  <div className="h-1 w-20 bg-green-500 rounded-full"></div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {spots.map((spot) => (
-                    <div key={spot.id} className={`bg-black/30 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden transition-all duration-300 border border-white/20 ${spot.closed ? 'border-red-300/50' : 'hover:shadow-xl hover:scale-105 group'}`}>
+                    <div
+                      key={spot.id}
+                      className={`bg-black/30 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden transition-all duration-300 border-2 ${
+                        spot.closed ? 'border-red-400/70' : 'border-green-500 hover:shadow-xl hover:scale-105 group'
+                      }`}
+                    >
                       <div className="relative h-48 w-full">
                         {spot.image ? (
                           <>
@@ -1456,10 +1452,10 @@ export default function TouristSpots() {
                         </div>
                       </div>
                       <div className="p-6">
-                        <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-accent-yellow transition-colors duration-300">
+                        <h3 className="text-xl font-semibold text-gray-100 mb-2 group-hover:text-green-300 transition-colors duration-300">
                           {spot.name}
                         </h3>
-                        <p className={`text-sm ${spot.closed ? 'text-red-300' : 'text-white/80'} font-medium mb-4`}>
+                        <p className={`text-sm ${spot.closed ? 'text-red-300' : 'text-gray-200'} font-medium mb-4`}>
                           {spot.location}
                           {spot.closed && spot.closedUntil && (
                             <span className="block text-xs mt-1 text-white/60">
@@ -1479,7 +1475,7 @@ export default function TouristSpots() {
                             }
                           }}
                           disabled={spot.closed}
-                          className="w-full bg-white/20 hover:bg-white/30 text-white border border-white/30 py-2 px-4 rounded-md transition-all duration-300 hover:scale-[1.02]"
+                          className="w-full bg-green-900 hover:bg-green-800 text-gray-100 border-2 border-green-500 py-2 px-4 rounded-md transition-all duration-300 hover:scale-[1.02]"
                         >
                           View Details
                         </button>

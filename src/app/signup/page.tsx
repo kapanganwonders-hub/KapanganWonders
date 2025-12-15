@@ -354,7 +354,7 @@ export default function SignUp() {
       
       {/* Hero Section */}
       <div className="bg-black/30 backdrop-blur-sm pb-8">
-        <div className="max-w-7xl mx-auto p-6 bg-black/60 backdrop-blur-sm rounded-b-xl border-t-0 border-white/10 shadow-lg">
+        <div className="max-w-7xl mx-auto p-6 bg-black/70 backdrop-blur-sm rounded-b-xl border-2 border-green-500 shadow-lg">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-white font-poppins">Create Your Account</h1>
             <p className="text-xl text-white/90 mt-4">Join Kapangan Wonders today</p>
@@ -365,7 +365,7 @@ export default function SignUp() {
       {/* Form */}
       <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative z-10">
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-black/30 backdrop-blur-sm py-8 px-4 shadow-lg sm:rounded-xl sm:px-10 border-2 border-white/30">
+          <div className="bg-black/40 backdrop-blur-md py-8 px-4 shadow-lg sm:rounded-xl sm:px-10 border-2 border-green-500">
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -378,7 +378,12 @@ export default function SignUp() {
                     type="text"
                     required
                     value={formData.firstName}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^a-zA-Z\s'-]/g, '');
+                      setFormData((prev) => ({ ...prev, firstName: value }));
+                      if (error) setError('');
+                    }}
+                    placeholder="First name"
                     className="block w-full px-3 py-2 bg-white/5 border border-white/30 rounded-md text-white placeholder-white/70 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
                 </div>
@@ -392,7 +397,12 @@ export default function SignUp() {
                     type="text"
                     required
                     value={formData.lastName}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^a-zA-Z\s'-]/g, '');
+                      setFormData((prev) => ({ ...prev, lastName: value }));
+                      if (error) setError('');
+                    }}
+                    placeholder="Last name"
                     className="block w-full px-3 py-2 bg-white/5 border border-white/30 rounded-md text-white placeholder-white/70 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
                 </div>

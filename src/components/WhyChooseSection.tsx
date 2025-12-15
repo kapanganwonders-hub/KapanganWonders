@@ -343,14 +343,14 @@ const WhyChooseSection = () => {
         </div>
       )}
       {/* Animated Background Elements */}
-      <div className="absolute inset-0 z-0 bg-black/30">
+      <div className="absolute inset-0 z-0 bg-black/50">
         {/* Animated Background Elements */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-green-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
         <div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slower"></div>
         <div className="absolute bottom-10 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-medium"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-white">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-white border-2 border-green-500 rounded-2xl bg-black/40 p-6 md:p-8 overflow-hidden">
         {/* Header Section */}
         <div className="text-center mb-16">
           {/* Title */}
@@ -369,7 +369,7 @@ const WhyChooseSection = () => {
                 className="text-3xl md:text-4xl font-bold text-center w-full bg-white/10 border-b-2 border-white/30 focus:outline-none focus:ring-0 px-2 py-1 rounded-md text-white"
               />
             ) : (
-              <h2 className="text-3xl md:text-4xl font-bold text-white text-center">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-100 text-center">
                 {sectionTitle}
               </h2>
             )}
@@ -391,14 +391,12 @@ const WhyChooseSection = () => {
                 placeholder="Enter section description..."
               />
             ) : (
-              <p className="text-lg text-white/80 text-center">
+              <p className="text-lg text-gray-200 text-center">
                 {sectionDescription}
               </p>
             )}
           </div>
 
-          {/* Decorative Line */}
-          <div className="w-32 h-1 bg-gradient-to-r from-emerald-400 to-green-600 mx-auto mt-8 rounded-full"></div>
         </div>
 
         {/* Features Grid */}
@@ -406,9 +404,7 @@ const WhyChooseSection = () => {
           {features.map((feature, index) => (
             <div
               key={feature.id}
-              className={`group relative text-center p-8 bg-white/10 backdrop-blur-sm rounded-2xl border-2 ${
-                isEditMode ? 'border-emerald-500' : 'border-white/10 hover:border-white/20'
-              } transition-all duration-500 transform ${
+              className={`group relative text-center p-8 bg-black/40 backdrop-blur-sm rounded-2xl border-2 border-green-500 transition-all duration-500 transform ${
                 isEditMode ? '' : 'hover:-translate-y-1 hover:shadow-lg'
               }`}
             >
@@ -474,7 +470,7 @@ const WhyChooseSection = () => {
                     />
                   </div>
                 ) : (
-                  <h3 className="text-xl font-semibold text-white-800">
+                  <h3 className="text-xl font-semibold text-gray-100">
                     {feature.title}
                   </h3>
                 )}
@@ -508,7 +504,7 @@ const WhyChooseSection = () => {
                     />
                   </div>
                 ) : (
-                  <p className="text-white/80 text-sm leading-relaxed">
+                  <p className="text-gray-200 text-sm leading-relaxed">
                     {feature.description}
                   </p>
                 )}

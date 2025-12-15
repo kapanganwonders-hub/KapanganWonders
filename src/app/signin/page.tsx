@@ -265,7 +265,7 @@ export default function SignIn() {
       
       {/* Hero Section */}
       <div className="bg-black/30 backdrop-blur-sm pb-8">
-      <div className="max-w-7xl mx-auto p-6 bg-black/60 backdrop-blur-sm rounded-b-xl border-t-0 border-white/10 shadow-lg">
+      <div className="max-w-7xl mx-auto p-6 bg-black/70 backdrop-blur-sm rounded-b-xl border-2 border-green-500 shadow-lg">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-white font-poppins">Welcome Back</h1>
           <p className="text-xl text-white/90 mt-4">Sign in to your Kapangan Wonders account</p>
@@ -276,7 +276,7 @@ export default function SignIn() {
     {/* Form */}
     <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative z-10">
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-black/30 backdrop-blur-sm py-8 px-4 shadow-lg sm:rounded-xl sm:px-10 border-2 border-white/30">
+        <div className="bg-black/40 backdrop-blur-md py-8 px-4 shadow-lg sm:rounded-xl sm:px-10 border-2 border-green-500">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-white">
